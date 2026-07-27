@@ -79,4 +79,5 @@ public enum ClearConfig {
     public static var flatStickerCorners: Bool { current().flatStickerCorners }
     public static var saveStickerToPhotos: Bool { current().saveStickerToPhotos }
     public static var collapseLongMessages: Bool { current().collapseLongMessages }
+    public static var showPackOwner: Bool { current().showPackOwner }
 }

@@ -301,7 +301,9 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let .warnPollsRevote(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Warn Polls Revote (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .showPackOwner(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Pack Owner (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Pack Owner", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateShowPackOwner(value)
+            })
         case let .timeOnServiceMessages(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Time on Service Messages (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .showTabNames(_, value):
@@ -374,6 +376,7 @@ private struct ClearSettingsArguments {
     let updateFlatStickerCorners: (Bool) -> Void
     let updateSaveStickerToPhotos: (Bool) -> Void
     let updateCollapseLongMessages: (Bool) -> Void
+    let updateShowPackOwner: (Bool) -> Void
     let updateShowForwardedTime: (Bool) -> Void
     let updateBlockCloudDrafts: (Bool) -> Void
     let editDoubleTapDelay: () -> Void
@@ -451,6 +454,9 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         },
         updateCollapseLongMessages: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.collapseLongMessages = value; return s }.start()
+        },
+        updateShowPackOwner: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showPackOwner = value; return s }.start()
         },
         updateShowForwardedTime: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showForwardedTime = value; return s }.start()

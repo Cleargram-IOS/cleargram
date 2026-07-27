@@ -60,6 +60,7 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var flatStickerCorners: Bool
     public var saveStickerToPhotos: Bool
     public var collapseLongMessages: Bool
+    public var showPackOwner: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -111,7 +112,8 @@ public struct ClearConfigSettings: Codable, Equatable {
             enableMultiColumnLayout: false,
             flatStickerCorners: false,
             saveStickerToPhotos: false,
-            collapseLongMessages: false
+            collapseLongMessages: false,
+            showPackOwner: false
         )
     }
 
@@ -164,7 +166,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         enableMultiColumnLayout: Bool = false,
         flatStickerCorners: Bool = false,
         saveStickerToPhotos: Bool = false,
-        collapseLongMessages: Bool = false
+        collapseLongMessages: Bool = false,
+        showPackOwner: Bool = false
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -215,6 +218,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.flatStickerCorners = flatStickerCorners
         self.saveStickerToPhotos = saveStickerToPhotos
         self.collapseLongMessages = collapseLongMessages
+        self.showPackOwner = showPackOwner
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -231,6 +235,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case flatStickerCorners
         case saveStickerToPhotos
         case collapseLongMessages
+        case showPackOwner
     }
 
     public init(from decoder: Decoder) throws {
@@ -284,6 +289,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.flatStickerCorners = try c.decodeIfPresent(Bool.self, forKey: .flatStickerCorners) ?? false
         self.saveStickerToPhotos = try c.decodeIfPresent(Bool.self, forKey: .saveStickerToPhotos) ?? false
         self.collapseLongMessages = try c.decodeIfPresent(Bool.self, forKey: .collapseLongMessages) ?? false
+        self.showPackOwner = try c.decodeIfPresent(Bool.self, forKey: .showPackOwner) ?? false
     }
 }
 
