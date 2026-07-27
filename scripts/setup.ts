@@ -163,7 +163,7 @@ if (noStgit) {
     await repo`git apply ${join(patchesDir, entry)}`
   }
   await linkForkSource(worktreeDir)
-  await ensureBazelDiskCacheGc(worktreeDir, 30, 30)
+  await ensureBazelDiskCacheGc(worktreeDir, 20, 30)
   success('Flat setup complete')
 } else {
   const expectedPatches = seriesEntries.map(patchNameFromSeriesEntry)
@@ -178,6 +178,6 @@ if (noStgit) {
   await ensureGitExclude(worktreeDir, '.build')
   await ensureGitExclude(worktreeDir, '.swiftpm')
   const linkedAny = await linkForkSource(worktreeDir)
-  await ensureBazelDiskCacheGc(worktreeDir, 30, 30)
+  await ensureBazelDiskCacheGc(worktreeDir, 20, 30)
   success(linkedAny ? 'Setup complete' : 'Up to date')
 }
