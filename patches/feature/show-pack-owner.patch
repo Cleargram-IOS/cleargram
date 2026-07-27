@@ -1,0 +1,73 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 02:32:55 +0700
+Subject: Show sticker pack owner
+
+---
+ submodules/StickerPackPreviewUI/BUILD         |  1 +
+ .../Sources/StickerPackScreen.swift           | 33 +++++++++++++++++++
+ 2 files changed, 34 insertions(+)
+
+diff --git a/submodules/StickerPackPreviewUI/BUILD b/submodules/StickerPackPreviewUI/BUILD
+index 0000000..0000000 100644
+--- a/submodules/StickerPackPreviewUI/BUILD
++++ b/submodules/StickerPackPreviewUI/BUILD
+@@ -14,6 +14,7 @@ swift_library(
+         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
+         "//submodules/Display:Display",
+         "//submodules/TelegramCore:TelegramCore",
++        "//submodules/Postbox:Postbox",
+         "//submodules/TelegramPresentationData:TelegramPresentationData",
+         "//submodules/AccountContext:AccountContext",
+         "//submodules/TelegramUIPreferences:TelegramUIPreferences",
+diff --git a/submodules/StickerPackPreviewUI/Sources/StickerPackScreen.swift b/submodules/StickerPackPreviewUI/Sources/StickerPackScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/StickerPackPreviewUI/Sources/StickerPackScreen.swift
++++ b/submodules/StickerPackPreviewUI/Sources/StickerPackScreen.swift
+@@ -3,6 +3,7 @@ import UIKit
+ import Display
+ import AsyncDisplayKit
+ import TelegramCore
++import Postbox
+ import SwiftSignalKit
+ import AccountContext
+ import TelegramPresentationData
+@@ -1145,6 +1146,38 @@ private final class StickerPackContainer: ASDisplayNode {
+             }
+         })))
+         
++        if ClearConfig.showPackOwner, let (info, _, _) = self.currentStickerPack {
++            let setId = UInt64(bitPattern: info.id.id)
++            var ownerBareId = Int64(setId >> 32)
++            if (setId >> 16) & 0xff == 0x3f {
++                ownerBareId |= Int64(bitPattern: 0x80000000)
++            }
++            if (setId >> 24) & 0xff != 0 {
++                ownerBareId += Int64(bitPattern: 0x100000000)
++            }
++            let ownerId = PeerId(ownerBareId)
++            items.append(.separator)
++            items.append(.action(ContextMenuActionItem(text: "Show Pack Owner", icon: { theme in
++                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Info"), color: theme.contextMenu.primaryColor)
++            }, action: { [weak self] _, f in
++                f(.default)
++                guard let self, let controller = self.controller else { return }
++                let _ = (self.context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: ownerId))
++                    |> deliverOnMainQueue).start(next: { [weak self] peer in
++                    guard let self else { return }
++                    if let peer = peer {
++                        if let infoController = self.context.sharedContext.makePeerInfoController(context: self.context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
++                            controller.push(infoController)
++                        }
++                    } else {
++                        UIPasteboard.general.string = "\(ownerId.id._internalGetInt64Value())"
++                        let presentationData = self.context.sharedContext.currentPresentationData.with { $0 }
++                        controller.present(UndoOverlayController(presentationData: presentationData, content: .copy(text: presentationData.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
++                    }
++                })
++            })))
++        }
++        
+         if let (info, packItems, _) = self.currentStickerPack, info.flags.contains(.isCreator) && !info.flags.contains(.isEmoji) {
+             items.append(.separator)
+             if packItems.count > 0 {
