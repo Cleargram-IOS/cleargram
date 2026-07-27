@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 02:52:08 +0700
+Subject: Hide similar channels
+
+---
+ .../Sources/ChatMessageBubbleItemNode.swift                     | 2 +-
+ .../PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift          | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
+@@ -249,7 +249,7 @@ private func contentNodeMessagesAndClassesForItem(_ item: ChatMessageItem) -> ([
+                     result.append((message, ChatMessageGiftBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .text, neighborSpacing: .default)))
+                 } else if case .prizeStars = action.action {
+                     result.append((message, ChatMessageGiftBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .text, neighborSpacing: .default)))
+-                } else if case .joinedChannel = action.action {
++                } else if case .joinedChannel = action.action, !ClearConfig.hideSimilarChannels {
+                     result.append((message, ChatMessageJoinedChannelBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .text, neighborSpacing: .default)))
+                     needReactions = false
+                 } else if case let .setChatTheme(chatTheme) = action.action, case .gift = chatTheme {
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift
+@@ -1864,7 +1864,7 @@ func peerInfoScreenData(
+                     if hasStories {
+                         availablePanes?.insert(.stories, at: 0)
+                     }
+-                    if let recommendedChannels, !recommendedChannels.channels.isEmpty {
++                    if let recommendedChannels, !recommendedChannels.channels.isEmpty, !ClearConfig.hideSimilarChannels {
+                         availablePanes?.append(.similarChannels)
+                     }
+                     

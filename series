@@ -24,3 +24,6 @@ feature/block-cloud-drafts.patch
 feature/sticker-save-to-photos.patch
 feature/collapse-long-messages.patch
 feature/show-pack-owner.patch
+feature/hide-similar-channels.patch
+feature/hide-star-reaction.patch
+feature/url-cleaner.patch

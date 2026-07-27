@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 02:52:08 +0700
+Subject: Strip tracking params and replace preview links
+
+---
+ .../Sources/ChatInterfaceStateContextQueries.swift         | 7 ++++---
+ submodules/TelegramUI/Sources/TextLinkHandling.swift       | 3 ++-
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift
++++ b/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift
+@@ -537,13 +537,14 @@ func detectUrls(_ inputText: NSAttributedString?) -> [String] {
+         let matches = dataDetector.matches(in: text.string, options: [], range: nsRange)
+         for match in matches {
+             let urlText = (text.string as NSString).substring(with: match.range)
+-            detectedUrls.append(urlText)
++            detectedUrls.append(ClearURLCleaner.clean(url: urlText, strip: ClearConfig.stripTrackingParams, replace: ClearConfig.replacePreviewLinks))
+         }
+         
+         inputText?.enumerateAttribute(ChatTextInputAttributes.textUrl, in: nsRange, options: [], using: { value, range, stop in
+             if let value = value as? ChatTextInputTextUrlAttribute {
+-                if !detectedUrls.contains(value.url) {
+-                    detectedUrls.append(value.url)
++                let cleaned = ClearURLCleaner.clean(url: value.url, strip: ClearConfig.stripTrackingParams, replace: ClearConfig.replacePreviewLinks)
++                if !detectedUrls.contains(cleaned) {
++                    detectedUrls.append(cleaned)
+                 }
+             }
+         })
+diff --git a/submodules/TelegramUI/Sources/TextLinkHandling.swift b/submodules/TelegramUI/Sources/TextLinkHandling.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/TextLinkHandling.swift
++++ b/submodules/TelegramUI/Sources/TextLinkHandling.swift
+@@ -4,6 +4,7 @@ import TelegramCore
+ import Display
+ import SwiftSignalKit
+ import TelegramUIPreferences
++import TextFormat
+ import AccountContext
+ import AccountContext
+ import SafariServices
+@@ -188,7 +189,7 @@ func handleTextLinkActionImpl(context: AccountContext, peerId: EnginePeer.Id?, n
+                         }),
+                         ActionSheetButtonItem(title: presentationData.strings.ShareMenu_CopyShareLink, color: .accent, action: { [weak actionSheet] in
+                             actionSheet?.dismissAnimated()
+-                            UIPasteboard.general.string = url
++                            UIPasteboard.general.string = ClearURLCleaner.clean(url: url, strip: ClearConfig.stripTrackingParams, replace: ClearConfig.replacePreviewLinks)
+                             
+                             let content: UndoOverlayContent
+                             if url.hasPrefix("tel:") {

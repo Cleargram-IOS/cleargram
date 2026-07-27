@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 02:52:08 +0700
+Subject: Hide star reaction button
+
+---
+ .../Sources/ChatMessageDateAndStatusNode.swift                 | 2 +-
+ .../TelegramUI/Components/Chat/TopMessageReactions/BUILD       | 1 +
+ .../Chat/TopMessageReactions/Sources/TopMessageReactions.swift | 3 ++-
+ 3 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
+@@ -863,7 +863,7 @@ public class ChatMessageDateAndStatusNode: ASDisplayNode {
+                         )
+                     }
+                     
+-                    if arguments.areStarReactionsEnabled && !hadStars && !mappedReactions.isEmpty {
++                    if arguments.areStarReactionsEnabled && !ClearConfig.hideStarReactionButton && !hadStars && !mappedReactions.isEmpty {
+                         var centerAnimation: TelegramMediaFile?
+                         let animationFileId: Int64? = nil
+                         
+diff --git a/submodules/TelegramUI/Components/Chat/TopMessageReactions/BUILD b/submodules/TelegramUI/Components/Chat/TopMessageReactions/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/TopMessageReactions/BUILD
++++ b/submodules/TelegramUI/Components/Chat/TopMessageReactions/BUILD
+@@ -13,6 +13,7 @@ swift_library(
+         "//submodules/SSignalKit/SwiftSignalKit",
+         "//submodules/TelegramCore",
+         "//submodules/AccountContext",
++        "//submodules/TelegramUIPreferences",
+         "//submodules/ReactionSelectionNode",
+     ],
+     visibility = [
+diff --git a/submodules/TelegramUI/Components/Chat/TopMessageReactions/Sources/TopMessageReactions.swift b/submodules/TelegramUI/Components/Chat/TopMessageReactions/Sources/TopMessageReactions.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/TopMessageReactions/Sources/TopMessageReactions.swift
++++ b/submodules/TelegramUI/Components/Chat/TopMessageReactions/Sources/TopMessageReactions.swift
+@@ -2,6 +2,7 @@ import Foundation
+ import SwiftSignalKit
+ import TelegramCore
+ import AccountContext
++import TelegramUIPreferences
+ import ReactionSelectionNode
+ 
+ public enum AllowedReactions {
+@@ -452,7 +453,7 @@ public func topMessageReactions(context: AccountContext, message: EngineRawMessa
+             }
+         }
+         
+-        if allowedReactionsAndFiles.areStarsEnabled {
++        if allowedReactionsAndFiles.areStarsEnabled, !ClearConfig.hideStarReactionButton {
+             result.removeAll(where: { $0.reaction.rawValue == .stars })
+             if let reaction = availableReactions.reactions.first(where: { $0.value == .stars }) {
+                 if let centerAnimation = reaction.centerAnimation, let aroundAnimation = reaction.aroundAnimation {
