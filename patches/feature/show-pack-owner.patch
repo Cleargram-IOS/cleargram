@@ -5,8 +5,8 @@ Subject: Show sticker pack owner
 
 ---
  submodules/StickerPackPreviewUI/BUILD         |  1 +
- .../Sources/StickerPackScreen.swift           | 33 +++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ .../Sources/StickerPackScreen.swift           | 32 +++++++++++++++++++
+ 2 files changed, 33 insertions(+)
 
 diff --git a/submodules/StickerPackPreviewUI/BUILD b/submodules/StickerPackPreviewUI/BUILD
 index 0000000..0000000 100644
@@ -32,7 +32,7 @@ index 0000000..0000000 100644
  import SwiftSignalKit
  import AccountContext
  import TelegramPresentationData
-@@ -1145,6 +1146,38 @@ private final class StickerPackContainer: ASDisplayNode {
+@@ -1145,6 +1146,37 @@ private final class StickerPackContainer: ASDisplayNode {
              }
          })))
          
@@ -60,9 +60,8 @@ index 0000000..0000000 100644
 +                            controller.push(infoController)
 +                        }
 +                    } else {
-+                        UIPasteboard.general.string = "\(ownerId.id._internalGetInt64Value())"
-+                        let presentationData = self.context.sharedContext.currentPresentationData.with { $0 }
-+                        controller.present(UndoOverlayController(presentationData: presentationData, content: .copy(text: presentationData.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
++                        let idUrl = "tg://user?id=\(ownerId.id._internalGetInt64Value())"
++                        self.context.sharedContext.applicationBindings.openUrl(idUrl)
 +                    }
 +                })
 +            })))

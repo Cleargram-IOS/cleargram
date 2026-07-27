@@ -44,7 +44,6 @@ public enum ClearConfig {
     public static var hideContextMenuReport: Bool { current().hideContextMenuReport }
     public static var hideContextMenuSelect: Bool { current().hideContextMenuSelect }
     public static var doubleTapDelay: Int32 { current().doubleTapDelay }
-    public static var animationSpeed: Double { current().animationSpeed }
     public static var defaultEmojisFirst: Bool { current().defaultEmojisFirst }
     public static var disableScrollToNextChannel: Bool { current().disableScrollToNextChannel }
     public static var showInlineReactions: Bool { current().showInlineReactions }
@@ -65,6 +64,7 @@ public enum ClearConfig {
     public static var showTabNames: Bool { current().showTabNames }
     public static var compactChatList: Bool { current().compactChatList }
     public static var chatListLines: Int32 { current().chatListLines }
+    public static var compactMessagePreview: Bool { current().chatListLines != 3 }
     public static var compactFolderNames: Bool { current().compactFolderNames }
     public static var allChatsHidden: Bool { current().allChatsHidden }
     public static var hideTabBar: Bool { current().hideTabBar }
@@ -79,5 +79,5 @@ public enum ClearConfig {
     public static var flatStickerCorners: Bool { current().flatStickerCorners }
     public static var saveStickerToPhotos: Bool { current().saveStickerToPhotos }
     public static var collapseLongMessages: Bool { current().collapseLongMessages }
-    public static var showPackOwner: Bool { current().showPackOwner }
 }
+

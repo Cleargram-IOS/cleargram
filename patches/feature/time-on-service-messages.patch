@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 04:22:43 +0700
+Subject: Show timestamp on service messages
+
+---
+ .../Sources/ChatMessageActionBubbleContentNode.swift       | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageActionBubbleContentNode/Sources/ChatMessageActionBubbleContentNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageActionBubbleContentNode/Sources/ChatMessageActionBubbleContentNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageActionBubbleContentNode/Sources/ChatMessageActionBubbleContentNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageActionBubbleContentNode/Sources/ChatMessageActionBubbleContentNode.swift
+@@ -425,6 +425,13 @@ public class ChatMessageActionBubbleContentNode: ChatMessageBubbleContentNode {
+                     titleLayoutAndApply = makeTitleLayout(TextNodeLayoutArguments(attributedString: titleString, backgroundColor: nil, maximumNumberOfLines: 0, truncationType: .end, constrainedSize: CGSize(width: constrainedSize.width - 32.0, height: CGFloat.greatestFiniteMagnitude), alignment: .center, cutout: nil, insets: UIEdgeInsets()))
+                 }
+                 
++                if ClearConfig.timeOnServiceMessages, let attr = updatedAttributedString {
++                    let timeString = stringForMessageTimestamp(timestamp: item.message.timestamp, dateTimeFormat: item.presentationData.dateTimeFormat, local: true)
++                    let mutableUpdated = NSMutableAttributedString(attributedString: attr)
++                    mutableUpdated.append(NSAttributedString(string: " · \(timeString)", font: Font.regular(13.0), textColor: primaryTextColor.withAlphaComponent(0.6)))
++                    updatedAttributedString = mutableUpdated
++                }
++                
+                 let (labelLayout, apply) = makeLabelLayout(TextNodeLayoutArguments(attributedString: updatedAttributedString, backgroundColor: nil, maximumNumberOfLines: 0, truncationType: .end, constrainedSize: CGSize(width: constrainedSize.width - 32.0, height: CGFloat.greatestFiniteMagnitude), alignment: textAlignment, cutout: nil, insets: UIEdgeInsets()))
+             
+                 var labelRects = labelLayout.linesRects()

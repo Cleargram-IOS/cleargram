@@ -27,3 +27,8 @@ feature/show-pack-owner.patch
 feature/hide-similar-channels.patch
 feature/hide-star-reaction.patch
 feature/url-cleaner.patch
+feature/hide-star-reaction-count.patch
+feature/time-on-service-messages.patch
+feature/warn-polls-revote.patch
+feature/confirm-internal-links.patch
+feature/visual-swiftgram.patch

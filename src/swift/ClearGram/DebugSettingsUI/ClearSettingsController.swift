@@ -34,7 +34,6 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
     case showProfileId(PresentationTheme, Bool)
     case showDC(PresentationTheme, Bool)
     case confirmCalls(PresentationTheme, Bool)
-    case animationSpeed(PresentationTheme, Double)
     case defaultEmojisFirst(PresentationTheme, Bool)
     case disableScrollToNextChannel(PresentationTheme, Bool)
     case showInlineReactions(PresentationTheme, Bool)
@@ -79,7 +78,7 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ClearSettingsSection.contextMenu.rawValue
         case .showProfileId, .showDC, .showPackOwner:
             return ClearSettingsSection.profile.rawValue
-        case .confirmCalls, .animationSpeed, .defaultEmojisFirst, .stripTrackingParams, .replacePreviewLinks, .confirmInternalLinks, .noSelectionCap, .hideStarReactionButton, .hideStarReactionCount:
+        case .confirmCalls, .defaultEmojisFirst, .stripTrackingParams, .replacePreviewLinks, .confirmInternalLinks, .noSelectionCap, .hideStarReactionButton, .hideStarReactionCount:
             return ClearSettingsSection.other.rawValue
         case .showTabNames, .compactChatList, .compactFolderNames, .allChatsHidden, .hideTabBar, .wideTabBar, .tabBarSearchEnabled, .wideChannelPosts, .hideChannelBottomButton, .disableGalleryCamera, .disableGalleryCameraPreview, .disableStoryCameraSwipe, .enableMultiColumnLayout, .flatStickerCorners, .saveStickerToPhotos, .collapseLongMessages:
             return ClearSettingsSection.interface.rawValue
@@ -112,7 +111,6 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case .showDC: return 31
         case .showPackOwner: return 32
         case .confirmCalls: return 40
-        case .animationSpeed: return 41
         case .defaultEmojisFirst: return 42
         case .stripTrackingParams: return 43
         case .replacePreviewLinks: return 44
@@ -157,7 +155,6 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let (.showProfileId(lt, lv), .showProfileId(rt, rv)): return lt === rt && lv == rv
         case let (.showDC(lt, lv), .showDC(rt, rv)): return lt === rt && lv == rv
         case let (.doubleTapDelay(lt, lv), .doubleTapDelay(rt, rv)): return lt === rt && lv == rv
-        case let (.animationSpeed(lt, lv), .animationSpeed(rt, rv)): return lt === rt && lv == rv
         case let (.defaultEmojisFirst(lt, lv), .defaultEmojisFirst(rt, rv)): return lt === rt && lv == rv
         case let (.disableScrollToNextChannel(lt, lv), .disableScrollToNextChannel(rt, rv)): return lt === rt && lv == rv
         case let (.showInlineReactions(lt, lv), .showInlineReactions(rt, rv)): return lt === rt && lv == rv
@@ -253,10 +250,6 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let .confirmCalls(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Confirm Calls", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateConfirmCalls(value)
-            })
-        case let .animationSpeed(_, value):
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: "Animation Speed", label: String(format: "%.1fx", value), sectionId: self.section, style: .blocks, action: {
-                args.editAnimationSpeed()
             })
         case let .defaultEmojisFirst(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Default Emojis First", value: value, sectionId: self.section, style: .blocks, updated: { value in
@@ -392,12 +385,10 @@ private struct ClearSettingsArguments {
     let updateShowForwardedTime: (Bool) -> Void
     let updateBlockCloudDrafts: (Bool) -> Void
     let editDoubleTapDelay: () -> Void
-    let editAnimationSpeed: () -> Void
 }
 
 public func clearSettingsController(context: AccountContext) -> ViewController {
     var editDoubleTapDelayImpl: (() -> Void)?
-    var editAnimationSpeedImpl: (() -> Void)?
 
     let arguments = ClearSettingsArguments(
         context: context,
@@ -488,8 +479,7 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         updateBlockCloudDrafts: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.blockCloudDrafts = value; return s }.start()
         },
-        editDoubleTapDelay: { editDoubleTapDelayImpl?() },
-        editAnimationSpeed: { editAnimationSpeedImpl?() }
+        editDoubleTapDelay: { editDoubleTapDelayImpl?() }
     )
 
     let settingsSignal = clearConfigEntry(accountManager: context.sharedContext.accountManager)
@@ -522,7 +512,6 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         entries.append(.showDC(presentationData.theme, settings.showDC))
         entries.append(.showPackOwner(presentationData.theme, settings.showPackOwner))
         entries.append(.confirmCalls(presentationData.theme, settings.confirmCalls))
-        entries.append(.animationSpeed(presentationData.theme, settings.animationSpeed))
         entries.append(.defaultEmojisFirst(presentationData.theme, settings.defaultEmojisFirst))
         entries.append(.stripTrackingParams(presentationData.theme, settings.stripTrackingParams))
         entries.append(.replacePreviewLinks(presentationData.theme, settings.replacePreviewLinks))
@@ -563,23 +552,6 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         alert.addAction(UIAlertAction(title: "Set", style: .default) { _ in
             if let text = alert.textFields?.first?.text, let value = Int32(text) {
                 let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.doubleTapDelay = value; return s }.start()
-            }
-        })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        controller.present(alert, animated: true)
-    }
-
-    editAnimationSpeedImpl = { [weak controller] in
-        guard let controller else { return }
-        let alert = UIAlertController(title: "Animation Speed", message: "Multiplier (1.0 = normal, 0.5 = half speed)", preferredStyle: .alert)
-        alert.addTextField { tf in
-            tf.placeholder = "1.0"
-            tf.keyboardType = .decimalPad
-            tf.text = String(format: "%.1f", ClearConfig.animationSpeed)
-        }
-        alert.addAction(UIAlertAction(title: "Set", style: .default) { _ in
-            if let text = alert.textFields?.first?.text, let value = Double(text) {
-                let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.animationSpeed = value; return s }.start()
             }
         })
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))

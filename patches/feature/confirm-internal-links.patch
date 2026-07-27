@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 04:22:50 +0700
+Subject: Confirm before opening internal tg:// links
+
+---
+ submodules/TelegramUI/Sources/OpenUrl.swift | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/TelegramUI/Sources/OpenUrl.swift b/submodules/TelegramUI/Sources/OpenUrl.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/OpenUrl.swift
++++ b/submodules/TelegramUI/Sources/OpenUrl.swift
+@@ -13,6 +13,7 @@ import OpenInExternalAppUI
+ import BrowserUI
+ import OverlayStatusController
+ import PresentationDataUtils
++import AlertUI
+ 
+ public struct ParsedSecureIdUrl {
+     public let peerId: EnginePeer.Id
+@@ -405,12 +406,26 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
+         }
+     }
+     
+-    let handleResolvedUrl = makeResolvedUrlHandler(
++    let baseHandleResolvedUrl = makeResolvedUrlHandler(
+         context: context,
+         presentationData: presentationData,
+         navigationController: navigationController,
+         dismissInput: dismissInput
+     )
++    let handleResolvedUrl: (ResolvedUrl) -> Void = { resolved in
++        if ClearConfig.confirmInternalLinks, case .externalUrl = resolved {
++            baseHandleResolvedUrl(resolved)
++        } else if ClearConfig.confirmInternalLinks {
++            context.sharedContext.presentGlobalController(textAlertController(context: context, title: nil, text: "Open link?", actions: [
++                TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Yes, action: {
++                    baseHandleResolvedUrl(resolved)
++                }),
++                TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {}),
++            ]), nil)
++        } else {
++            baseHandleResolvedUrl(resolved)
++        }
++    }
+     let handleInternalUrl = makeInternalUrlHandler(
+         context: context,
+         resolvedHandler: handleResolvedUrl

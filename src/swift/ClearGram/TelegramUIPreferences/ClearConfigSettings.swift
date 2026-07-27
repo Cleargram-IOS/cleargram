@@ -25,7 +25,6 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var hideContextMenuReport: Bool
     public var hideContextMenuSelect: Bool
     public var doubleTapDelay: Int32
-    public var animationSpeed: Double
     public var defaultEmojisFirst: Bool
     public var disableScrollToNextChannel: Bool
     public var showInlineReactions: Bool
@@ -60,7 +59,6 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var flatStickerCorners: Bool
     public var saveStickerToPhotos: Bool
     public var collapseLongMessages: Bool
-    public var showPackOwner: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -78,7 +76,6 @@ public struct ClearConfigSettings: Codable, Equatable {
             hideContextMenuReport: false,
             hideContextMenuSelect: false,
             doubleTapDelay: 300,
-            animationSpeed: 1.0,
             defaultEmojisFirst: false,
             disableScrollToNextChannel: false,
             showInlineReactions: false,
@@ -96,9 +93,9 @@ public struct ClearConfigSettings: Codable, Equatable {
             warnPollsRevote: false,
             showPackOwner: false,
             timeOnServiceMessages: false,
-            showTabNames: false,
+            showTabNames: true,
             compactChatList: false,
-            chatListLines: 2,
+            chatListLines: 3,
             compactFolderNames: false,
             allChatsHidden: false,
             hideTabBar: false,
@@ -112,8 +109,7 @@ public struct ClearConfigSettings: Codable, Equatable {
             enableMultiColumnLayout: false,
             flatStickerCorners: false,
             saveStickerToPhotos: false,
-            collapseLongMessages: false,
-            showPackOwner: false
+            collapseLongMessages: false
         )
     }
 
@@ -132,7 +128,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         hideContextMenuReport: Bool = false,
         hideContextMenuSelect: Bool = false,
         doubleTapDelay: Int32 = 300,
-        animationSpeed: Double = 1.0,
         defaultEmojisFirst: Bool = false,
         disableScrollToNextChannel: Bool = false,
         showInlineReactions: Bool = false,
@@ -150,9 +145,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         warnPollsRevote: Bool = false,
         showPackOwner: Bool = false,
         timeOnServiceMessages: Bool = false,
-        showTabNames: Bool = false,
+        showTabNames: Bool = true,
         compactChatList: Bool = false,
-        chatListLines: Int32 = 2,
+        chatListLines: Int32 = 3,
         compactFolderNames: Bool = false,
         allChatsHidden: Bool = false,
         hideTabBar: Bool = false,
@@ -166,8 +161,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         enableMultiColumnLayout: Bool = false,
         flatStickerCorners: Bool = false,
         saveStickerToPhotos: Bool = false,
-        collapseLongMessages: Bool = false,
-        showPackOwner: Bool = false
+        collapseLongMessages: Bool = false
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -183,7 +177,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.hideContextMenuReport = hideContextMenuReport
         self.hideContextMenuSelect = hideContextMenuSelect
         self.doubleTapDelay = doubleTapDelay
-        self.animationSpeed = animationSpeed
         self.defaultEmojisFirst = defaultEmojisFirst
         self.disableScrollToNextChannel = disableScrollToNextChannel
         self.showInlineReactions = showInlineReactions
@@ -218,7 +211,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.flatStickerCorners = flatStickerCorners
         self.saveStickerToPhotos = saveStickerToPhotos
         self.collapseLongMessages = collapseLongMessages
-        self.showPackOwner = showPackOwner
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -227,7 +219,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case hideStories, hideAiFeatures, secondsInMessages, confirmCalls, doubleTapToEdit
         case showProfileId, showDC, hidePhoneInSettings
         case hideContextMenuReply, hideContextMenuPin, hideContextMenuForward, hideContextMenuReport, hideContextMenuSelect
-        case doubleTapDelay, animationSpeed, defaultEmojisFirst, disableScrollToNextChannel, showInlineReactions
+        case doubleTapDelay, defaultEmojisFirst, disableScrollToNextChannel, showInlineReactions
         case blockCloudDrafts, showForwardedTime, noSelectionCap, stripTrackingParams, replacePreviewLinks, confirmInternalLinks, biometricConfirmation
         case hideSponsoredMessages, hideStarReactionButton, hideStarReactionCount, hideSimilarChannels, warnPollsRevote, showPackOwner, timeOnServiceMessages
         case showTabNames, compactChatList, chatListLines, compactFolderNames, allChatsHidden, hideTabBar, wideTabBar, tabBarSearchEnabled, wideChannelPosts, hideChannelBottomButton
@@ -235,7 +227,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         case flatStickerCorners
         case saveStickerToPhotos
         case collapseLongMessages
-        case showPackOwner
     }
 
     public init(from decoder: Decoder) throws {
@@ -254,7 +245,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.hideContextMenuReport = try c.decodeIfPresent(Bool.self, forKey: .hideContextMenuReport) ?? false
         self.hideContextMenuSelect = try c.decodeIfPresent(Bool.self, forKey: .hideContextMenuSelect) ?? false
         self.doubleTapDelay = try c.decodeIfPresent(Int32.self, forKey: .doubleTapDelay) ?? 300
-        self.animationSpeed = try c.decodeIfPresent(Double.self, forKey: .animationSpeed) ?? 1.0
         self.defaultEmojisFirst = try c.decodeIfPresent(Bool.self, forKey: .defaultEmojisFirst) ?? false
         self.disableScrollToNextChannel = try c.decodeIfPresent(Bool.self, forKey: .disableScrollToNextChannel) ?? false
         self.showInlineReactions = try c.decodeIfPresent(Bool.self, forKey: .showInlineReactions) ?? false
@@ -272,9 +262,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.warnPollsRevote = try c.decodeIfPresent(Bool.self, forKey: .warnPollsRevote) ?? false
         self.showPackOwner = try c.decodeIfPresent(Bool.self, forKey: .showPackOwner) ?? false
         self.timeOnServiceMessages = try c.decodeIfPresent(Bool.self, forKey: .timeOnServiceMessages) ?? false
-        self.showTabNames = try c.decodeIfPresent(Bool.self, forKey: .showTabNames) ?? false
+        self.showTabNames = try c.decodeIfPresent(Bool.self, forKey: .showTabNames) ?? true
         self.compactChatList = try c.decodeIfPresent(Bool.self, forKey: .compactChatList) ?? false
-        self.chatListLines = try c.decodeIfPresent(Int32.self, forKey: .chatListLines) ?? 2
+        self.chatListLines = try c.decodeIfPresent(Int32.self, forKey: .chatListLines) ?? 3
         self.compactFolderNames = try c.decodeIfPresent(Bool.self, forKey: .compactFolderNames) ?? false
         self.allChatsHidden = try c.decodeIfPresent(Bool.self, forKey: .allChatsHidden) ?? false
         self.hideTabBar = try c.decodeIfPresent(Bool.self, forKey: .hideTabBar) ?? false
@@ -289,7 +279,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.flatStickerCorners = try c.decodeIfPresent(Bool.self, forKey: .flatStickerCorners) ?? false
         self.saveStickerToPhotos = try c.decodeIfPresent(Bool.self, forKey: .saveStickerToPhotos) ?? false
         self.collapseLongMessages = try c.decodeIfPresent(Bool.self, forKey: .collapseLongMessages) ?? false
-        self.showPackOwner = try c.decodeIfPresent(Bool.self, forKey: .showPackOwner) ?? false
     }
 }
 

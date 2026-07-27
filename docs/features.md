@@ -46,7 +46,7 @@ _(none yet)_
   multiple times under bad network (situational; investigate + debounce the send button
   while a send is in-flight).
 - Cleargram settings panel expansion — add more `ClearConfig` toggles (currently has
-  hideStories, hideAiFeatures, doubleTapDelay, animationSpeed). See `docs/inugram-features.md`
+  hideStories, hideAiFeatures, doubleTapDelay). See `docs/inugram-features.md`
   for the full candidate list.
 - `misc__branding` expansion — Localizable.strings (user-visible "Telegram" strings),
   app icon, launch screen. See STATUS.md "Planned" for full scope.
@@ -76,18 +76,18 @@ All have a disabled toggle in Cleargram Settings marked "(soon)". Wire-up in pro
 ### Pending implementation (not yet in UI)
 
 **Visual / chat list (from Swiftgram):**
-- `showTabNames` — show text labels under tab bar icons (height 56 vs 40).
-- `compactChatList` — compact chat list rows (smaller avatar, tighter spacing).
-- `chatListLines` — configurable number of preview lines in chat list (1-3).
-- `compactFolderNames` — shorten folder tab names.
-- `allChatsTitleLengthOverride` — truncate "All Chats" title length.
-- `allChatsHidden` — hide the "All Chats" folder tab entirely.
-- `hideTabBar` — hide the bottom tab bar completely.
-- `wideTabBar` — wider tab bar layout.
-- `tabBarSearchEnabled` — search button in tab bar.
-- `bottomTabStyle` — bottom tab style variant.
-- `wideChannelPosts` — channel posts at full screen width (no margin).
-- `hideChannelBottomButton` — hide the bottom bar in channel preview (mute/join/etc).
+- `showTabNames` — show text labels under tab bar icons (height 56 vs 40). Default-on (matches stock). Sites: `TabBarComponent.swift` (5 sites: barHeight, containerSize, itemHeight, lensSelection, title alpha) + `TabBarContollerNode.swift` (title view alpha).
+- `compactChatList` — compact chat list rows (smaller avatar /1.5, tighter spacing /1.5). Sites: `ChatListItem.swift` (avatarDiameter at L2026 + L2568, itemHeight at L4053).
+- `chatListLines` — configurable number of preview lines in chat list (1-3). Applied indirectly via `SGCompactMessagePreviewLayout` wrapper in Swiftgram; not yet ported (needs the wrapper).
+- `compactFolderNames` — shorten folder tab names. Sites: `ChatListFilterTabContainerNode.swift` (minSpacing /2.5) + `HorizontalTabsComponent.swift` (sideInset /2.0).
+- `allChatsTitleLengthOverride` — truncate "All Chats" title length. (not yet ported)
+- `allChatsHidden` — hide the "All Chats" folder tab entirely. Sites: `ChatListController.swift` (L409 — filter out .all before isFirstFilter check) + `ChatListControllerNode.swift` (L597 — filter out .all in panGesture). TelegramCore site skipped (can't import TelegramUIPreferences).
+- `hideTabBar` — hide the bottom tab bar completely. Sites: `TabBarContollerNode.swift` (tabBarHidden init) + `ChatListController.swift` (3 sites: reordering show/hide) + `ChatListFilterTabContainerNode.swift` (2 sites: height/size override to 46.0) + `PeerInfoScreen.swift` (3 sites: updateIsTabBarHidden + back button in settings).
+- `wideTabBar` — wider tab bar layout (no width reducer). Site: `TabBarComponent.swift` (skip widthReducer when on).
+- `tabBarSearchEnabled` — search button in tab bar. Sites: `TabBarComponent.swift` (skip 48.0 width reduction when on) + `TabBarContollerNode.swift` (nil search when off).
+- `bottomTabStyle` — bottom tab style variant. (not yet ported)
+- `wideChannelPosts` — channel posts at full screen width (no margin). Sites: `ChatMessageBubbleItemNode.swift` (L2011 — set tmpWidth = baseWidth + needsShareButton = false) + `ChatMessageInteractiveMediaNode.swift` (L974 — widen maxDimensions for broadcast images).
+- `hideChannelBottomButton` — hide the bottom bar in channel preview (mute/join/etc). NOT PORTED — requires adding `forceHideChannelButton` parameter to `inputPanelForChatPresentationIntefaceState` in `ChatInterfaceStateInputPanels.swift`.
 - `disableGalleryCamera` — remove the camera tile from the attachment photo picker.
 - `disableGalleryCameraPreview` — disable the live camera preview animation in the picker.
 - `disableStoryCameraSwipe` — disable the swipe-left-from-chat-list gesture that opens the story camera.
@@ -119,6 +119,9 @@ All have a disabled toggle in Cleargram Settings marked "(soon)". Wire-up in pro
 **Channel:**
 - `show-channel-post-author` — when a user sends a message "as a channel" in a regular chat (send-as-channel), reveal the real user behind the channel identity. Stock shows only the channel name as sender. Telegram API exposes this: message has `from_id` (real sender) vs `sender_id`/`peer_id` (channel). Touches `ChatMessageBubbleItemNode` author/forward header rendering + `EngineMessage.author` field. Low-medium complexity if API surfaces `from_id` on incoming messages.
 - `hide-channel-join-requests` — hide/disable visibility of new join requests to channels you admin. Stock shows join request notifications in chat list / chat header. Touches `ChatListControllerNode` join-request badge + notification handling in `TelegramCore`.
+
+**Search:**
+- `search-by-user-id` — search messages in a group/chat by author user-id, bypassing the "hidden members" restriction. When a group hides its member list, Telegram's in-chat search (`@username` filter) breaks — the server refuses to resolve usernames of non-members. This feature adds a "search by user id" entry point (manual numeric id input, or a list of known authors derived from already-loaded messages) and runs `messages.search` with `from_id` set to the target peer. **Hybrid approach:** (1) Try `context.engine.messages.searchMessages(location: .peer(peerId, fromId: targetId, ...))` — server-side search with `from_id` may work even when members are hidden (server filters by peer id, not member-list visibility). (2) Fallback: local filter of already-loaded history by `message.authorId == targetId` in Postbox, with progressive load + progress UI if the chat isn't fully cached. **RESEARCH NEEDED:** verify whether `messages.search` with `from_id` actually works for groups with hidden members (server may still reject if the requester can't see the target peer — needs `accessHash`). If `accessHash` is required, the local cache may hold it for peers that have appeared in the chat history; otherwise the bare-id path (`tg://user?id=`) may need to be used to resolve + cache the peer first. Touches: `ChatHistorySearchContainerNode` (UI for id input / author picker), `SearchMessages.swift` (already passes `fromId` to `Api.messages.search` — may just work), new fork file `ClearUserSearch.swift` for the hybrid logic.
 
 **Media player:**
 - `show-audio-format-bitrate` — display audio format (codec: MP3/AAC/FLAC/OPUS) and bitrate in the music player. Touches the audio player UI (search for `AudioPlayerScreen` / `MediaPlayer` / `MediaPlayerDisplay` in `submodules/TelegramUI/` + `submodules/MediaPlayer/`). Format info available from `TelegramMediaFile.mimeType` + resource size/duration math. Display in the player's info panel (track title area).

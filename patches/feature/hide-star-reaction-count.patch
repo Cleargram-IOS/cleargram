@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 04:22:42 +0700
+Subject: Hide Star reaction count on messages
+
+---
+ .../Sources/ChatMessageDateAndStatusNode.swift       | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
+@@ -421,7 +421,7 @@ public class ChatMessageDateAndStatusNode: ASDisplayNode {
+                 } else if arguments.isPinned {
+                     repliesImage = graphics.incomingDateAndStatusPinnedIcon
+                 }
+-                if (arguments.starsCount ?? 0) != 0 {
++                if (arguments.starsCount ?? 0) != 0, !ClearConfig.hideStarReactionCount {
+                     starsImage = graphics.incomingDateAndStatusStarsIcon
+                 } else if (arguments.tonAmount ?? 0) != 0 {
+                     starsImage = graphics.incomingDateAndStatusTonIcon
+@@ -442,7 +442,7 @@ public class ChatMessageDateAndStatusNode: ASDisplayNode {
+                 } else if arguments.isPinned {
+                     repliesImage = graphics.outgoingDateAndStatusPinnedIcon
+                 }
+-                if (arguments.starsCount ?? 0)  != 0 {
++                if (arguments.starsCount ?? 0)  != 0, !ClearConfig.hideStarReactionCount {
+                     starsImage = graphics.outgoingDateAndStatusStarsIcon
+                 } else if (arguments.tonAmount ?? 0)  != 0 {
+                     starsImage = graphics.outgoingDateAndStatusTonIcon
+@@ -463,7 +463,7 @@ public class ChatMessageDateAndStatusNode: ASDisplayNode {
+                 } else if arguments.isPinned {
+                     repliesImage = graphics.mediaPinnedIcon
+                 }
+-                if (arguments.starsCount ?? 0)  != 0 {
++                if (arguments.starsCount ?? 0)  != 0, !ClearConfig.hideStarReactionCount {
+                     starsImage = graphics.mediaStarsIcon
+                 } else if (arguments.tonAmount ?? 0)  != 0 {
+                     starsImage = graphics.mediaTonIcon
+@@ -485,7 +485,7 @@ public class ChatMessageDateAndStatusNode: ASDisplayNode {
+                 } else if arguments.isPinned {
+                     repliesImage = graphics.mediaPinnedIcon
+                 }
+-                if (arguments.starsCount ?? 0)  != 0 {
++                if (arguments.starsCount ?? 0)  != 0, !ClearConfig.hideStarReactionCount {
+                     starsImage = graphics.mediaStarsIcon
+                 } else if (arguments.tonAmount ?? 0)  != 0 {
+                     starsImage = graphics.mediaTonIcon
+@@ -508,7 +508,7 @@ public class ChatMessageDateAndStatusNode: ASDisplayNode {
+                 } else if arguments.isPinned {
+                     repliesImage = graphics.freePinnedIcon
+                 }
+-                if (arguments.starsCount ?? 0)  != 0 {
++                if (arguments.starsCount ?? 0)  != 0, !ClearConfig.hideStarReactionCount {
+                     starsImage = graphics.freeStarsIcon
+                 } else if (arguments.tonAmount ?? 0)  != 0 {
+                     starsImage = graphics.freeTonIcon
+@@ -531,7 +531,7 @@ public class ChatMessageDateAndStatusNode: ASDisplayNode {
+                 } else if arguments.isPinned {
+                     repliesImage = graphics.freePinnedIcon
+                 }
+-                if (arguments.starsCount ?? 0)  != 0 {
++                if (arguments.starsCount ?? 0)  != 0, !ClearConfig.hideStarReactionCount {
+                     starsImage = graphics.freeStarsIcon
+                 } else if (arguments.tonAmount ?? 0)  != 0 {
+                     starsImage = graphics.freeTonIcon

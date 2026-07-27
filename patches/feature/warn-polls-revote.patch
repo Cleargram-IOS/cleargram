@@ -1,0 +1,75 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 04:22:45 +0700
+Subject: Warn before revoting in polls
+
+---
+ .../TelegramUI/Sources/ChatController.swift   | 41 +++++++++++++++++++
+ 1 file changed, 41 insertions(+)
+
+diff --git a/submodules/TelegramUI/Sources/ChatController.swift b/submodules/TelegramUI/Sources/ChatController.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatController.swift
++++ b/submodules/TelegramUI/Sources/ChatController.swift
+@@ -147,6 +147,8 @@ import ChatSearchNavigationContentNode
+ import ChatAgeRestrictionAlertController
+ import TextProcessingScreen
+ 
++private let clearPollRevoteSkip = Atomic<Set<MessageId>>(value: [])
++
+ public final class ChatControllerOverlayPresentationData {
+     public let expandData: (ASDisplayNode?, () -> Void)
+     public init(expandData: (ASDisplayNode?, () -> Void)) {
+@@ -3970,6 +3972,18 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
+                 return
+             }
+             
++            if ClearConfig.warnPollsRevote, strongSelf.shouldWarnPollRevote(id: id, opaqueIdentifiers: opaqueIdentifiers) {
++                let presentationData = strongSelf.presentationData
++                let actions: [TextAlertAction] = [
++                    TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Yes, action: { [weak self] in
++                        self?.controllerInteraction?.requestSelectMessagePollOptions(id, opaqueIdentifiers)
++                    }),
++                    TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {})
++                ]
++                strongSelf.present(textAlertController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, title: nil, text: "Change your vote?", actions: actions), in: .window(.root))
++                return
++            }
++            
+             if let message = strongSelf.chatDisplayNode.historyNode.messageInCurrentHistoryView(id)?._asMessage(), controllerInteraction.pollActionState.pollMessageIdsInProgress[id] == nil {
+                 controllerInteraction.pollActionState.pollMessageIdsInProgress[id] = opaqueIdentifiers
+                 strongSelf.chatDisplayNode.historyNode.requestMessageUpdate(id)
+@@ -8524,6 +8538,33 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
+         self.presentAttachmentMenu(subject: .bot(id: botId, payload: payload, justInstalled: justInstalled))
+     }
+     
++    func shouldWarnPollRevote(id: MessageId, opaqueIdentifiers: [Data]) -> Bool {
++        if clearPollRevoteSkip.with({ $0.contains(id) }) {
++            let _ = clearPollRevoteSkip.modify { current -> Set<MessageId> in
++                var updated = current
++                updated.remove(id)
++                return updated
++            }
++            return false
++        }
++        guard let msg = self.chatDisplayNode.historyNode.messageInCurrentHistoryView(id)?._asMessage(),
++              let poll = msg.media.first(where: { $0 is TelegramMediaPoll }) as? TelegramMediaPoll,
++              let voters = poll.results.voters,
++              voters.contains(where: { $0.selected }) else {
++            return false
++        }
++        let currentSelected = Set(voters.filter { $0.selected }.map { $0.opaqueIdentifier })
++        if currentSelected == Set(opaqueIdentifiers) {
++            return false
++        }
++        let _ = clearPollRevoteSkip.modify { current -> Set<MessageId> in
++            var updated = current
++            updated.insert(id)
++            return updated
++        }
++        return true
++    }
++    
+     func displayPollSolution(solution: TelegramMediaPollResults.Solution, sourceNode: ASDisplayNode, isAutomatic: Bool) {
+         var maybeFoundItemNode: ChatMessageItemView?
+         self.chatDisplayNode.historyNode.forEachItemNode { itemNode in

@@ -1,0 +1,441 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 04:22:54 +0700
+Subject: Visual features from Swiftgram: showTabNames, hideTabBar, wideTabBar, tabBarSearchEnabled, compactChatList, compactFolderNames, allChatsHidden, wideChannelPosts
+
+---
+ .../Sources/ChatListController.swift          | 18 ++++++++--
+ .../Sources/ChatListControllerNode.swift      |  8 +++--
+ .../Sources/Node/ChatListItem.swift           | 12 +++++++
+ submodules/TabBarUI/BUILD                     |  1 +
+ .../Sources/TabBarContollerNode.swift         |  5 +--
+ .../Sources/ChatMessageBubbleItemNode.swift   |  9 +++--
+ .../ChatMessageInteractiveMediaNode.swift     | 11 ++++++
+ .../ChatListFilterTabContainerNode.swift      | 11 +++++-
+ .../Components/HorizontalTabsComponent/BUILD  |  1 +
+ .../Sources/HorizontalTabsComponent.swift     |  3 +-
+ .../Sources/PeerInfoScreen.swift              |  7 ++--
+ .../Sources/TabBarComponent.swift             | 35 +++++++++++++++----
+ 12 files changed, 102 insertions(+), 19 deletions(-)
+
+diff --git a/submodules/ChatListUI/Sources/ChatListController.swift b/submodules/ChatListUI/Sources/ChatListController.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/ChatListController.swift
++++ b/submodules/ChatListUI/Sources/ChatListController.swift
+@@ -406,7 +406,11 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController
+                     strongSelf.chatListDisplayNode.willScrollToTop()
+                     strongSelf.chatListDisplayNode.effectiveContainerNode.currentItemNode.scrollToPosition(.top(adjustForTempInset: false))
+                 case let .known(offset):
+-                    let isFirstFilter = strongSelf.chatListDisplayNode.effectiveContainerNode.currentItemNode.chatListFilter == strongSelf.chatListDisplayNode.mainContainerNode.availableFilters.first?.filter
++                    var availableFilters = strongSelf.chatListDisplayNode.mainContainerNode.availableFilters
++                    if ClearConfig.allChatsHidden {
++                        availableFilters.removeAll { $0 == .all }
++                    }
++                    let isFirstFilter = strongSelf.chatListDisplayNode.effectiveContainerNode.currentItemNode.chatListFilter == availableFilters.first?.filter
+                     
+                     if offset <= ChatListNavigationBar.searchScrollHeight + 1.0 && strongSelf.chatListDisplayNode.inlineStackContainerNode != nil {
+                         strongSelf.setInlineChatList(location: nil)
+@@ -3592,6 +3596,9 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController
+         if let layout = self.validLayout {
+             self.updateLayout(layout: layout, transition: .animated(duration: 0.2, curve: .easeInOut))
+         }
++        if ClearConfig.hideTabBar {
++            (self.parent as? TabBarController)?.updateIsTabBarHidden(false, transition: .animated(duration: 0.2, curve: .easeInOut))
++        }
+     }
+     
+     @objc fileprivate func donePressed() {
+@@ -3618,6 +3625,9 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController
+                 self.updateLayout(layout: layout, transition: .animated(duration: 0.2, curve: .easeInOut))
+             }
+         }
++        if ClearConfig.hideTabBar {
++            (self.parent as? TabBarController)?.updateIsTabBarHidden(true, transition: .animated(duration: 0.2, curve: .easeInOut))
++        }
+     }
+     
+     private var skipTabContainerUpdate = false
+@@ -4779,7 +4789,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController
+         completion?()
+         
+         self.updateTabBarSearchState(ViewController.TabBarSearchState(isActive: false), transition: transition)
+-        (self.parent as? TabBarController)?.updateIsTabBarHidden(false, transition: transition)
++        (self.parent as? TabBarController)?.updateIsTabBarHidden(ClearConfig.hideTabBar ? true : false, transition: transition)
+         
+         self.isSearchActive = false
+         if let navigationController = self.navigationController as? NavigationController {
+@@ -7121,7 +7131,9 @@ private final class ChatListLocationContext {
+             }
+             var transition: ContainedViewLayoutTransition = .immediate
+             let previousToolbar = previousToolbarValue.swap(toolbar)
+-            if (previousToolbar == nil) != (toolbar == nil) {
++            if ClearConfig.hideTabBar {
++                transition = .animated(duration: 0.2, curve: .easeInOut)
++            } else if (previousToolbar == nil) != (toolbar == nil) {
+                 transition = .animated(duration: 0.4, curve: .spring)
+             }
+             if strongSelf.toolbar != toolbar {
+diff --git a/submodules/ChatListUI/Sources/ChatListControllerNode.swift b/submodules/ChatListUI/Sources/ChatListControllerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/ChatListControllerNode.swift
++++ b/submodules/ChatListUI/Sources/ChatListControllerNode.swift
+@@ -595,8 +595,12 @@ public final class ChatListContainerNode: ASDisplayNode, ASGestureRecognizerDele
+     }
+     
+     @objc private func panGesture(_ recognizer: UIPanGestureRecognizer) {
+-        let filtersLimit = self.filtersLimit.flatMap({ $0 + 1 }) ?? Int32(self.availableFilters.count)
+-        let maxFilterIndex = min(Int(filtersLimit), self.availableFilters.count) - 1
++        var availableFilters = self.availableFilters
++        if ClearConfig.allChatsHidden {
++            availableFilters.removeAll { $0 == .all }
++        }
++        let filtersLimit = self.filtersLimit.flatMap({ $0 + 1 }) ?? Int32(availableFilters.count)
++        let maxFilterIndex = min(Int(filtersLimit), availableFilters.count) - 1
+         
+         switch recognizer.state {
+         case .began:
+diff --git a/submodules/ChatListUI/Sources/Node/ChatListItem.swift b/submodules/ChatListUI/Sources/Node/ChatListItem.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/Node/ChatListItem.swift
++++ b/submodules/ChatListUI/Sources/Node/ChatListItem.swift
+@@ -10,6 +10,7 @@ import PresentationDataUtils
+ import AvatarNode
+ import TelegramStringFormatting
+ import AccountContext
++import TelegramUIPreferences
+ import PeerOnlineMarkerNode
+ import LocalizedPeerData
+ import PeerPresenceStatusManager
+@@ -2023,6 +2024,10 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+             }
+             
+             var avatarDiameter = min(60.0, floor(item.presentationData.fontSize.baseDisplaySize * 60.0 / 17.0))
++            let clearAvatarScaleDivisor: CGFloat = ClearConfig.compactChatList ? 1.5 : (ClearConfig.compactMessagePreview ? 1.1 : 1.0)
++            if clearAvatarScaleDivisor != 1.0 {
++                avatarDiameter /= clearAvatarScaleDivisor
++            }
+             
+             if case let .peer(peerData) = item.content, let customMessageListData = peerData.customMessageListData, customMessageListData.commandPrefix != nil {
+                 avatarDiameter = 40.0
+@@ -2562,6 +2567,10 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+             
+             // if changed, adjust setupItem accordingly
+             var avatarDiameter = min(60.0, floor(item.presentationData.fontSize.baseDisplaySize * 60.0 / 17.0))
++            let clearAvatarScaleDivisor: CGFloat = ClearConfig.compactChatList ? 1.5 : (ClearConfig.compactMessagePreview ? 1.1 : 1.0)
++            if clearAvatarScaleDivisor != 1.0 {
++                avatarDiameter /= clearAvatarScaleDivisor
++            }
+             let avatarLeftEdgeInset: CGFloat = item.useCommunityViewLayout ? 10.0 : 16.0
+             let avatarLeftInset: CGFloat
+             
+@@ -4044,6 +4053,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                 itemHeight += titleSpacing
+                 itemHeight += authorSpacing
+             }
++            if ClearConfig.compactChatList {
++                itemHeight /= 1.5
++            }
+                         
+             let rawContentRect = CGRect(origin: CGPoint(x: 2.0, y: layoutOffset + floor(item.presentationData.fontSize.itemListBaseFontSize * 8.0 / 17.0)), size: CGSize(width: rawContentWidth, height: itemHeight - 12.0 - 9.0))
+             
+diff --git a/submodules/TabBarUI/BUILD b/submodules/TabBarUI/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TabBarUI/BUILD
++++ b/submodules/TabBarUI/BUILD
+@@ -20,6 +20,7 @@ swift_library(
+         "//submodules/Components/ComponentDisplayAdapters",
+         "//submodules/TelegramUI/Components/TabBarComponent",
+         "//submodules/TelegramUI/Components/GlassControls",
++        "//submodules/TelegramUIPreferences",
+     ],
+     visibility = [
+         "//visibility:public",
+diff --git a/submodules/TabBarUI/Sources/TabBarContollerNode.swift b/submodules/TabBarUI/Sources/TabBarContollerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TabBarUI/Sources/TabBarContollerNode.swift
++++ b/submodules/TabBarUI/Sources/TabBarContollerNode.swift
+@@ -7,6 +7,7 @@ import ComponentFlow
+ import ComponentDisplayAdapters
+ import TabBarComponent
+ import GlassControls
++import TelegramUIPreferences
+ 
+ final class TabBarControllerNode: ASDisplayNode {
+     private struct Params: Equatable {
+@@ -168,7 +169,7 @@ final class TabBarControllerNode: ASDisplayNode {
+         transition.updateAlpha(node: self.disabledOverlayNode, alpha: value ? 0.0 : 1.0)
+     }
+     
+-    var tabBarHidden = false {
++    var tabBarHidden = ClearConfig.hideTabBar {
+         didSet {
+             if self.tabBarHidden != oldValue {
+                 self.requestUpdate()
+@@ -265,7 +266,7 @@ final class TabBarControllerNode: ASDisplayNode {
+                         }
+                     )
+                 },
+-                search: self.currentController?.tabBarSearchState.flatMap { tabBarSearchState in
++                search: (!ClearConfig.tabBarSearchEnabled) ? nil : self.currentController?.tabBarSearchState.flatMap { tabBarSearchState in
+                     return TabBarComponent.Search(
+                         isActive: tabBarSearchState.isActive,
+                         activate: { [weak self] in
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
+@@ -1839,7 +1839,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
+                         }
+                     }
+                 }
+-            } else if incoming {
++        } else if incoming {
+                 hasAvatar = true
+             }
+             
+@@ -1874,6 +1874,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
+         
+         var needsShareButton = false
+         var needsSummarizeButton = false
++        var mayHaveSeparateCommentsButton = false
+     
+         if incoming, case let .customChatContents(contents) = item.associatedData.subject, case .hashTagSearch = contents.kind {
+             needsShareButton = true
+@@ -1928,7 +1929,6 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
+                     needsShareButton = true
+                 }
+             }
+-            var mayHaveSeparateCommentsButton = false
+             if !needsShareButton {
+                 loop: for media in item.message.media {
+                     if media is TelegramMediaGame || media is TelegramMediaInvoice {
+@@ -2010,6 +2010,11 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
+         
+         tmpWidth -= deliveryFailedInset
+         
++        if let channel = item.message.peers[item.message.id.peerId] as? TelegramChannel, case .broadcast = channel.info, ClearConfig.wideChannelPosts, !(mayHaveSeparateCommentsButton && hasCommentButton(item: item)) {
++            tmpWidth = baseWidth
++            needsShareButton = false
++        }
++        
+         let (contentNodeMessagesAndClasses, needSeparateContainers, needReactions) = contentNodeMessagesAndClassesForItem(item)
+         
+         var maximumContentWidth = floor(tmpWidth - layoutConstants.bubble.edgeInset * 3.0 - layoutConstants.bubble.contentInsets.left - layoutConstants.bubble.contentInsets.right - avatarInset)
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveMediaNode/Sources/ChatMessageInteractiveMediaNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveMediaNode/Sources/ChatMessageInteractiveMediaNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveMediaNode/Sources/ChatMessageInteractiveMediaNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveMediaNode/Sources/ChatMessageInteractiveMediaNode.swift
+@@ -971,6 +971,17 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
+                 }
+             } else if let image = media as? TelegramMediaImage, let dimensions = largestImageRepresentation(image.representations)?.dimensions {
+                 unboundSize = CGSize(width: max(10.0, floor(dimensions.cgSize.width * 0.5)), height: max(10.0, floor(dimensions.cgSize.height * 0.5)))
++                if let channel = message.peers[message.id.peerId] as? TelegramChannel, case .broadcast = channel.info, ClearConfig.wideChannelPosts {
++                    switch sizeCalculation {
++                    case let .constrained(constrainedSize):
++                        maxDimensions.width = constrainedSize.width
++                    case .unconstrained:
++                        maxDimensions.width = unboundSize.width
++                    }
++                    if message.text.isEmpty {
++                        maxDimensions.width = max(layoutConstants.image.maxDimensions.width, unboundSize.aspectFitted(CGSize(width: maxDimensions.width, height: layoutConstants.image.minDimensions.height)).width)
++                    }
++                }
+             } else if let file = media as? TelegramMediaFile, var dimensions = file.dimensions {
+                 if let thumbnail = file.previewRepresentations.first {
+                     let dimensionsVertical = dimensions.width < dimensions.height
+diff --git a/submodules/TelegramUI/Components/ChatList/ChatListFilterTabContainerNode/Sources/ChatListFilterTabContainerNode.swift b/submodules/TelegramUI/Components/ChatList/ChatListFilterTabContainerNode/Sources/ChatListFilterTabContainerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/ChatList/ChatListFilterTabContainerNode/Sources/ChatListFilterTabContainerNode.swift
++++ b/submodules/TelegramUI/Components/ChatList/ChatListFilterTabContainerNode/Sources/ChatListFilterTabContainerNode.swift
+@@ -8,6 +8,7 @@ import TextNodeWithEntities
+ import AccountContext
+ import GlassBackgroundComponent
+ import ComponentFlow
++import TelegramUIPreferences
+ import ComponentDisplayAdapters
+ 
+ private final class ItemNodeDeleteButtonNode: HighlightableButtonNode {
+@@ -334,6 +335,10 @@ private final class ItemNode: ASDisplayNode {
+     }
+     
+     func updateLayout(height: CGFloat, transition: ContainedViewLayoutTransition) -> (width: CGFloat, shortWidth: CGFloat) {
++        var height = height
++        if ClearConfig.hideTabBar {
++            height = 46.0
++        }
+         let titleSize = self.titleNode.updateLayout(CGSize(width: 160.0, height: .greatestFiniteMagnitude))
+         let _ = self.titleActiveNode.updateLayout(CGSize(width: 160.0, height: .greatestFiniteMagnitude))
+         let titleFrame = CGRect(origin: CGPoint(x: -self.titleNode.insets.left, y: floor((height - titleSize.height) / 2.0)), size: titleSize)
+@@ -380,6 +385,10 @@ private final class ItemNode: ASDisplayNode {
+     }
+     
+     func updateArea(size: CGSize, sideInset: CGFloat, useShortTitle: Bool, transition: ContainedViewLayoutTransition) {
++        var size = size
++        if ClearConfig.hideTabBar {
++            size.height = 46.0
++        }
+         transition.updateAlpha(node: self.titleContainer, alpha: useShortTitle ? 0.0 : 1.0)
+         transition.updateAlpha(node: self.shortTitleContainer, alpha: useShortTitle ? 1.0 : 0.0)
+         
+@@ -876,7 +885,7 @@ public final class ChatListFilterTabContainerNode: ASDisplayNode {
+             }
+         }
+         
+-        let minSpacing: CGFloat = 26.0
++        let minSpacing: CGFloat = 26.0 / (ClearConfig.compactFolderNames ? 2.5 : 1.0)
+         
+         let resolvedSideInset: CGFloat = 14.0
+         var leftOffset: CGFloat = resolvedSideInset
+diff --git a/submodules/TelegramUI/Components/HorizontalTabsComponent/BUILD b/submodules/TelegramUI/Components/HorizontalTabsComponent/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/HorizontalTabsComponent/BUILD
++++ b/submodules/TelegramUI/Components/HorizontalTabsComponent/BUILD
+@@ -22,6 +22,7 @@ swift_library(
+         "//submodules/TelegramUI/Components/LiquidLens",
+         "//submodules/TelegramUI/Components/TextBadgeComponent",
+         "//submodules/TelegramUI/Components/HeaderPanelContainerComponent",
++        "//submodules/TelegramUIPreferences",
+     ],
+     visibility = [
+         "//visibility:public",
+diff --git a/submodules/TelegramUI/Components/HorizontalTabsComponent/Sources/HorizontalTabsComponent.swift b/submodules/TelegramUI/Components/HorizontalTabsComponent/Sources/HorizontalTabsComponent.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/HorizontalTabsComponent/Sources/HorizontalTabsComponent.swift
++++ b/submodules/TelegramUI/Components/HorizontalTabsComponent/Sources/HorizontalTabsComponent.swift
+@@ -8,6 +8,7 @@ import TelegramCore
+ import MultilineTextWithEntitiesComponent
+ import TextBadgeComponent
+ import LiquidLens
++import TelegramUIPreferences
+ import HeaderPanelContainerComponent
+ 
+ private class ReorderingGestureRecognizerTimerTarget: NSObject {
+@@ -1075,7 +1076,7 @@ private final class ItemComponent: Component {
+             self.containerView.isGestureEnabled = component.editing == nil
+             self.tapRecognizer?.isEnabled = component.editing == nil
+             
+-            let sideInset: CGFloat = 16.0
++            let sideInset: CGFloat = 16.0 / (ClearConfig.compactFolderNames ? 2.0 : 1.0)
+             let badgeSpacing: CGFloat = 5.0
+             
+             var size = CGSize(width: sideInset, height: availableSize.height)
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+@@ -2044,7 +2044,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+                     UIView.transition(with: strongSelf.view, duration: 0.3, options: [.transitionCrossDissolve], animations: {
+                     }, completion: nil)
+                 }
+-                (strongSelf.controller?.parent as? TabBarController)?.updateIsTabBarHidden(false, transition: .animated(duration: 0.3, curve: .linear))
++                (strongSelf.controller?.parent as? TabBarController)?.updateIsTabBarHidden(ClearConfig.hideTabBar ? true : false, transition: .animated(duration: 0.3, curve: .linear))
+             case .select:
+                 strongSelf.state = strongSelf.state.withSelectedMessageIds(Set())
+                 if let (layout, navigationHeight) = strongSelf.validLayout {
+@@ -5185,7 +5185,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+         controller.dismissAllTooltips()
+         
+         if self.isSettings {
+-            (self.controller?.parent as? TabBarController)?.updateIsTabBarHidden(false, transition: .animated(duration: 0.4, curve: .spring))
++            (self.controller?.parent as? TabBarController)?.updateIsTabBarHidden(ClearConfig.hideTabBar ? true : false, transition: .animated(duration: 0.4, curve: .spring))
+             controller.updateTabBarSearchState(ViewController.TabBarSearchState(isActive: false), transition: .animated(duration: 0.4, curve: .spring))
+         }
+         
+@@ -5917,6 +5917,9 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+             } else {
+                 if self.isSettings {
+                     leftNavigationButtons.append(PeerInfoHeaderNavigationButtonSpec(key: .qrCode, isForExpandedView: false))
++                    if ClearConfig.hideTabBar {
++                        leftNavigationButtons.append(PeerInfoHeaderNavigationButtonSpec(key: .back, isForExpandedView: false))
++                    }
+                     rightNavigationButtons.append(PeerInfoHeaderNavigationButtonSpec(key: .edit, isForExpandedView: false))
+                 } else if self.isMyProfile {
+                     rightNavigationButtons.append(PeerInfoHeaderNavigationButtonSpec(key: .edit, isForExpandedView: false))
+diff --git a/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift b/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift
++++ b/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift
+@@ -13,6 +13,7 @@ import TextBadgeComponent
+ import LiquidLens
+ import AppBundle
+ import SearchBarNode
++import TelegramUIPreferences
+ import TabSelectionRecognizer
+ 
+ public final class NavigationSearchView: UIView {
+@@ -653,7 +654,28 @@ public final class TabBarComponent: Component {
+             let _ = alphaTransition
+ 
+             let innerInset: CGFloat = 4.0
+-            let availableSize = CGSize(width: min(500.0, availableSize.width), height: availableSize.height)
++            var availableSize = CGSize(width: min(500.0, availableSize.width), height: availableSize.height)
++            if !(ClearConfig.wideTabBar || component.search?.isActive ?? false) {
++                let widthReducer: CGFloat
++
++                switch component.items.count {
++                case 1:
++                    widthReducer = 1.75
++                case 2:
++                    widthReducer = 1.5
++                case 3:
++                    widthReducer = 1.25
++                case 4:
++                    widthReducer = 1.0
++                default:
++                    widthReducer = 1.0
++                }
++                availableSize.width = availableSize.width / widthReducer
++                if !ClearConfig.tabBarSearchEnabled {
++                    availableSize.width -= 48.0
++                    availableSize.width -= innerInset * 2.0
++                }
++            }
+             
+             let previousComponent = self.component
+             self.component = component
+@@ -661,7 +683,8 @@ public final class TabBarComponent: Component {
+             
+             self.overrideUserInterfaceStyle = component.theme.overallDarkAppearance ? .dark : .light
+ 
+-            let barHeight: CGFloat = 56.0 + innerInset * 2.0
++            let tabHeight: CGFloat = ClearConfig.showTabNames ? 56.0 : 40.0
++            let barHeight: CGFloat = tabHeight + innerInset * 2.0
+ 
+             var availableItemsWidth: CGFloat = availableSize.width - innerInset * 2.0
+             if component.search != nil {
+@@ -695,7 +718,7 @@ public final class TabBarComponent: Component {
+                         isUnconstrained: true
+                     )),
+                     environment: {},
+-                    containerSize: CGSize(width: 200.0, height: 56.0)
++                    containerSize: CGSize(width: 200.0, height: ClearConfig.showTabNames ? 56.0 : 40.0)
+                 )
+                 
+                 unboundItemWidths.append(itemSize.width)
+@@ -724,7 +747,7 @@ public final class TabBarComponent: Component {
+                 totalItemsWidth = total
+             }
+ 
+-            let itemHeight: CGFloat = 56.0
++            let itemHeight: CGFloat = ClearConfig.showTabNames ? 56.0 : 40.0
+             let contentWidth: CGFloat = innerInset * 2.0 + totalItemsWidth
+             let tabsSize = CGSize(width: min(availableSize.width, contentWidth), height: itemHeight + innerInset * 2.0)
+ 
+@@ -871,7 +894,7 @@ public final class TabBarComponent: Component {
+             } else if let selectionFrame {
+                 lensSelection = (selectionFrame.minX - innerInset, selectionFrame.width + innerInset * 2.0)
+             } else {
+-                lensSelection = (0.0, 56.0)
++                lensSelection = (0.0, ClearConfig.showTabNames ? 56.0 : 40.0)
+             }
+ 
+             var lensSize: CGSize = tabsSize
+@@ -1290,7 +1313,7 @@ private final class ItemComponent: Component {
+                     self.contextContainerView.contentView.addSubview(titleView)
+                 }
+                 titleView.frame = titleFrame
+-                alphaTransition.setAlpha(view: titleView, alpha: component.isCompact ? 0.0 : 1.0)
++                alphaTransition.setAlpha(view: titleView, alpha: (component.isCompact || !ClearConfig.showTabNames) ? 0.0 : 1.0)
+             }
+ 
+             if let badgeText = badgeValue, !badgeText.isEmpty {
