@@ -14,6 +14,7 @@ public enum ClearConfig {
         // keep the in-memory cache in sync with shared-data
         _ = clearConfigEntry(accountManager: accountManager).start(next: { value in
             _ = cache.swap(value)
+            _ = ClearHooks.blockCloudDrafts.swap(value.blockCloudDrafts)
         })
     }
 
@@ -76,4 +77,6 @@ public enum ClearConfig {
     public static var disableStoryCameraSwipe: Bool { current().disableStoryCameraSwipe }
     public static var enableMultiColumnLayout: Bool { current().enableMultiColumnLayout }
     public static var flatStickerCorners: Bool { current().flatStickerCorners }
+    public static var saveStickerToPhotos: Bool { current().saveStickerToPhotos }
+    public static var collapseLongMessages: Bool { current().collapseLongMessages }
 }

@@ -66,6 +66,8 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
     case disableStoryCameraSwipe(PresentationTheme, Bool)
     case enableMultiColumnLayout(PresentationTheme, Bool)
     case flatStickerCorners(PresentationTheme, Bool)
+    case saveStickerToPhotos(PresentationTheme, Bool)
+    case collapseLongMessages(PresentationTheme, Bool)
 
     var section: ItemListSectionId {
         switch self {
@@ -79,7 +81,7 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ClearSettingsSection.profile.rawValue
         case .confirmCalls, .animationSpeed, .defaultEmojisFirst, .stripTrackingParams, .replacePreviewLinks, .confirmInternalLinks, .noSelectionCap, .hideStarReactionButton, .hideStarReactionCount:
             return ClearSettingsSection.other.rawValue
-        case .showTabNames, .compactChatList, .compactFolderNames, .allChatsHidden, .hideTabBar, .wideTabBar, .tabBarSearchEnabled, .wideChannelPosts, .hideChannelBottomButton, .disableGalleryCamera, .disableGalleryCameraPreview, .disableStoryCameraSwipe, .enableMultiColumnLayout, .flatStickerCorners:
+        case .showTabNames, .compactChatList, .compactFolderNames, .allChatsHidden, .hideTabBar, .wideTabBar, .tabBarSearchEnabled, .wideChannelPosts, .hideChannelBottomButton, .disableGalleryCamera, .disableGalleryCameraPreview, .disableStoryCameraSwipe, .enableMultiColumnLayout, .flatStickerCorners, .saveStickerToPhotos, .collapseLongMessages:
             return ClearSettingsSection.interface.rawValue
         }
     }
@@ -132,6 +134,8 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case .disableStoryCameraSwipe: return 61
         case .enableMultiColumnLayout: return 62
         case .flatStickerCorners: return 63
+        case .saveStickerToPhotos: return 64
+        case .collapseLongMessages: return 65
         }
     }
 
@@ -185,6 +189,8 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let (.disableStoryCameraSwipe(lt, lv), .disableStoryCameraSwipe(rt, rv)): return lt === rt && lv == rv
         case let (.enableMultiColumnLayout(lt, lv), .enableMultiColumnLayout(rt, rv)): return lt === rt && lv == rv
         case let (.flatStickerCorners(lt, lv), .flatStickerCorners(rt, rv)): return lt === rt && lv == rv
+        case let (.saveStickerToPhotos(lt, lv), .saveStickerToPhotos(rt, rv)): return lt === rt && lv == rv
+        case let (.collapseLongMessages(lt, lv), .collapseLongMessages(rt, rv)): return lt === rt && lv == rv
         default: return false
         }
     }
@@ -265,7 +271,9 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
                 args.updateShowInlineReactions(value)
             })
         case let .blockCloudDrafts(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Block Cloud Drafts (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Block Cloud Drafts", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateBlockCloudDrafts(value)
+            })
         case let .showForwardedTime(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Forwarded Time", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateShowForwardedTime(value)
@@ -330,6 +338,14 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Flat Sticker Corners", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateFlatStickerCorners(value)
             })
+        case let .saveStickerToPhotos(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save Sticker to Photos", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateSaveStickerToPhotos(value)
+            })
+        case let .collapseLongMessages(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Collapse Long Messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateCollapseLongMessages(value)
+            })
         }
     }
 }
@@ -356,7 +372,10 @@ private struct ClearSettingsArguments {
     let updateDisableGalleryCamera: (Bool) -> Void
     let updateDisableStoryCameraSwipe: (Bool) -> Void
     let updateFlatStickerCorners: (Bool) -> Void
+    let updateSaveStickerToPhotos: (Bool) -> Void
+    let updateCollapseLongMessages: (Bool) -> Void
     let updateShowForwardedTime: (Bool) -> Void
+    let updateBlockCloudDrafts: (Bool) -> Void
     let editDoubleTapDelay: () -> Void
     let editAnimationSpeed: () -> Void
 }
@@ -427,8 +446,17 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         updateFlatStickerCorners: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.flatStickerCorners = value; return s }.start()
         },
+        updateSaveStickerToPhotos: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.saveStickerToPhotos = value; return s }.start()
+        },
+        updateCollapseLongMessages: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.collapseLongMessages = value; return s }.start()
+        },
         updateShowForwardedTime: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showForwardedTime = value; return s }.start()
+        },
+        updateBlockCloudDrafts: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.blockCloudDrafts = value; return s }.start()
         },
         editDoubleTapDelay: { editDoubleTapDelayImpl?() },
         editAnimationSpeed: { editAnimationSpeedImpl?() }
@@ -486,6 +514,8 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         entries.append(.disableStoryCameraSwipe(presentationData.theme, settings.disableStoryCameraSwipe))
         entries.append(.enableMultiColumnLayout(presentationData.theme, settings.enableMultiColumnLayout))
         entries.append(.flatStickerCorners(presentationData.theme, settings.flatStickerCorners))
+        entries.append(.saveStickerToPhotos(presentationData.theme, settings.saveStickerToPhotos))
+        entries.append(.collapseLongMessages(presentationData.theme, settings.collapseLongMessages))
         let state = ItemListControllerState(presentationData: pd, title: .text("Cleargram Settings"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         return (state, (ItemListNodeState(presentationData: pd, entries: entries, style: .blocks, animateChanges: true), arguments))
     }

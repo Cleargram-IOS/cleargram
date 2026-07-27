@@ -58,6 +58,8 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var disableStoryCameraSwipe: Bool
     public var enableMultiColumnLayout: Bool
     public var flatStickerCorners: Bool
+    public var saveStickerToPhotos: Bool
+    public var collapseLongMessages: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -107,7 +109,9 @@ public struct ClearConfigSettings: Codable, Equatable {
             disableGalleryCameraPreview: false,
             disableStoryCameraSwipe: false,
             enableMultiColumnLayout: false,
-            flatStickerCorners: false
+            flatStickerCorners: false,
+            saveStickerToPhotos: false,
+            collapseLongMessages: false
         )
     }
 
@@ -158,7 +162,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         disableGalleryCameraPreview: Bool = false,
         disableStoryCameraSwipe: Bool = false,
         enableMultiColumnLayout: Bool = false,
-        flatStickerCorners: Bool = false
+        flatStickerCorners: Bool = false,
+        saveStickerToPhotos: Bool = false,
+        collapseLongMessages: Bool = false
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -207,6 +213,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.disableStoryCameraSwipe = disableStoryCameraSwipe
         self.enableMultiColumnLayout = enableMultiColumnLayout
         self.flatStickerCorners = flatStickerCorners
+        self.saveStickerToPhotos = saveStickerToPhotos
+        self.collapseLongMessages = collapseLongMessages
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -221,6 +229,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         case showTabNames, compactChatList, chatListLines, compactFolderNames, allChatsHidden, hideTabBar, wideTabBar, tabBarSearchEnabled, wideChannelPosts, hideChannelBottomButton
         case disableGalleryCamera, disableGalleryCameraPreview, disableStoryCameraSwipe, enableMultiColumnLayout
         case flatStickerCorners
+        case saveStickerToPhotos
+        case collapseLongMessages
     }
 
     public init(from decoder: Decoder) throws {
@@ -272,6 +282,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.disableStoryCameraSwipe = try c.decodeIfPresent(Bool.self, forKey: .disableStoryCameraSwipe) ?? false
         self.enableMultiColumnLayout = try c.decodeIfPresent(Bool.self, forKey: .enableMultiColumnLayout) ?? false
         self.flatStickerCorners = try c.decodeIfPresent(Bool.self, forKey: .flatStickerCorners) ?? false
+        self.saveStickerToPhotos = try c.decodeIfPresent(Bool.self, forKey: .saveStickerToPhotos) ?? false
+        self.collapseLongMessages = try c.decodeIfPresent(Bool.self, forKey: .collapseLongMessages) ?? false
     }
 }
 
