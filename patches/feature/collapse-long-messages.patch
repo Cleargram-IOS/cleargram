@@ -1,0 +1,93 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 02:05:28 +0700
+Subject: Collapse long messages
+
+---
+ .../ChatMessageTextBubbleContentNode/BUILD    |  1 +
+ .../ChatMessageTextBubbleContentNode.swift    | 39 +++++++++++++++++++
+ 2 files changed, 40 insertions(+)
+
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageTextBubbleContentNode/BUILD b/submodules/TelegramUI/Components/Chat/ChatMessageTextBubbleContentNode/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageTextBubbleContentNode/BUILD
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageTextBubbleContentNode/BUILD
+@@ -13,6 +13,7 @@ swift_library(
+         "//submodules/AsyncDisplayKit",
+         "//submodules/Display",
+         "//submodules/TelegramCore",
++        "//submodules/TelegramUIPreferences",
+         "//submodules/TextFormat",
+         "//submodules/UrlEscaping",
+         "//submodules/TelegramUniversalVideoContent",
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageTextBubbleContentNode/Sources/ChatMessageTextBubbleContentNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageTextBubbleContentNode/Sources/ChatMessageTextBubbleContentNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageTextBubbleContentNode/Sources/ChatMessageTextBubbleContentNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageTextBubbleContentNode/Sources/ChatMessageTextBubbleContentNode.swift
+@@ -3,6 +3,7 @@ import UIKit
+ import AsyncDisplayKit
+ import Display
+ import TelegramCore
++import TelegramUIPreferences
+ import TextFormat
+ import UrlEscaping
+ import TelegramUniversalVideoContent
+@@ -117,6 +118,9 @@ public class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
+     private var appliedExpandedBlockIds: Set<Int>?
+     private var displayContentsUnderSpoilers: (value: Bool, location: CGPoint?) = (false, nil)
+     
++    private var isCollapsedExpanded: Bool = false
++    private var appliedIsCollapsedExpanded: Bool = false
++    
+     private var isSummaryApplied = false
+ 
+     private var textRevealLink: SharedDisplayLinkDriver.Link?
+@@ -668,6 +672,27 @@ public class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
+                     }
+                 }
+                 
++                if ClearConfig.collapseLongMessages && !item.presentationData.isPreview {
++                    let isExpanded = ClearHooks.expandedMessageIds.with { $0.contains(item.message.id) }
++                    if !isExpanded {
++                        let charCount = item.message.text.count
++                        if charCount > 800 {
++                            maximumNumberOfLines = 15
++                            let truncationTokenText = item.presentationData.strings.Conversation_ReadMore
++                            customTruncationToken = { baseFont, isQuote in
++                                let truncationToken = NSMutableAttributedString()
++                                if isQuote {
++                                    truncationToken.append(NSAttributedString(string: "\u{2026}", font: Font.regular(baseFont.pointSize), textColor: messageTheme.primaryTextColor))
++                                } else {
++                                    truncationToken.append(NSAttributedString(string: "\u{2026} ", font: Font.regular(baseFont.pointSize), textColor: messageTheme.primaryTextColor))
++                                    truncationToken.append(NSAttributedString(string: truncationTokenText, font: Font.regular(baseFont.pointSize), textColor: messageTheme.accentTextColor))
++                                }
++                                return truncationToken
++                            }
++                        }
++                    }
++                }
++                
+                 var hasDraft = false
+                 if item.message.attributes.contains(where: { $0 is TypingDraftMessageAttribute }) {
+                     hasDraft = true
+@@ -1283,6 +1308,20 @@ public class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
+             if let statusNode = self.statusNode, let _ = statusNode.hitTest(self.view.convert(point, to: statusNode.view), with: nil) {
+                 return ChatMessageBubbleContentTapAction(content: .ignore)
+             }
++            if ClearConfig.collapseLongMessages, let item = self.item, item.message.text.count > 800 {
++                let isExpanded = ClearHooks.expandedMessageIds.with { $0.contains(item.message.id) }
++                if !isExpanded {
++                    return ChatMessageBubbleContentTapAction(content: .custom { [weak self] in
++                        guard let self, let item = self.item else { return }
++                        let _ = ClearHooks.expandedMessageIds.modify { current in
++                            var updated = current
++                            updated.insert(item.message.id)
++                            return updated
++                        }
++                        item.controllerInteraction.requestMessageUpdate(item.message.id, false, nil)
++                    })
++                }
++            }
+             return ChatMessageBubbleContentTapAction(content: .none)
+         }
+     }

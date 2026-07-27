@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 02:05:25 +0700
+Subject: Save sticker to photos
+
+---
+ .../ChatInterfaceStateContextMenus.swift      | 28 +++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
++++ b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+@@ -1938,6 +1938,34 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+             })))
+         }
+ 
++        if ClearConfig.saveStickerToPhotos, !isCopyProtected {
++            var stickerFile: TelegramMediaFile?
++            for media in message.effectiveMedia {
++                if let file = media as? TelegramMediaFile, (file.isSticker || file.isAnimatedSticker || file.isVideoSticker), !file.isPremiumSticker {
++                    stickerFile = file
++                    break
++                }
++            }
++            if let stickerFile = stickerFile, !stickerFile.isAnimatedSticker {
++                actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Gallery_SaveImage, icon: { theme in
++                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Save"), color: theme.actionSheet.primaryTextColor)
++                }, action: { _, f in
++                    let mediaReference = FileMediaReference.standalone(media: stickerFile).abstract
++                    let _ = (saveToCameraRoll(context: context, userLocation: .peer(message.id.peerId), mediaReference: mediaReference)
++                        |> deliverOnMainQueue).startStandalone(completed: {
++                        Queue.mainQueue().after(0.2) {
++                            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
++                            controllerInteraction.presentControllerInCurrent(
++                                UndoOverlayController(presentationData: presentationData,
++                                    content: .mediaSaved(text: presentationData.strings.Gallery_ImageSaved),
++                                    elevatedLayout: false, animateInAsReplacement: false, action: { _ in return true }), nil)
++                        }
++                    })
++                    f(.dismissWithoutContent)
++                })))
++            }
++        }
++
+         if data.messageActions.options.contains(.forward), !ClearConfig.hideContextMenuForward {
+             if !isCopyProtected {
+                 actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Conversation_ContextMenuForward, icon: { theme in

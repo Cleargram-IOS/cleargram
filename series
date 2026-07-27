@@ -20,3 +20,6 @@ feature/hide-sponsored.patch
 feature/disable-gallery-camera.patch
 feature/flat-sticker-corners.patch
 feature/forwarded-time.patch
+feature/block-cloud-drafts.patch
+feature/sticker-save-to-photos.patch
+feature/collapse-long-messages.patch

@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 02:05:22 +0700
+Subject: Block cloud draft sync
+
+---
+ .../State/SynchronizeChatInputStateOperation.swift       | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
++++ b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+@@ -1,7 +1,16 @@
+ import Foundation
+ import Postbox
++import SwiftSignalKit
++
++public enum ClearHooks {
++    public static let blockCloudDrafts = Atomic<Bool>(value: false)
++    public static let expandedMessageIds = Atomic<Set<MessageId>>(value: Set())
++}
+ 
+ func addSynchronizeChatInputStateOperation(transaction: Transaction, peerId: PeerId, threadId: Int64?) {
++    if ClearHooks.blockCloudDrafts.with({ $0 }) {
++        return
++    }
+     var removeLocalIndices: [Int32] = []
+     let tag: PeerOperationLogTag = OperationLogTags.SynchronizeChatInputStates
+     
