@@ -12,11 +12,15 @@ Subject: Hide AI features behind ClearConfig toggle
  .../Sources/ChatTextInputPanelNode.swift       |  1 +
  .../Sources/LegacyMessageInputPanel.swift      |  3 ++-
  .../Sources/MessageInputPanelComponent.swift   |  1 +
+ .../Components/PeerInfo/PeerInfoScreen/BUILD   |  1 +
+ .../Sources/PeerInfoScreen.swift               |  1 +
+ .../PeerInfoScreenSettingsActions.swift        |  3 +++
+ .../Sources/PeerInfoSettingsItems.swift        |  5 +++++
  .../Sources/RichTextAttachmentScreen.swift     | 15 ++++++++++++---
  .../TelegramUI/Sources/AppDelegate.swift       |  2 ++
  .../Sources/ChatControllerNode.swift           |  3 ++-
  .../ChatInterfaceStateInputPanels.swift        |  4 +++-
- 12 files changed, 47 insertions(+), 9 deletions(-)
+ 16 files changed, 57 insertions(+), 9 deletions(-)
 
 diff --git a/submodules/AttachmentTextInputPanelNode/BUILD b/submodules/AttachmentTextInputPanelNode/BUILD
 index 0000000..0000000 100644
@@ -188,6 +192,74 @@ index 0000000..0000000 100644
  import AppBundle
  import TextFieldComponent
  import BundleIconComponent
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD
+@@ -97,6 +97,7 @@ swift_library(
+         "//submodules/SearchUI",
+         "//submodules/TelegramUI/Components/SendInviteLinkScreen",
+         "//submodules/SettingsUI",
++        "//submodules/DebugSettingsUI",
+         "//submodules/ShareController",
+         "//submodules/TelegramUI/Components/ShareWithPeersScreen",
+         "//submodules/StatisticsUI",
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+@@ -188,6 +188,7 @@ enum PeerInfoSettingsSection {
+     case premiumManagement
+     case stars
+     case ton
++    case clearSettings
+ }
+ 
+ enum PeerInfoReportType {
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift
+@@ -5,6 +5,7 @@ import AccountContext
+ import SwiftSignalKit
+ import TelegramCore
+ import SettingsUI
++import DebugSettingsUI
+ import PeerInfoStoryGridScreen
+ import CallListUI
+ import PassportUI
+@@ -143,6 +144,8 @@ extension PeerInfoScreenNode {
+             push(dataAndStorageController(context: self.context))
+         case .appearance:
+             push(themeSettingsController(context: self.context))
++        case .clearSettings:
++            push(clearSettingsController(context: self.context))
+         case .language:
+             push(LocalizationListController(context: self.context))
+         case .premium:
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
+@@ -19,6 +19,7 @@ enum SettingsSection: Int, CaseIterable {
+     case accounts
+     case myProfile
+     case proxy
++    case clearSettings
+     case apps
+     case shortcuts
+     case advanced
+@@ -240,6 +241,10 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
+         interaction.openSettings(.appearance)
+     }))
+     
++    items[.clearSettings]!.append(PeerInfoScreenDisclosureItem(id: 0, text: "Cleargram", icon: PresentationResourcesSettings.business, action: {
++        interaction.openSettings(.clearSettings)
++    }))
++    
+     items[.advanced]!.append(PeerInfoScreenDisclosureItem(id: 6, label: .text(data.isPowerSavingEnabled == true ? presentationData.strings.Settings_PowerSavingOn : presentationData.strings.Settings_PowerSavingOff), text: presentationData.strings.Settings_PowerSaving, icon: PresentationResourcesSettings.powerSaving, action: {
+         interaction.openSettings(.powerSaving)
+     }))
 diff --git a/submodules/TelegramUI/Components/RichTextAttachmentScreen/Sources/RichTextAttachmentScreen.swift b/submodules/TelegramUI/Components/RichTextAttachmentScreen/Sources/RichTextAttachmentScreen.swift
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Components/RichTextAttachmentScreen/Sources/RichTextAttachmentScreen.swift

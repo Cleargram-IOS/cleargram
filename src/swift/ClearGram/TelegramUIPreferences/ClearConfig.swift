@@ -32,5 +32,5 @@ public enum ClearConfig {
     public static var hideStories: Bool { current().hideStories }
     public static var hideAiFeatures: Bool { current().hideAiFeatures }
     public static var doubleTapDelay: Int32 { current().doubleTapDelay }
-    public static var animationSpeed: Float { current().animationSpeed }
+    public static var animationSpeed: Double { current().animationSpeed }
 }

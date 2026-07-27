@@ -14,7 +14,7 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var hideStories: Bool
     public var hideAiFeatures: Bool
     public var doubleTapDelay: Int32
-    public var animationSpeed: Float
+    public var animationSpeed: Double
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -29,7 +29,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         hideStories: Bool = false,
         hideAiFeatures: Bool = false,
         doubleTapDelay: Int32 = 300,
-        animationSpeed: Float = 1.0
+        animationSpeed: Double = 1.0
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures

@@ -19,7 +19,7 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
     case hideStories(PresentationTheme, Bool)
     case hideAiFeatures(PresentationTheme, Bool)
     case doubleTapDelay(PresentationTheme, Int32)
-    case animationSpeed(PresentationTheme, Float)
+    case animationSpeed(PresentationTheme, Double)
 
     var section: ItemListSectionId {
         switch self {
@@ -140,7 +140,7 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
             tf.text = String(format: "%.1f", ClearConfig.animationSpeed)
         }
         alert.addAction(UIAlertAction(title: "Set", style: .default) { _ in
-            if let text = alert.textFields?.first?.text, let value = Float(text) {
+            if let text = alert.textFields?.first?.text, let value = Double(text) {
                 let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.animationSpeed = value; return s }.start()
             }
         })
