@@ -1,0 +1,291 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Mon, 27 Jul 2026 14:09:56 +0700
+Subject: Hide AI features behind ClearConfig toggle
+
+---
+ submodules/AttachmentTextInputPanelNode/BUILD  |  1 +
+ .../Sources/AttachmentTextInputPanelNode.swift |  1 +
+ .../AttachmentUI/Sources/AttachmentPanel.swift |  3 ++-
+ .../Sources/DebugController.swift              | 18 ++++++++++++++++--
+ .../Sources/ChatMessageBubbleItemNode.swift    |  4 ++++
+ .../Sources/ChatTextInputPanelNode.swift       |  1 +
+ .../Sources/LegacyMessageInputPanel.swift      |  3 ++-
+ .../Sources/MessageInputPanelComponent.swift   |  1 +
+ .../Sources/RichTextAttachmentScreen.swift     | 15 ++++++++++++---
+ .../TelegramUI/Sources/AppDelegate.swift       |  2 ++
+ .../Sources/ChatControllerNode.swift           |  3 ++-
+ .../ChatInterfaceStateInputPanels.swift        |  4 +++-
+ 12 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/submodules/AttachmentTextInputPanelNode/BUILD b/submodules/AttachmentTextInputPanelNode/BUILD
+index 0000000..0000000 100644
+--- a/submodules/AttachmentTextInputPanelNode/BUILD
++++ b/submodules/AttachmentTextInputPanelNode/BUILD
+@@ -14,6 +14,7 @@ swift_library(
+         "//submodules/AsyncDisplayKit:AsyncDisplayKit",
+         "//submodules/Display:Display",
+         "//submodules/TelegramCore:TelegramCore",
++        "//submodules/TelegramUIPreferences:TelegramUIPreferences",
+         "//submodules/TelegramPresentationData:TelegramPresentationData",
+         "//submodules/TextFormat:TextFormat",
+         "//submodules/AccountContext:AccountContext",
+diff --git a/submodules/AttachmentTextInputPanelNode/Sources/AttachmentTextInputPanelNode.swift b/submodules/AttachmentTextInputPanelNode/Sources/AttachmentTextInputPanelNode.swift
+index 0000000..0000000 100644
+--- a/submodules/AttachmentTextInputPanelNode/Sources/AttachmentTextInputPanelNode.swift
++++ b/submodules/AttachmentTextInputPanelNode/Sources/AttachmentTextInputPanelNode.swift
+@@ -4,6 +4,7 @@ import Display
+ import AsyncDisplayKit
+ import SwiftSignalKit
+ import TelegramCore
++import TelegramUIPreferences
+ import MobileCoreServices
+ import TelegramPresentationData
+ import TextFormat
+diff --git a/submodules/AttachmentUI/Sources/AttachmentPanel.swift b/submodules/AttachmentUI/Sources/AttachmentPanel.swift
+index 0000000..0000000 100644
+--- a/submodules/AttachmentUI/Sources/AttachmentPanel.swift
++++ b/submodules/AttachmentUI/Sources/AttachmentPanel.swift
+@@ -2251,7 +2251,8 @@ final class AttachmentPanel: ASDisplayNode, ASScrollViewDelegate, ASGestureRecog
+             }, getNavigationController: { [weak self] in
+                 return self?.getNavigationController()
+             })
+-            if let data = self.context.currentAppConfiguration.with({ $0 }).data, let value = data["ios_disable_ai_chat"] as? Double, value == 1.0 {
++            if ClearConfig.hideAiFeatures {
++            } else if let data = self.context.currentAppConfiguration.with({ $0 }).data, let value = data["ios_disable_ai_chat"] as? Double, value == 1.0 {
+             } else if let peerId = self.presentationInterfaceState.chatLocation.peerId, peerId.namespace != Namespaces.Peer.SecretChat {
+                 textInputPanelNode.isAIEnabled = true
+             }
+diff --git a/submodules/DebugSettingsUI/Sources/DebugController.swift b/submodules/DebugSettingsUI/Sources/DebugController.swift
+index 0000000..0000000 100644
+--- a/submodules/DebugSettingsUI/Sources/DebugController.swift
++++ b/submodules/DebugSettingsUI/Sources/DebugController.swift
+@@ -32,8 +32,9 @@ private final class DebugControllerArguments {
+     let getRootController: () -> UIViewController?
+     let getNavigationController: () -> NavigationController?
+     let manageQuietChats: () -> Void
++    let openClearSettings: () -> Void
+ 
+-    init(sharedContext: SharedAccountContext, context: AccountContext?, mailComposeDelegate: DebugControllerMailComposeDelegate, presentController: @escaping (ViewController, ViewControllerPresentationArguments?) -> Void, pushController: @escaping (ViewController) -> Void, getRootController: @escaping () -> UIViewController?, getNavigationController: @escaping () -> NavigationController?, manageQuietChats: @escaping () -> Void) {
++    init(sharedContext: SharedAccountContext, context: AccountContext?, mailComposeDelegate: DebugControllerMailComposeDelegate, presentController: @escaping (ViewController, ViewControllerPresentationArguments?) -> Void, pushController: @escaping (ViewController) -> Void, getRootController: @escaping () -> UIViewController?, getNavigationController: @escaping () -> NavigationController?, manageQuietChats: @escaping () -> Void, openClearSettings: @escaping () -> Void) {
+         self.sharedContext = sharedContext
+         self.context = context
+         self.mailComposeDelegate = mailComposeDelegate
+@@ -42,6 +43,7 @@ private final class DebugControllerArguments {
+         self.getRootController = getRootController
+         self.getNavigationController = getNavigationController
+         self.manageQuietChats = manageQuietChats
++        self.openClearSettings = openClearSettings
+     }
+ }
+ 
+@@ -125,6 +127,7 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+     case hostInfo(PresentationTheme, String)
+     case versionInfo(PresentationTheme)
+     case quietChats(PresentationTheme)
++    case clearSettings(PresentationTheme)
+     
+     var section: ItemListSectionId {
+         switch self {
+@@ -150,7 +153,7 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+             return DebugControllerSection.videoExperiments2.rawValue
+         case .hostInfo, .versionInfo:
+             return DebugControllerSection.info.rawValue
+-        case .quietChats:
++        case .quietChats, .clearSettings:
+             return DebugControllerSection.experiments.rawValue
+         }
+     }
+@@ -291,6 +294,8 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+             return 104
+         case .quietChats:
+             return 19
++        case .clearSettings:
++            return 20
+         }
+     }
+     
+@@ -1544,6 +1549,10 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: "Peer Sync Preferences", label: "", sectionId: self.section, style: .blocks, action: {
+                 arguments.manageQuietChats()
+             })
++        case .clearSettings:
++            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: "Cleargram Settings", label: "", sectionId: self.section, style: .blocks, action: {
++                arguments.openClearSettings()
++            })
+         }
+     }
+ }
+@@ -1581,6 +1590,7 @@ private func debugControllerEntries(context: AccountContext?, sharedContext: Sha
+         entries.append(.alwaysDisplayTyping(experimentalSettings.alwaysDisplayTyping))
+         entries.append(.debugRatingLayout(experimentalSettings.debugRatingLayout))
+         entries.append(.quietChats(presentationData.theme))
++        entries.append(.clearSettings(presentationData.theme))
+     }
+     entries.append(.crashOnSlowQueries(presentationData.theme, experimentalSettings.crashOnLongQueries))
+     entries.append(.crashOnMemoryPressure(presentationData.theme, experimentalSettings.crashOnMemoryPressure))
+@@ -1685,6 +1695,10 @@ public func debugController(sharedContext: SharedAccountContext, context: Accoun
+         guard let context = context else { return }
+         let controller = quietChatsSelectionController(context: context)
+         pushControllerImpl?(controller)
++    }, openClearSettings: {
++        guard let context = context else { return }
++        let controller = clearSettingsController(context: context)
++        pushControllerImpl?(controller)
+     })
+     
+     let appGroupName = "group.\(Bundle.main.bundleIdentifier!)"
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
+@@ -1980,6 +1980,10 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
+             needsShareButton = false
+         }
+         
++        if ClearConfig.hideAiFeatures {
++            needsSummarizeButton = false
++        }
++        
+         /*if isInlinePage {
+             needsShareButton = false
+         }*/
+diff --git a/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/ChatTextInputPanelNode.swift b/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/ChatTextInputPanelNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/ChatTextInputPanelNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/ChatTextInputPanelNode.swift
+@@ -5,6 +5,7 @@ import Display
+ import AsyncDisplayKit
+ import SwiftSignalKit
+ import TelegramCore
++import TelegramUIPreferences
+ import MobileCoreServices
+ import TelegramPresentationData
+ import TextFormat
+diff --git a/submodules/TelegramUI/Components/LegacyMessageInputPanel/Sources/LegacyMessageInputPanel.swift b/submodules/TelegramUI/Components/LegacyMessageInputPanel/Sources/LegacyMessageInputPanel.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/LegacyMessageInputPanel/Sources/LegacyMessageInputPanel.swift
++++ b/submodules/TelegramUI/Components/LegacyMessageInputPanel/Sources/LegacyMessageInputPanel.swift
+@@ -98,7 +98,8 @@ public class LegacyMessageInputPanelNode: ASDisplayNode, TGCaptionPanelView {
+ 
+         super.init()
+ 
+-        if let data = context.currentAppConfiguration.with({ $0 }).data, let value = data["ios_disable_ai_attach"] as? Double, value == 1.0 {
++        if ClearConfig.hideAiFeatures {
++        } else if let data = context.currentAppConfiguration.with({ $0 }).data, let value = data["ios_disable_ai_attach"] as? Double, value == 1.0 {
+         } else if let peerId = chatLocation.peerId, peerId.namespace != Namespaces.Peer.SecretChat {
+             self.isAIEnabled = true
+         }
+diff --git a/submodules/TelegramUI/Components/MessageInputPanelComponent/Sources/MessageInputPanelComponent.swift b/submodules/TelegramUI/Components/MessageInputPanelComponent/Sources/MessageInputPanelComponent.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/MessageInputPanelComponent/Sources/MessageInputPanelComponent.swift
++++ b/submodules/TelegramUI/Components/MessageInputPanelComponent/Sources/MessageInputPanelComponent.swift
+@@ -4,6 +4,7 @@ import Display
+ import ComponentFlow
+ import SwiftSignalKit
+ import TelegramCore
++import TelegramUIPreferences
+ import AppBundle
+ import TextFieldComponent
+ import BundleIconComponent
+diff --git a/submodules/TelegramUI/Components/RichTextAttachmentScreen/Sources/RichTextAttachmentScreen.swift b/submodules/TelegramUI/Components/RichTextAttachmentScreen/Sources/RichTextAttachmentScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/RichTextAttachmentScreen/Sources/RichTextAttachmentScreen.swift
++++ b/submodules/TelegramUI/Components/RichTextAttachmentScreen/Sources/RichTextAttachmentScreen.swift
+@@ -4,6 +4,7 @@ import Display
+ import ComponentFlow
+ import AccountContext
+ import AttachmentUI
++import TelegramUIPreferences
+ import ViewControllerComponent
+ import TelegramPresentationData
+ import PresentationDataUtils
+@@ -1410,9 +1411,14 @@ final class RichTextAttachmentScreenComponent: Component {
+                 sideInset = 20.0
+             }
+             
+-            let actionBarSpacing: CGFloat = 6.0
++            let aiHidden = ClearConfig.hideAiFeatures
++            let actionBarSpacing: CGFloat = aiHidden ? 0.0 : 6.0
+             
+-            let aiButtonSize = self.aiButton.update(
++            let aiButtonSize: CGSize
++            if aiHidden {
++                aiButtonSize = .zero
++            } else {
++                aiButtonSize = self.aiButton.update(
+                 transition: transition,
+                 component: AnyComponent(GlassControlGroupComponent(
+                     theme: environment.theme,
+@@ -1523,6 +1529,7 @@ final class RichTextAttachmentScreenComponent: Component {
+                 environment: {},
+                 containerSize: CGSize(width: 44.0, height: 44.0)
+             )
++            }
+             
+             var isSendEnabled = true
+             let content = chatInputContent(fromDocument: self.currentDocument, media: self.currentMedia, emojiFiles: self.currentEmojiFiles)
+@@ -1561,11 +1568,13 @@ final class RichTextAttachmentScreenComponent: Component {
+             var bottomInset = max(environment.inputHeight, emojiPanelHeight, environment.safeInsets.bottom)
+             
+             let aiButtonFrame = CGRect(origin: CGPoint(x: sideInset + environment.safeInsets.left, y: availableSize.height - bottomInset - 6.0 - aiButtonSize.height), size: aiButtonSize)
+-            if let aiButtonView = self.aiButton.view {
++            if !aiHidden, let aiButtonView = self.aiButton.view {
+                 if aiButtonView.superview == nil {
+                     self.addSubview(aiButtonView)
+                 }
+                 transition.setFrame(view: aiButtonView, frame: aiButtonFrame)
++            } else if let aiButtonView = self.aiButton.view, aiButtonView.superview != nil {
++                aiButtonView.removeFromSuperview()
+             }
+             
+             let sendButtonFrame = CGRect(origin: CGPoint(x: availableSize.width - (sideInset + environment.safeInsets.left) - sendButtonSize.width, y: availableSize.height - bottomInset - 6.0 - sendButtonSize.height), size: sendButtonSize)
+diff --git a/submodules/TelegramUI/Sources/AppDelegate.swift b/submodules/TelegramUI/Sources/AppDelegate.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/AppDelegate.swift
++++ b/submodules/TelegramUI/Sources/AppDelegate.swift
+@@ -1111,6 +1111,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+             
+             presentationDataPromise.set(sharedContext.presentationData)
+             
++            ClearConfig.start(accountManager: sharedContext.accountManager)
++            
+             sharedContext.presentGlobalController = { [weak self] c, a in
+                 guard let strongSelf = self else {
+                     return
+diff --git a/submodules/TelegramUI/Sources/ChatControllerNode.swift b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatControllerNode.swift
++++ b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+@@ -943,7 +943,8 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+             return MediaItemNodeView(context: context, items: items, audioColorOverride: audioColors, cornerRadius: 4.0, showsControls: false)
+         }
+         self.textInputPanelNode?.formulaRenderer = chatInputFormulaRenderResult
+-        if let data = self.context.currentAppConfiguration.with({ $0 }).data, let value = data["ios_disable_ai_chat"] as? Double, value == 1.0 {
++        if ClearConfig.hideAiFeatures {
++        } else if let data = self.context.currentAppConfiguration.with({ $0 }).data, let value = data["ios_disable_ai_chat"] as? Double, value == 1.0 {
+         } else if let peerId = self.chatPresentationInterfaceState.chatLocation.peerId, peerId.namespace != Namespaces.Peer.SecretChat {
+             self.textInputPanelNode?.isAIEnabled = true
+         }
+diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
++++ b/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
+@@ -2,6 +2,7 @@ import Foundation
+ import UIKit
+ import AsyncDisplayKit
+ import TelegramCore
++import TelegramUIPreferences
+ import AccountContext
+ import ChatPresentationInterfaceState
+ import ChatInputPanelNode
+@@ -503,7 +504,8 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
+                     return MediaItemNodeView(context: context, items: items, audioColorOverride: audioColors, cornerRadius: 4.0, showsControls: false)
+                 }
+                 panel.formulaRenderer = chatInputFormulaRenderResult
+-                if let data = context.currentAppConfiguration.with({ $0 }).data, let value = data["ios_disable_ai_chat"] as? Double, value == 1.0 {
++                if ClearConfig.hideAiFeatures {
++                } else if let data = context.currentAppConfiguration.with({ $0 }).data, let value = data["ios_disable_ai_chat"] as? Double, value == 1.0 {
+                 } else if let peerId = chatPresentationInterfaceState.chatLocation.peerId, peerId.namespace != Namespaces.Peer.SecretChat {
+                     panel.isAIEnabled = true
+                 }

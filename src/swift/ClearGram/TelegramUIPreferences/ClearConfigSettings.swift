@@ -12,12 +12,14 @@ import SwiftSignalKit
 
 public struct ClearConfigSettings: Codable, Equatable {
     public var hideStories: Bool
+    public var hideAiFeatures: Bool
     public var doubleTapDelay: Int32
     public var animationSpeed: Float
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
             hideStories: false,
+            hideAiFeatures: false,
             doubleTapDelay: 300,
             animationSpeed: 1.0
         )
@@ -25,10 +27,12 @@ public struct ClearConfigSettings: Codable, Equatable {
 
     public init(
         hideStories: Bool = false,
+        hideAiFeatures: Bool = false,
         doubleTapDelay: Int32 = 300,
         animationSpeed: Float = 1.0
     ) {
         self.hideStories = hideStories
+        self.hideAiFeatures = hideAiFeatures
         self.doubleTapDelay = doubleTapDelay
         self.animationSpeed = animationSpeed
     }

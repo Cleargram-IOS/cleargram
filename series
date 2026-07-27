@@ -4,3 +4,4 @@ bugfix/recent-inline-bots-duplicate-crash.patch
 feature/hidden-messages.patch
 misc/branding.patch
 feature/camera-picker-video-messages.patch
+debloat/hide-ai-features.patch

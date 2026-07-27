@@ -27,22 +27,26 @@
 
 _(none yet)_
 
+## Debloat
+
+| patch | description |
+| --- | --- |
+| ✅ `debloat__hide-ai-features` | hide all AI features behind `ClearConfig.hideAiFeatures` toggle (default-off). Gates: summarize button on messages (`ChatMessageBubbleItemNode`), AI compose button in legacy and new Text Field v2 input panels (`ChatTextInputPanelNode`, `MessageInputPanelComponent` via `isAIEnabled` flag, `AttachmentTextInputPanelNode`, `LegacyMessageInputPanel`), AI button in `RichTextAttachmentScreen`. 12 stock files. UI toggle in Settings → Debug → Cleargram Settings. `ClearConfig.start()` called from `AppDelegate` at launch. |
+
 ## Misc
 
 | patch | description |
 | --- | --- |
 | ✅ `misc__clear-config` | shared-data keys 30/31/32 (`clearConfigSettings`, `hiddenChatsSettings`, `hiddenMessagesSettings`) added to `submodules/TelegramUIPreferences/Sources/PostboxKeys.swift`. Foundation all fork settings types consume. |
-
-No `misc__branding` patch is needed: `Telegram/BUILD` is already parameterized via
-`telegram_bundle_id` (read from `template_minimal_development_configuration.json`), and app
-group is derived as `group.{telegram_bundle_id}`. Extensions are disabled via the
-`--disableExtensions` CLI flag (free Apple Developer App ID limit), not a patch.
+| ✅ `misc__branding` | rename app display name "Telegram" → "Cleargram" in `TelegramInfoPlist` (`CFBundleDisplayName` + `CFBundleName`) in `Telegram/BUILD`. Extensions keep "Telegram" (their `AppNameInfoPlist` unchanged). Bundle id stays `org.YOUR_BUNDLE_ID_HERE.Telegram` (changing it loses app-group data). |
 
 ## Planned (not from keetgram)
 
-- `misc__branding` — rename "Telegram" → "Cleargram" in user-visible surfaces (display
-  name, Localizable.strings, app icon, launch screen, About). Split into per-surface
-  patches. See STATUS.md "Planned" for full scope and what NOT to touch (bundle id, `tg://`
-  scheme, MTProto/Passcode protocol strings).
-- Cleargram settings panel (Debug menu section or a dedicated screen)
-- `ClearConfig` — centralized config object modeled after `InuConfig` (toggle per-feature, default-off)
+- `bugfix__send-duplicate-on-multi-tap` — fix duplicate message sends when tapping send
+  multiple times under bad network (situational; investigate + debounce the send button
+  while a send is in-flight).
+- Cleargram settings panel expansion — add more `ClearConfig` toggles (currently has
+  hideStories, hideAiFeatures, doubleTapDelay, animationSpeed). See `docs/inugram-features.md`
+  for the full candidate list.
+- `misc__branding` expansion — Localizable.strings (user-visible "Telegram" strings),
+  app icon, launch screen. See STATUS.md "Planned" for full scope.
