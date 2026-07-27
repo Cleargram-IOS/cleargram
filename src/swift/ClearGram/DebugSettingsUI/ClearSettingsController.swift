@@ -281,9 +281,13 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let .noSelectionCap(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "No Selection Cap (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .stripTrackingParams(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Strip Tracking Params (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Strip Tracking Params", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateStripTrackingParams(value)
+            })
         case let .replacePreviewLinks(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Replace Preview Links (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Replace Preview Links", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateReplacePreviewLinks(value)
+            })
         case let .confirmInternalLinks(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Confirm Internal Links (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .biometricConfirmation(_, value):
@@ -293,11 +297,15 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
                 args.updateHideSponsoredMessages(value)
             })
         case let .hideStarReactionButton(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Star Reaction Button (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Star Reaction Button", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateHideStarReactionButton(value)
+            })
         case let .hideStarReactionCount(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Star Reaction Count (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .hideSimilarChannels(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Similar Channels (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Similar Channels", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateHideSimilarChannels(value)
+            })
         case let .warnPollsRevote(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Warn Polls Revote (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .showPackOwner(_, value):
@@ -377,6 +385,10 @@ private struct ClearSettingsArguments {
     let updateSaveStickerToPhotos: (Bool) -> Void
     let updateCollapseLongMessages: (Bool) -> Void
     let updateShowPackOwner: (Bool) -> Void
+    let updateHideSimilarChannels: (Bool) -> Void
+    let updateHideStarReactionButton: (Bool) -> Void
+    let updateStripTrackingParams: (Bool) -> Void
+    let updateReplacePreviewLinks: (Bool) -> Void
     let updateShowForwardedTime: (Bool) -> Void
     let updateBlockCloudDrafts: (Bool) -> Void
     let editDoubleTapDelay: () -> Void
@@ -457,6 +469,18 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         },
         updateShowPackOwner: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showPackOwner = value; return s }.start()
+        },
+        updateHideSimilarChannels: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideSimilarChannels = value; return s }.start()
+        },
+        updateHideStarReactionButton: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideStarReactionButton = value; return s }.start()
+        },
+        updateStripTrackingParams: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.stripTrackingParams = value; return s }.start()
+        },
+        updateReplacePreviewLinks: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.replacePreviewLinks = value; return s }.start()
         },
         updateShowForwardedTime: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showForwardedTime = value; return s }.start()
