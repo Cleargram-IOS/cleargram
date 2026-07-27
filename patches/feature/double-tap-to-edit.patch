@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:25:47 +0700
+Subject: Add double tap to edit
+
+---
+ .../Sources/ChatControllerInteraction.swift                 | 3 +++
+ submodules/TelegramUI/Sources/ChatController.swift          | 6 ++++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/submodules/TelegramUI/Components/ChatControllerInteraction/Sources/ChatControllerInteraction.swift b/submodules/TelegramUI/Components/ChatControllerInteraction/Sources/ChatControllerInteraction.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/ChatControllerInteraction/Sources/ChatControllerInteraction.swift
++++ b/submodules/TelegramUI/Components/ChatControllerInteraction/Sources/ChatControllerInteraction.swift
+@@ -277,6 +277,7 @@ public final class ChatControllerInteraction: ChatControllerInteractionProtocol
+     public let openReplyThreadOriginalMessage: (EngineRawMessage) -> Void
+     public let openMessageStats: (EngineMessage.Id) -> Void
+     public let editMessageMedia: (EngineMessage.Id, Bool) -> Void
++    public let clearStartMessageEdit: (EngineRawMessage) -> Void
+     public let copyText: (String) -> Void
+     public let displayUndo: (UndoOverlayContent) -> Void
+     public let isAnimatingMessage: (UInt32) -> Bool
+@@ -462,6 +463,7 @@ public final class ChatControllerInteraction: ChatControllerInteractionProtocol
+         openReplyThreadOriginalMessage: @escaping (EngineRawMessage) -> Void,
+         openMessageStats: @escaping (EngineMessage.Id) -> Void,
+         editMessageMedia: @escaping (EngineMessage.Id, Bool) -> Void,
++        clearStartMessageEdit: @escaping (EngineRawMessage) -> Void = { _ in },
+         copyText: @escaping (String) -> Void,
+         displayUndo: @escaping (UndoOverlayContent) -> Void,
+         isAnimatingMessage: @escaping (UInt32) -> Bool,
+@@ -596,6 +598,7 @@ public final class ChatControllerInteraction: ChatControllerInteractionProtocol
+         self.openReplyThreadOriginalMessage = openReplyThreadOriginalMessage
+         self.openMessageStats = openMessageStats
+         self.editMessageMedia = editMessageMedia
++        self.clearStartMessageEdit = clearStartMessageEdit
+         self.copyText = copyText
+         self.displayUndo = displayUndo
+         self.isAnimatingMessage = isAnimatingMessage
+diff --git a/submodules/TelegramUI/Sources/ChatController.swift b/submodules/TelegramUI/Sources/ChatController.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatController.swift
++++ b/submodules/TelegramUI/Sources/ChatController.swift
+@@ -4779,6 +4779,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
+                     self?.editMessageMediaWithLegacySignals(signals)
+                 })
+             }
++        }, clearStartMessageEdit: { [weak self] message in
++            if let strongSelf = self {
++                if canEditMessage(context: strongSelf.context, limitsConfiguration: strongSelf.context.currentLimitsConfiguration.with { EngineConfiguration.Limits($0) }, message: message) {
++                    strongSelf.interfaceInteraction?.setupEditMessage(message.id, { _ in })
++                }
++            }
+         }, copyText: { [weak self] text in
+             if let strongSelf = self {
+                 storeMessageTextInPasteboard(text, entities: nil)

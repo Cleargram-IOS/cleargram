@@ -1,0 +1,88 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:25:38 +0700
+Subject: Expand Cleargram settings UI
+
+---
+ .../Sources/DebugController.swift              | 18 ++----------------
+ 1 file changed, 2 insertions(+), 16 deletions(-)
+
+diff --git a/submodules/DebugSettingsUI/Sources/DebugController.swift b/submodules/DebugSettingsUI/Sources/DebugController.swift
+index 0000000..0000000 100644
+--- a/submodules/DebugSettingsUI/Sources/DebugController.swift
++++ b/submodules/DebugSettingsUI/Sources/DebugController.swift
+@@ -32,9 +32,8 @@ private final class DebugControllerArguments {
+     let getRootController: () -> UIViewController?
+     let getNavigationController: () -> NavigationController?
+     let manageQuietChats: () -> Void
+-    let openClearSettings: () -> Void
+ 
+-    init(sharedContext: SharedAccountContext, context: AccountContext?, mailComposeDelegate: DebugControllerMailComposeDelegate, presentController: @escaping (ViewController, ViewControllerPresentationArguments?) -> Void, pushController: @escaping (ViewController) -> Void, getRootController: @escaping () -> UIViewController?, getNavigationController: @escaping () -> NavigationController?, manageQuietChats: @escaping () -> Void, openClearSettings: @escaping () -> Void) {
++    init(sharedContext: SharedAccountContext, context: AccountContext?, mailComposeDelegate: DebugControllerMailComposeDelegate, presentController: @escaping (ViewController, ViewControllerPresentationArguments?) -> Void, pushController: @escaping (ViewController) -> Void, getRootController: @escaping () -> UIViewController?, getNavigationController: @escaping () -> NavigationController?, manageQuietChats: @escaping () -> Void) {
+         self.sharedContext = sharedContext
+         self.context = context
+         self.mailComposeDelegate = mailComposeDelegate
+@@ -43,7 +42,6 @@ private final class DebugControllerArguments {
+         self.getRootController = getRootController
+         self.getNavigationController = getNavigationController
+         self.manageQuietChats = manageQuietChats
+-        self.openClearSettings = openClearSettings
+     }
+ }
+ 
+@@ -127,7 +125,6 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+     case hostInfo(PresentationTheme, String)
+     case versionInfo(PresentationTheme)
+     case quietChats(PresentationTheme)
+-    case clearSettings(PresentationTheme)
+     
+     var section: ItemListSectionId {
+         switch self {
+@@ -153,7 +150,7 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+             return DebugControllerSection.videoExperiments2.rawValue
+         case .hostInfo, .versionInfo:
+             return DebugControllerSection.info.rawValue
+-        case .quietChats, .clearSettings:
++        case .quietChats:
+             return DebugControllerSection.experiments.rawValue
+         }
+     }
+@@ -294,8 +291,6 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+             return 104
+         case .quietChats:
+             return 19
+-        case .clearSettings:
+-            return 20
+         }
+     }
+     
+@@ -1549,10 +1544,6 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: "Peer Sync Preferences", label: "", sectionId: self.section, style: .blocks, action: {
+                 arguments.manageQuietChats()
+             })
+-        case .clearSettings:
+-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: "Cleargram Settings", label: "", sectionId: self.section, style: .blocks, action: {
+-                arguments.openClearSettings()
+-            })
+         }
+     }
+ }
+@@ -1590,7 +1581,6 @@ private func debugControllerEntries(context: AccountContext?, sharedContext: Sha
+         entries.append(.alwaysDisplayTyping(experimentalSettings.alwaysDisplayTyping))
+         entries.append(.debugRatingLayout(experimentalSettings.debugRatingLayout))
+         entries.append(.quietChats(presentationData.theme))
+-        entries.append(.clearSettings(presentationData.theme))
+     }
+     entries.append(.crashOnSlowQueries(presentationData.theme, experimentalSettings.crashOnLongQueries))
+     entries.append(.crashOnMemoryPressure(presentationData.theme, experimentalSettings.crashOnMemoryPressure))
+@@ -1695,10 +1685,6 @@ public func debugController(sharedContext: SharedAccountContext, context: Accoun
+         guard let context = context else { return }
+         let controller = quietChatsSelectionController(context: context)
+         pushControllerImpl?(controller)
+-    }, openClearSettings: {
+-        guard let context = context else { return }
+-        let controller = clearSettingsController(context: context)
+-        pushControllerImpl?(controller)
+     })
+     
+     let appGroupName = "group.\(Bundle.main.bundleIdentifier!)"

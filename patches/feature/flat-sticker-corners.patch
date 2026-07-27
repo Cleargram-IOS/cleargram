@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:26:05 +0700
+Subject: Flat sticker corners
+
+---
+ .../MediaEditor/Sources/MediaEditorComposer.swift          | 7 +++++--
+ .../MediaEditor/Sources/StickerOutlineRenderPass.swift     | 3 ++-
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorComposer.swift b/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorComposer.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorComposer.swift
++++ b/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorComposer.swift
+@@ -8,6 +8,7 @@ import Display
+ import SwiftSignalKit
+ import TelegramCore
+ import Postbox
++import TelegramUIPreferences
+ 
+ public func mediaEditorGenerateGradientImage(size: CGSize, colors: [UIColor]) -> UIImage? {
+     UIGraphicsBeginImageContextWithOptions(size, false, 1.0)
+@@ -135,7 +136,8 @@ public final class MediaEditorComposer {
+         self.renderer.addRenderChain(self.renderChain)
+         
+         if values.isSticker {
+-            self.maskImage = roundedCornersMaskImage(size: CGSize(width: floor(1080.0 * 0.97), height: floor(1080.0 * 0.97)))
++            let maskSize = CGSize(width: floor(1080.0 * 0.97), height: floor(1080.0 * 0.97))
++            self.maskImage = ClearConfig.flatStickerCorners ? rectangleMaskImage(size: maskSize) : roundedCornersMaskImage(size: maskSize)
+         } else if values.isAvatar {
+             self.maskImage = rectangleMaskImage(size: CGSize(width: 1080.0, height: 1080.0))
+         }
+@@ -246,7 +248,8 @@ public func makeEditorImageComposition(context: CIContext, postbox: Postbox, inp
+     
+     var maskImage: CIImage?
+     if values.isSticker {
+-        maskImage = roundedCornersMaskImage(size: CGSize(width: floor(1080.0 * 0.97), height: floor(1080.0 * 0.97)))
++        let maskSize = CGSize(width: floor(1080.0 * 0.97), height: floor(1080.0 * 0.97))
++        maskImage = ClearConfig.flatStickerCorners ? rectangleMaskImage(size: maskSize) : roundedCornersMaskImage(size: maskSize)
+     } else if values.isAvatar {
+         maskImage = rectangleMaskImage(size: CGSize(width: 1080.0, height: 1080.0))
+     } else if let outputDimensions {
+diff --git a/submodules/TelegramUI/Components/MediaEditor/Sources/StickerOutlineRenderPass.swift b/submodules/TelegramUI/Components/MediaEditor/Sources/StickerOutlineRenderPass.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/MediaEditor/Sources/StickerOutlineRenderPass.swift
++++ b/submodules/TelegramUI/Components/MediaEditor/Sources/StickerOutlineRenderPass.swift
+@@ -4,6 +4,7 @@ import Display
+ import Metal
+ import simd
+ import CoreImage
++import TelegramUIPreferences
+ 
+ private let maxBorderWidth: Float = 40.0
+ 
+@@ -125,7 +126,7 @@ final class StickerOutlineRenderPass: RenderPass {
+ 
+ private func roundedCornersMaskImage(outlineWidth: CGFloat) -> CIImage {
+     let rectSize = CGSize(width: floor(1080.0 * 0.97) - outlineWidth * 2.0, height: floor(1080.0 * 0.97) - outlineWidth * 2.0)
+-    let cornerRadius = floor(1080.0 * 0.97) / 8.0 - outlineWidth
++    let cornerRadius = ClearConfig.flatStickerCorners ? 0.0 : (floor(1080.0 * 0.97) / 8.0 - outlineWidth)
+     let image = generateImage(CGSize(width: 1080.0, height: 1920.0), opaque: true, scale: 1.0) { size, context in
+         context.setFillColor(UIColor.black.cgColor)
+         context.fill(CGRect(origin: .zero, size: size))

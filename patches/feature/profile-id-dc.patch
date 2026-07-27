@@ -1,0 +1,175 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:25:49 +0700
+Subject: Show profile ID and DC with copy
+
+---
+ .../Sources/PeerInfoProfileItems.swift        | 84 ++++++++++++++++++-
+ .../Sources/PeerInfoScreen.swift              |  2 +-
+ .../Sources/PeerInfoSettingsItems.swift       |  3 +-
+ 3 files changed, 85 insertions(+), 4 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
+@@ -4,6 +4,7 @@ import Display
+ import AccountContext
+ import TelegramPresentationData
+ import TelegramCore
++import TelegramUIPreferences
+ import PeerInfoUI
+ import TextFormat
+ import PhoneNumberFormat
+@@ -16,6 +17,8 @@ import WebUI
+ import AvatarNode
+ import PeerNameColorItem
+ import BoostLevelIconComponent
++import ContextUI
++import UndoUI
+ 
+ private let enabledPublicBioEntities: EnabledEntityTypes = [.allUrl, .mention, .hashtag]
+ private let enabledPrivateBioEntities: EnabledEntityTypes = [.internalUrl, .mention, .hashtag]
+@@ -46,7 +49,8 @@ func infoItems(
+     callMessages: [EngineMessage],
+     chatLocation: ChatLocation,
+     isOpenedFromChat: Bool,
+-    isMyProfile: Bool
++    isMyProfile: Bool,
++    isSettings: Bool
+ ) -> [(AnyHashable, [PeerInfoScreenItem])] {
+     guard let data = data else {
+         return []
+@@ -88,6 +92,8 @@ func infoItems(
+         let ItemAbout = 3003
+         let ItemNote = 3004
+         let ItemAppFooter = 3005
++        let ItemClearId = 3006
++        let ItemClearDc = 3007
+         let ItemAffiliate = 4000
+         let ItemAffiliateInfo = 4001
+         let ItemBusinessHours = 5000
+@@ -155,7 +161,7 @@ func infoItems(
+             ))
+         }
+         
+-        if let phone = user.phone {
++        if let phone = user.phone, !(ClearConfig.hidePhoneInSettings && (isMyProfile || isSettings)) {
+             let formattedPhone = formatPhoneNumber(context: context, number: phone)
+             let label: String
+             if formattedPhone.hasPrefix("+888 ") {
+@@ -205,6 +211,80 @@ func infoItems(
+             )
+         }
+         
++        if ClearConfig.showProfileId, let peer = data.peer {
++            let idText = "\(peer.id.id._internalGetInt64Value())"
++            items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemClearId, label: "id", text: idText, textColor: .primary, action: { node, progress in
++                UIPasteboard.general.string = idText
++                if let controller = interaction.getController() {
++                    let pd = context.sharedContext.currentPresentationData.with { $0 }
++                    controller.present(UndoOverlayController(presentationData: pd, content: .copy(text: pd.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
++                }
++                interaction.requestLayout(false)
++            }, longTapAction: nil, contextAction: { node, gesture, _ in
++                guard let sourceNode = node as? ContextExtractedContentContainingNode, let gesture = gesture else {
++                    UIPasteboard.general.string = idText
++                    interaction.requestLayout(false)
++                    return
++                }
++                let pd = context.sharedContext.currentPresentationData.with { $0 }
++                let copyAction = {
++                    UIPasteboard.general.string = idText
++                    if let controller = interaction.getController() {
++                        controller.present(UndoOverlayController(presentationData: pd, content: .copy(text: pd.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
++                    }
++                }
++                var menuItems: [ContextMenuItem] = []
++                menuItems.append(.action(ContextMenuActionItem(text: pd.strings.Conversation_ContextMenuCopy, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Copy"), color: theme.contextMenu.primaryColor) }, action: { c, _ in
++                    c?.dismiss { copyAction() }
++                })))
++                let contextController = makeContextController(presentationData: pd, source: .extracted(PeerInfoContextExtractedContentSource(sourceNode: sourceNode)), items: .single(ContextController.Items(content: .list(menuItems))), gesture: gesture)
++                interaction.getController()?.present(contextController, in: .window(.root))
++            }, requestLayout: { animated in
++                interaction.requestLayout(animated)
++            }))
++        }
++        
++        if ClearConfig.showDC, let peer = data.peer {
++            var dcId: Int?
++            if let smallestRep = peer.profileImageRepresentations.first {
++                if let cloudResource = smallestRep.resource as? CloudPeerPhotoSizeMediaResource {
++                    dcId = cloudResource.datacenterId
++                }
++            }
++            if let dcId = dcId {
++                let dcText = "DC \(dcId)"
++                items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemClearDc, label: "dc", text: dcText, textColor: .primary, action: { node, progress in
++                    UIPasteboard.general.string = "\(dcId)"
++                    if let controller = interaction.getController() {
++                        let pd = context.sharedContext.currentPresentationData.with { $0 }
++                        controller.present(UndoOverlayController(presentationData: pd, content: .copy(text: pd.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
++                    }
++                    interaction.requestLayout(false)
++                }, longTapAction: nil, contextAction: { node, gesture, _ in
++                    guard let sourceNode = node as? ContextExtractedContentContainingNode, let gesture = gesture else {
++                        UIPasteboard.general.string = "\(dcId)"
++                        interaction.requestLayout(false)
++                        return
++                    }
++                    let pd = context.sharedContext.currentPresentationData.with { $0 }
++                    let copyAction = {
++                        UIPasteboard.general.string = "\(dcId)"
++                        if let controller = interaction.getController() {
++                            controller.present(UndoOverlayController(presentationData: pd, content: .copy(text: pd.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
++                        }
++                    }
++                    var menuItems: [ContextMenuItem] = []
++                    menuItems.append(.action(ContextMenuActionItem(text: pd.strings.Conversation_ContextMenuCopy, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Copy"), color: theme.contextMenu.primaryColor) }, action: { c, _ in
++                        c?.dismiss { copyAction() }
++                    })))
++                    let contextController = makeContextController(presentationData: pd, source: .extracted(PeerInfoContextExtractedContentSource(sourceNode: sourceNode)), items: .single(ContextController.Items(content: .list(menuItems))), gesture: gesture)
++                    interaction.getController()?.present(contextController, in: .window(.root))
++                }, requestLayout: { animated in
++                    interaction.requestLayout(animated)
++                }))
++            }
++        }
++        
+         if let cachedData = data.cachedData as? CachedUserData {
+             if let birthday = cachedData.birthday {
+                 let isBirthdayToday = hasBirthdayToday(birthday: birthday)
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+@@ -5480,7 +5480,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+             insets.left += sectionInset
+             insets.right += sectionInset
+             
+-            let items = self.isSettings ? settingsItems(data: self.data, context: self.context, presentationData: self.presentationData, interaction: self.interaction, isExpanded: self.headerNode.isAvatarExpanded) : infoItems(data: self.data, context: self.context, presentationData: self.presentationData, interaction: self.interaction, reactionSourceMessageId: self.reactionSourceMessageId, canDeleteReaction: self.canDeleteReaction, callMessages: self.callMessages, chatLocation: self.chatLocation, isOpenedFromChat: self.isOpenedFromChat, isMyProfile: self.isMyProfile)
++            let items = self.isSettings ? settingsItems(data: self.data, context: self.context, presentationData: self.presentationData, interaction: self.interaction, isExpanded: self.headerNode.isAvatarExpanded) : infoItems(data: self.data, context: self.context, presentationData: self.presentationData, interaction: self.interaction, reactionSourceMessageId: self.reactionSourceMessageId, canDeleteReaction: self.canDeleteReaction, callMessages: self.callMessages, chatLocation: self.chatLocation, isOpenedFromChat: self.isOpenedFromChat, isMyProfile: self.isMyProfile, isSettings: self.isSettings)
+             
+             contentHeight += headerHeight
+             if !((self.isSettings || self.isMyProfile) && self.state.isEditing) {
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
+@@ -12,6 +12,7 @@ import ItemListPeerItem
+ import DeviceAccess
+ import TelegramStringFormatting
+ import PeerNameColorItem
++import TelegramUIPreferences
+ 
+ enum SettingsSection: Int, CaseIterable {
+     case edit
+@@ -448,7 +449,7 @@ func settingsEditingItems(data: PeerInfoScreenData?, state: PeerInfoState, conte
+         }))
+     }
+     
+-    if case let .user(user) = data.peer {
++    if case let .user(user) = data.peer, !ClearConfig.hidePhoneInSettings {
+         items[.info]!.append(PeerInfoScreenDisclosureItem(id: ItemPhoneNumber, label: .text(user.phone.flatMap({ formatPhoneNumber(context: context, number: $0) }) ?? ""), text: presentationData.strings.Settings_PhoneNumber, icon: PresentationResourcesSettings.recentCalls, action: {
+             interaction.openSettings(.phoneNumber)
+         }))

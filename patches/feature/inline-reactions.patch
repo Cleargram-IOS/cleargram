@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:25:58 +0700
+Subject: Show inline reactions toggle
+
+---
+ .../Sources/ChatMessageDateAndStatusNode.swift                 | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
+@@ -12,6 +12,7 @@ import ReactionImageComponent
+ import AnimationCache
+ import MultiAnimationRenderer
+ import TelegramStringFormatting
++import TelegramUIPreferences
+ 
+ private func maybeAddRotationAnimation(_ layer: CALayer, duration: Double) {
+     if let _ = layer.animation(forKey: "clockFrameAnimation") {
+@@ -1474,5 +1475,5 @@ public class ChatMessageDateAndStatusNode: ASDisplayNode {
+ }
+ 
+ public func shouldDisplayInlineDateReactions(message: EngineMessage, isPremium: Bool, forceInline: Bool) -> Bool {
+-    return false
++    return ClearConfig.showInlineReactions
+ }

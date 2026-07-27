@@ -1,0 +1,178 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:26:07 +0700
+Subject: Show forwarded message time
+
+---
+ .../ChatMessageAnimatedStickerItemNode.swift  |  2 +-
+ .../Sources/ChatMessageBubbleItemNode.swift   | 24 ++++++++++++-------
+ .../Sources/ChatMessageForwardInfoNode.swift  | 20 ++++++++++++++--
+ .../ChatMessageInstantVideoItemNode.swift     |  2 +-
+ ...atMessageInteractiveInstantVideoNode.swift |  2 +-
+ .../Sources/ChatMessageStickerItemNode.swift  |  2 +-
+ 6 files changed, 38 insertions(+), 14 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageAnimatedStickerItemNode/Sources/ChatMessageAnimatedStickerItemNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageAnimatedStickerItemNode/Sources/ChatMessageAnimatedStickerItemNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageAnimatedStickerItemNode/Sources/ChatMessageAnimatedStickerItemNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageAnimatedStickerItemNode/Sources/ChatMessageAnimatedStickerItemNode.swift
+@@ -1352,7 +1352,7 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
+                     }
+                 }
+                 let availableWidth = max(60.0, availableContentWidth + 6.0)
+-                forwardInfoSizeApply = makeForwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .standalone, forwardSource.flatMap(EnginePeer.init), forwardAuthorSignature, forwardPsaType, nil, CGSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude))
++                forwardInfoSizeApply = makeForwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .standalone, forwardSource.flatMap(EnginePeer.init), forwardAuthorSignature, forwardPsaType, nil, forwardInfo.date, CGSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude))
+             }
+             
+             var needsReplyBackground = false
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode/Sources/ChatMessageBubbleItemNode.swift
+@@ -1608,7 +1608,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
+         ephemeralBadgeLayout: (TextNodeLayoutArguments) -> (TextNodeLayout, () -> TextNode),
+         boostBadgeLayout: (TextNodeLayoutArguments) -> (TextNodeLayout, () -> TextNode),
+         threadInfoLayout: (ChatMessageThreadInfoNode.Arguments) -> (CGSize, (Bool) -> ChatMessageThreadInfoNode),
+-        forwardInfoLayout: (AccountContext, ChatPresentationData, PresentationStrings, ChatMessageForwardInfoType, EnginePeer?, String?, String?, ChatMessageForwardInfoNode.StoryData?, CGSize) -> (CGSize, (CGFloat) -> ChatMessageForwardInfoNode),
++        forwardInfoLayout: (AccountContext, ChatPresentationData, PresentationStrings, ChatMessageForwardInfoType, EnginePeer?, String?, String?, ChatMessageForwardInfoNode.StoryData?, Int32?, CGSize) -> (CGSize, (CGFloat) -> ChatMessageForwardInfoNode),
+         replyInfoLayout: (ChatMessageReplyInfoNode.Arguments) -> (CGSize, (CGSize, Bool, ListViewItemUpdateAnimation) -> ChatMessageReplyInfoNode),
+         actionButtonsLayout: (AccountContext, ChatPresentationThemeData, PresentationChatBubbleCorners, PresentationStrings, WallpaperBackgroundNode?, ReplyMarkupMessageAttribute, [EngineMemoryBuffer: ChatMessageActionButtonsNode.CustomInfo], EngineMessage, CGFloat) -> (minWidth: CGFloat, layout: (CGFloat) -> (CGSize, (ListViewItemUpdateAnimation) -> ChatMessageActionButtonsNode)),
+         reactionButtonsLayout: (ChatMessageReactionButtonsNode.Arguments) -> (minWidth: CGFloat, layout: (CGFloat) -> (size: CGSize, apply: (ListViewItemUpdateAnimation) -> ChatMessageReactionButtonsNode)),
+@@ -2930,7 +2930,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
+                         forwardAuthorSignature = forwardInfo.authorSignature
+                     }
+                 }
+-                let sizeAndApply = forwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .bubble(incoming: incoming), forwardSource.flatMap(EnginePeer.init), forwardAuthorSignature, forwardPsaType, nil, CGSize(width: maximumNodeWidth - layoutConstants.text.bubbleInsets.left - layoutConstants.text.bubbleInsets.right, height: CGFloat.greatestFiniteMagnitude))
++                let sizeAndApply = forwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .bubble(incoming: incoming), forwardSource.flatMap(EnginePeer.init), forwardAuthorSignature, forwardPsaType, nil, forwardInfo.date, CGSize(width: maximumNodeWidth - layoutConstants.text.bubbleInsets.left - layoutConstants.text.bubbleInsets.right, height: CGFloat.greatestFiniteMagnitude))
+                 forwardInfoSizeApply = (sizeAndApply.0, { width in sizeAndApply.1(width) })
+                 
+                 headerSize.height += 2.0
+@@ -2958,7 +2958,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
+                     }
+                 }
+                 
+-                let sizeAndApply = forwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .bubble(incoming: incoming), forwardSource.flatMap(EnginePeer.init), nil, nil, ChatMessageForwardInfoNode.StoryData(storyType: storyType), CGSize(width: maximumNodeWidth - layoutConstants.text.bubbleInsets.left - layoutConstants.text.bubbleInsets.right, height: CGFloat.greatestFiniteMagnitude))
++                let sizeAndApply = forwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .bubble(incoming: incoming), forwardSource.flatMap(EnginePeer.init), nil, nil, ChatMessageForwardInfoNode.StoryData(storyType: storyType), nil, CGSize(width: maximumNodeWidth - layoutConstants.text.bubbleInsets.left - layoutConstants.text.bubbleInsets.right, height: CGFloat.greatestFiniteMagnitude))
+                 forwardInfoSizeApply = (sizeAndApply.0, { width in sizeAndApply.1(width) })
+                 
+                 if storyType != .regular {
+@@ -5746,17 +5746,25 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
+                     case let .optionalAction(f):
+                         f()
+                     case let .openContextMenu(openContextMenu):
+-                        if canAddMessageReactions(message: EngineMessage(openContextMenu.tapMessage)) {
+-                            item.controllerInteraction.updateMessageReaction(openContextMenu.tapMessage, .default, false, nil)
++                        if ClearConfig.doubleTapToEdit && !openContextMenu.tapMessage.effectivelyIncoming(item.context.account.peerId) {
++                            item.controllerInteraction.clearStartMessageEdit(openContextMenu.tapMessage)
+                         } else {
+-                            item.controllerInteraction.openMessageContextMenu(openContextMenu.tapMessage, openContextMenu.selectAll, self, openContextMenu.subFrame, nil, nil)
++                            if canAddMessageReactions(message: EngineMessage(openContextMenu.tapMessage)) {
++                                item.controllerInteraction.updateMessageReaction(openContextMenu.tapMessage, .default, false, nil)
++                            } else {
++                                item.controllerInteraction.openMessageContextMenu(openContextMenu.tapMessage, openContextMenu.selectAll, self, openContextMenu.subFrame, nil, nil)
++                            }
+                         }
+                     }
+                 } else if case .tap = gesture {
+                     item.controllerInteraction.clickThroughMessage(self.view, location)
+                 } else if case .doubleTap = gesture {
+-                    if canAddMessageReactions(message: EngineMessage(item.message)) {
+-                        item.controllerInteraction.updateMessageReaction(item.message, .default, false, nil)
++                    if ClearConfig.doubleTapToEdit && !item.message.effectivelyIncoming(item.context.account.peerId) {
++                        item.controllerInteraction.clearStartMessageEdit(item.message)
++                    } else {
++                        if canAddMessageReactions(message: EngineMessage(item.message)) {
++                            item.controllerInteraction.updateMessageReaction(item.message, .default, false, nil)
++                        }
+                     }
+                 }
+             }
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageForwardInfoNode/Sources/ChatMessageForwardInfoNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageForwardInfoNode/Sources/ChatMessageForwardInfoNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageForwardInfoNode/Sources/ChatMessageForwardInfoNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageForwardInfoNode/Sources/ChatMessageForwardInfoNode.swift
+@@ -9,6 +9,8 @@ import AccountContext
+ import AvatarNode
+ import TextLoadingEffect
+ import SwiftSignalKit
++import TelegramUIPreferences
++import TextFormat
+ 
+ public enum ChatMessageForwardInfoType: Equatable {
+     case bubble(incoming: Bool)
+@@ -278,13 +280,13 @@ public class ChatMessageForwardInfoNode: ASDisplayNode {
+         }
+     }
+     
+-    public static func asyncLayout(_ maybeNode: ChatMessageForwardInfoNode?) -> (_ context: AccountContext, _ presentationData: ChatPresentationData, _ strings: PresentationStrings, _ type: ChatMessageForwardInfoType, _ peer: EnginePeer?, _ authorName: String?, _ psaType: String?, _ storyData: StoryData?, _ constrainedSize: CGSize) -> (CGSize, (CGFloat) -> ChatMessageForwardInfoNode) {
++    public static func asyncLayout(_ maybeNode: ChatMessageForwardInfoNode?) -> (_ context: AccountContext, _ presentationData: ChatPresentationData, _ strings: PresentationStrings, _ type: ChatMessageForwardInfoType, _ peer: EnginePeer?, _ authorName: String?, _ psaType: String?, _ storyData: StoryData?, _ forwardDate: Int32?, _ constrainedSize: CGSize) -> (CGSize, (CGFloat) -> ChatMessageForwardInfoNode) {
+         let titleNodeLayout = TextNode.asyncLayout(maybeNode?.titleNode)
+         let nameNodeLayout = TextNode.asyncLayout(maybeNode?.nameNode)
+         
+         let previousPeer = maybeNode?.previousPeer
+         
+-        return { context, presentationData, strings, type, peer, authorName, psaType, storyData, constrainedSize in
++        return { context, presentationData, strings, type, peer, authorName, psaType, storyData, forwardDate, constrainedSize in
+             let originalPeer = peer
+             let peer = peer ?? previousPeer
+             
+@@ -405,6 +407,20 @@ public class ChatMessageForwardInfoNode: ASDisplayNode {
+                 }
+             }
+             
++            if ClearConfig.showForwardedTime, let forwardDate = forwardDate, let _ = authorString {
++                let timeString = stringForMessageTimestamp(timestamp: forwardDate, dateTimeFormat: presentationData.dateTimeFormat, local: true)
++                if let storyData = storyData {
++                    switch storyData.storyType {
++                    case .regular, .unavailable:
++                        authorString = (authorString ?? "") + " · " + timeString
++                    case .expired:
++                        break
++                    }
++                } else {
++                    authorString = (authorString ?? "") + " · " + timeString
++                }
++            }
++            
+             var currentCredibilityIconImage: UIImage?
+             var highlight = true
+             if let peer = peer {
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageInstantVideoItemNode/Sources/ChatMessageInstantVideoItemNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageInstantVideoItemNode/Sources/ChatMessageInstantVideoItemNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageInstantVideoItemNode/Sources/ChatMessageInstantVideoItemNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageInstantVideoItemNode/Sources/ChatMessageInstantVideoItemNode.swift
+@@ -577,7 +577,7 @@ public class ChatMessageInstantVideoItemNode: ChatMessageItemView, ASGestureReco
+                     }
+                 }
+                 let availableWidth = max(60.0, availableContentWidth - normalDisplaySize.width + 6.0)
+-                forwardInfoSizeApply = makeForwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .standalone, forwardSource.flatMap(EnginePeer.init), forwardAuthorSignature, forwardPsaType, nil, CGSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude))
++                forwardInfoSizeApply = makeForwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .standalone, forwardSource.flatMap(EnginePeer.init), forwardAuthorSignature, forwardPsaType, nil, forwardInfo.date, CGSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude))
+             }
+             
+             if replyInfoApply != nil || viaBotApply != nil || forwardInfoSizeApply != nil {
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/Sources/ChatMessageInteractiveInstantVideoNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/Sources/ChatMessageInteractiveInstantVideoNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/Sources/ChatMessageInteractiveInstantVideoNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/Sources/ChatMessageInteractiveInstantVideoNode.swift
+@@ -455,7 +455,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
+                     }
+                 }
+                 let availableWidth: CGFloat = max(60.0, availableContentWidth - 220.0 + 6.0)
+-                forwardInfoSizeApply = makeForwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .standalone, forwardSource.flatMap(EnginePeer.init), forwardAuthorSignature, forwardPsaType, nil, CGSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude))
++                forwardInfoSizeApply = makeForwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .standalone, forwardSource.flatMap(EnginePeer.init), forwardAuthorSignature, forwardPsaType, nil, forwardInfo.date, CGSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude))
+             }
+             
+             var notConsumed = false
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageStickerItemNode/Sources/ChatMessageStickerItemNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageStickerItemNode/Sources/ChatMessageStickerItemNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageStickerItemNode/Sources/ChatMessageStickerItemNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageStickerItemNode/Sources/ChatMessageStickerItemNode.swift
+@@ -838,7 +838,7 @@ public class ChatMessageStickerItemNode: ChatMessageItemView {
+                     }
+                 }
+                 let availableForwardWidth = max(60.0, availableWidth + 6.0)
+-                forwardInfoSizeApply = makeForwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .standalone, forwardSource.flatMap(EnginePeer.init), forwardAuthorSignature, forwardPsaType, nil, CGSize(width: availableForwardWidth, height: CGFloat.greatestFiniteMagnitude))
++                forwardInfoSizeApply = makeForwardInfoLayout(item.context, item.presentationData, item.presentationData.strings, .standalone, forwardSource.flatMap(EnginePeer.init), forwardAuthorSignature, forwardPsaType, nil, forwardInfo.date, CGSize(width: availableForwardWidth, height: CGFloat.greatestFiniteMagnitude))
+             }
+             
+             var needsReplyBackground = false

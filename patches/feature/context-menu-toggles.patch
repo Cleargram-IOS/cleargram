@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:25:51 +0700
+Subject: Hide context menu items
+
+---
+ .../Sources/ChatInterfaceStateContextMenus.swift     | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
++++ b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+@@ -1218,7 +1218,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+             isReplyThreadHead = messages[0].id == replyThreadMessage.effectiveTopId
+         }
+         
+-        if !isPinnedMessages, !isReplyThreadHead, data.canReply {
++        if !isPinnedMessages, !isReplyThreadHead, data.canReply, !ClearConfig.hideContextMenuReply {
+             actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Conversation_ContextMenuReply, icon: { theme in
+                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Reply"), color: theme.actionSheet.primaryTextColor)
+             }, action: { c, _ in
+@@ -1733,7 +1733,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+             canPin = false
+         }
+         
+-        if canPin {
++        if canPin, !ClearConfig.hideContextMenuPin {
+             var pinnedSelectedMessageId: EngineMessage.Id?
+             for message in messages {
+                 if message.tags.contains(.pinned) {
+@@ -1938,7 +1938,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+             })))
+         }
+ 
+-        if data.messageActions.options.contains(.forward) {
++        if data.messageActions.options.contains(.forward), !ClearConfig.hideContextMenuForward {
+             if !isCopyProtected {
+                 actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Conversation_ContextMenuForward, icon: { theme in
+                     return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Forward"), color: theme.actionSheet.primaryTextColor)
+@@ -1949,7 +1949,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+             }
+         }
+         
+-        if data.messageActions.options.contains(.report) {
++        if data.messageActions.options.contains(.report), !ClearConfig.hideContextMenuReport {
+             actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Conversation_ContextMenuReport, icon: { theme in
+                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Report"), color: theme.actionSheet.primaryTextColor)
+             }, action: { controller, f in
+@@ -2117,7 +2117,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+ 
+         if !isPinnedMessages, !isReplyThreadHead, data.canSelect {
+             var didAddSeparator = false
+-            if !selectAll || messages.count == 1 {
++            if !selectAll || messages.count == 1, !ClearConfig.hideContextMenuSelect {
+                 if !actions.isEmpty && !didAddSeparator {
+                     didAddSeparator = true
+                     actions.append(.separator)
+@@ -2132,7 +2132,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+                 })))
+             }
+ 
+-            if messages.count > 1 {
++            if messages.count > 1, !ClearConfig.hideContextMenuSelect {
+                 if !actions.isEmpty && !didAddSeparator {
+                     didAddSeparator = true
+                     actions.append(.separator)

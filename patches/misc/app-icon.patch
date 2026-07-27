@@ -1,0 +1,452 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:25:33 +0700
+Subject: New app icon
+
+---
+ .bazelrc                                      |   4 +
+ .../Telegram.icon/Assets/Oval.svg             |   7 -
+ .../Telegram.icon/Assets/Plane.svg            |   7 -
+ .../Telegram.icon/Assets/ico 3.png            | Bin 0 -> 25435 bytes
+ Telegram/Telegram-iOS/Telegram.icon/icon.json | 143 ++++++------------
+ ...ate_minimal_development_configuration.json |  26 ++--
+ 6 files changed, 65 insertions(+), 122 deletions(-)
+ delete mode 100644 Telegram/Telegram-iOS/Telegram.icon/Assets/Oval.svg
+ delete mode 100644 Telegram/Telegram-iOS/Telegram.icon/Assets/Plane.svg
+ create mode 100644 Telegram/Telegram-iOS/Telegram.icon/Assets/ico 3.png
+
+diff --git a/.bazelrc b/.bazelrc
+index 0000000..0000000 100644
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -39,3 +39,7 @@ common:index_build --noannounce_rc
+ common:index_build --noshow_timestamps
+ common:index_build --curses=no
+ common:index_build --color=no
++# >>> cleargram:disk-cache-gc >>>
++build --experimental_disk_cache_gc_max_size=20G
++build --experimental_disk_cache_gc_max_age=30d
++# <<< cleargram:disk-cache-gc <<<
+diff --git a/Telegram/Telegram-iOS/Telegram.icon/Assets/Oval.svg b/Telegram/Telegram-iOS/Telegram.icon/Assets/Oval.svg
+deleted file mode 100644
+index 0000000..0000000
+--- a/Telegram/Telegram-iOS/Telegram.icon/Assets/Oval.svg
++++ /dev/null
+@@ -1,7 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<svg width="1024px" height="1024px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+-    <title>Oval</title>
+-    <g id="Oval" stroke="none" fill="none" fill-rule="nonzero">
+-        <circle fill="#000000" cx="512" cy="512" r="410.5"></circle>
+-    </g>
+-</svg>
+\ No newline at end of file
+diff --git a/Telegram/Telegram-iOS/Telegram.icon/Assets/Plane.svg b/Telegram/Telegram-iOS/Telegram.icon/Assets/Plane.svg
+deleted file mode 100644
+index 0000000..0000000
+--- a/Telegram/Telegram-iOS/Telegram.icon/Assets/Plane.svg
++++ /dev/null
+@@ -1,7 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<svg width="1024px" height="1024px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+-    <title>Plane</title>
+-    <g id="Plane" stroke="none" fill="none" fill-rule="nonzero">
+-        <path d="M287.315632,507.666819 C406.984718,455.528898 486.782853,421.15639 526.710034,404.549294 C640.710251,357.13266 664.39852,348.895883 679.838202,348.621 C683.234017,348.56408 690.826804,349.405665 695.745092,353.396516 C699.897998,356.766313 701.040629,361.31843 701.587414,364.513367 C702.1342,367.708304 702.815079,374.986453 702.273832,380.673387 C696.09612,445.583141 669.36526,603.101997 655.766116,675.802034 C650.011808,706.564145 638.681397,716.878524 627.712247,717.887922 C603.873746,720.081578 585.77187,702.133777 562.683116,686.998808 C526.553773,663.315568 506.142993,648.572678 471.073211,625.462211 C430.544009,598.754068 456.817404,584.074808 479.914878,560.08479 C485.959597,553.806488 590.992581,458.270869 593.025497,449.604291 C593.279747,448.520391 593.515704,444.480123 591.115452,442.346714 C588.715199,440.213304 585.172634,440.942847 582.61622,441.52306 C578.99258,442.345492 521.275488,480.49435 409.464943,555.969631 C393.082138,567.219329 378.243103,572.700559 364.947836,572.413323 C350.290871,572.096667 322.096751,564.126052 301.137321,557.312967 C275.429726,548.956441 254.997841,544.538286 256.777,530.34632 C257.703696,522.954266 267.883239,515.394432 287.315632,507.666819 Z" id="Path-3" fill="#FFFFFF"></path>
+-    </g>
+-</svg>
+\ No newline at end of file
+diff --git a/Telegram/Telegram-iOS/Telegram.icon/Assets/ico 3.png b/Telegram/Telegram-iOS/Telegram.icon/Assets/ico 3.png
+new file mode 100644
+index 0000000..0000000
+GIT binary patch
+literal 25435
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/Telegram/Telegram-iOS/Telegram.icon/icon.json b/Telegram/Telegram-iOS/Telegram.icon/icon.json
+index 0000000..0000000 100644
+--- a/Telegram/Telegram-iOS/Telegram.icon/icon.json
++++ b/Telegram/Telegram-iOS/Telegram.icon/icon.json
+@@ -1,115 +1,68 @@
+ {
+-  "fill" : "system-light",
++  "fill" : "system-dark",
+   "groups" : [
+     {
+-      "blend-mode" : "normal",
+-      "blur-material" : 1,
++      "hidden" : false,
+       "layers" : [
+         {
+-          "blend-mode-specializations" : [
+-            {
+-              "value" : "normal"
+-            },
+-            {
+-              "appearance" : "dark",
+-              "value" : "normal"
+-            }
+-          ],
+-          "fill-specializations" : [
+-            {
+-              "appearance" : "dark",
+-              "value" : "automatic"
+-            }
+-          ],
+           "glass" : true,
+-          "image-name" : "Plane.svg",
+-          "name" : "Plane",
+-          "position-specializations" : [
+-            {
+-              "idiom" : "watchOS",
+-              "value" : {
+-                "scale" : 1.35,
+-                "translation-in-points" : [
+-                  0,
+-                  0
+-                ]
+-              }
+-            }
+-          ]
++          "image-name" : "ico 3.png",
++          "name" : "ico 3",
++          "position" : {
++            "scale" : 0.75,
++            "translation-in-points" : [
++              85,
++              0
++            ]
++          }
+         },
+         {
+-          "blend-mode-specializations" : [
+-            {
+-              "value" : "normal"
+-            },
+-            {
+-              "appearance" : "dark",
+-              "value" : "normal"
+-            }
+-          ],
+-          "fill-specializations" : [
+-            {
+-              "value" : {
+-                "linear-gradient" : [
+-                  "display-p3:0.21569,0.68627,0.89020,1.00000",
+-                  "srgb:0.11373,0.57647,0.82353,1.00000"
+-                ]
+-              }
+-            },
+-            {
+-              "appearance" : "dark",
+-              "value" : {
+-                "automatic-gradient" : "srgb:0.00000,0.47843,1.00000,1.00000"
+-              }
+-            }
+-          ],
+-          "glass" : true,
+-          "hidden-specializations" : [
+-            {
+-              "value" : false
+-            },
+-            {
+-              "idiom" : "watchOS",
+-              "value" : false
+-            }
+-          ],
+-          "image-name" : "Oval.svg",
+-          "name" : "Oval",
+-          "position-specializations" : [
+-            {
+-              "idiom" : "watchOS",
+-              "value" : {
+-                "scale" : 2,
+-                "translation-in-points" : [
+-                  0,
+-                  0
+-                ]
+-              }
+-            }
+-          ]
+-        }
+-      ],
+-      "lighting" : "combined",
+-      "position-specializations" : [
+-        {
+-          "idiom" : "watchOS",
+-          "value" : {
+-            "scale" : 1,
++          "image-name" : "ico 3.png",
++          "name" : "ico 3",
++          "position" : {
++            "scale" : 0.75,
+             "translation-in-points" : [
+-              0,
++              -85,
+               0
+             ]
+           }
+         }
+       ],
+       "shadow" : {
+-        "kind" : "layer-color",
+-        "opacity" : 1
++        "kind" : "neutral",
++        "opacity" : 0.5
++      },
++      "translucency" : {
++        "enabled" : true,
++        "value" : 0.5
++      }
++    },
++    {
++      "hidden" : true,
++      "layers" : [
++
++      ],
++      "lighting" : "individual",
++      "shadow" : {
++        "kind" : "neutral",
++        "opacity" : 0.5
++      },
++      "translucency" : {
++        "enabled" : true,
++        "value" : 0.5
++      }
++    },
++    {
++      "layers" : [
++
++      ],
++      "shadow" : {
++        "kind" : "neutral",
++        "opacity" : 0.5
+       },
+-      "specular" : true,
+       "translucency" : {
+-        "enabled" : false,
+-        "value" : 1
++        "enabled" : true,
++        "value" : 0.5
+       }
+     }
+   ],
+diff --git a/build-system/template_minimal_development_configuration.json b/build-system/template_minimal_development_configuration.json
+index 0000000..0000000 100755
+--- a/build-system/template_minimal_development_configuration.json
++++ b/build-system/template_minimal_development_configuration.json
+@@ -1,14 +1,14 @@
+ {
+-	"bundle_id": "org.{! a random string !}.Telegram",
+-	"api_id": "{! get one at https://my.telegram.org/apps !}",
+-	"api_hash": "{! get one at https://my.telegram.org/apps !}",
+-	"team_id": "{! check README.md !}",
+-	"app_center_id": "0",
+-	"is_internal_build": "true",
+-	"is_appstore_build": "false",
+-	"appstore_id": "0",
+-	"app_specific_url_scheme": "tg",
+-	"premium_iap_product_id": "",
+-	"enable_siri": false,
+-	"enable_icloud": false
+-}
+\ No newline at end of file
++  "bundle_id": "org.YOUR_BUNDLE_ID_HERE.Telegram",
++  "api_id": "YOUR_API_ID_HERE",
++  "api_hash": "YOUR_API_HASH_HERE",
++  "team_id": "YOUR_TEAM_ID_HERE",
++  "app_center_id": "0",
++  "is_internal_build": "false",
++  "is_appstore_build": "false",
++  "appstore_id": "0",
++  "app_specific_url_scheme": "tg",
++  "premium_iap_product_id": "",
++  "enable_siri": false,
++  "enable_icloud": false
++}

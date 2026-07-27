@@ -1,0 +1,58 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:25:54 +0700
+Subject: Default emojis first in keyboard
+
+---
+ .../Sources/EntityKeyboard.swift              | 23 ++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/EntityKeyboard/Sources/EntityKeyboard.swift b/submodules/TelegramUI/Components/EntityKeyboard/Sources/EntityKeyboard.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/EntityKeyboard/Sources/EntityKeyboard.swift
++++ b/submodules/TelegramUI/Components/EntityKeyboard/Sources/EntityKeyboard.swift
+@@ -9,6 +9,7 @@ import BundleIconComponent
+ import AudioToolbox
+ import SwiftSignalKit
+ import LocalizedPeerData
++import TelegramUIPreferences
+ 
+ public final class EntityKeyboardChildEnvironment: Equatable {
+     public let theme: PresentationTheme
+@@ -569,9 +570,25 @@ public final class EntityKeyboardComponent: Component {
+             
+             let emojiContentItemIdUpdated = ActionSlot<(AnyHashable, AnyHashable?, ComponentTransition)>()
+             if let emojiContent = component.emojiContent {
+-                contents.append(AnyComponentWithIdentity(id: "emoji", component: AnyComponent(emojiContent)))
++                let processedEmojiContent: EmojiPagerContentComponent
++                if ClearConfig.defaultEmojisFirst {
++                    var groups = emojiContent.panelItemGroups
++                    if let staticIdx = groups.firstIndex(where: { ($0.groupId.base as? String) == "static" }), let recentIdx = groups.firstIndex(where: { ($0.groupId.base as? String) == "recent" }) {
++                        let s = groups.remove(at: staticIdx)
++                        groups.insert(s, at: recentIdx + 1)
++                    }
++                    var contentGroups = emojiContent.contentItemGroups
++                    if let staticIdx = contentGroups.firstIndex(where: { ($0.groupId.base as? String) == "static" }), let recentIdx = contentGroups.firstIndex(where: { ($0.groupId.base as? String) == "recent" }) {
++                        let s = contentGroups.remove(at: staticIdx)
++                        contentGroups.insert(s, at: recentIdx + 1)
++                    }
++                    processedEmojiContent = emojiContent.withUpdatedItemGroups(panelItemGroups: groups, contentItemGroups: contentGroups, itemContentUniqueId: emojiContent.itemContentUniqueId, emptySearchResults: emojiContent.emptySearchResults, searchState: emojiContent.searchState, canLoadMore: emojiContent.canLoadMore)
++                } else {
++                    processedEmojiContent = emojiContent
++                }
++                contents.append(AnyComponentWithIdentity(id: "emoji", component: AnyComponent(processedEmojiContent)))
+                 var topEmojiItems: [EntityKeyboardTopPanelComponent.Item] = []
+-                for itemGroup in emojiContent.panelItemGroups {
++                for itemGroup in processedEmojiContent.panelItemGroups {
+                     if !itemGroup.items.isEmpty {
+                         if let id = itemGroup.groupId.base as? String, id != "peerSpecific" {
+                             if id == "recent" || id == "liked" || id == "collectible" {
+@@ -623,7 +640,7 @@ public final class EntityKeyboardComponent: Component {
+                                     id: itemGroup.supergroupId,
+                                     isReorderable: !itemGroup.isFeatured,
+                                     content: AnyComponent(EntityKeyboardAnimationTopPanelComponent(
+-                                        context: emojiContent.context,
++                                        context: processedEmojiContent.context,
+                                         item: itemGroup.headerItem ?? animationData,
+                                         isFeatured: itemGroup.isFeatured,
+                                         isPremiumLocked: itemGroup.isPremiumLocked,

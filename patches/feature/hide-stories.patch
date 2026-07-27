@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:25:41 +0700
+Subject: Add hideStories toggle
+
+---
+ submodules/ChatListUI/Sources/ChatListControllerNode.swift | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/ChatListUI/Sources/ChatListControllerNode.swift b/submodules/ChatListUI/Sources/ChatListControllerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/ChatListControllerNode.swift
++++ b/submodules/ChatListUI/Sources/ChatListControllerNode.swift
+@@ -660,7 +660,7 @@ public final class ChatListContainerNode: ASDisplayNode, ASGestureRecognizerDele
+                     }
+                     
+                     let cameraIsAlreadyOpened = self.controller?.hasStoryCameraTransition ?? false
+-                    if selectedIndex <= 0 && translation.x > 0.0 {
++                    if selectedIndex <= 0 && translation.x > 0.0, !ClearConfig.disableStoryCameraSwipe {
+                         transitionFraction = 0.0
+                         self.controller?.storyCameraPanGestureChanged(transitionFraction: translation.x / layout.size.width)
+                     } else if translation.x <= 0.0 && cameraIsAlreadyOpened {
+@@ -2459,6 +2459,9 @@ final class ChatListControllerNode: ASDisplayNode, ASGestureRecognizerDelegate {
+ }
+ 
+ func shouldDisplayStoriesInChatListHeader(storySubscriptions: EngineStorySubscriptions, isHidden: Bool) -> Bool {
++    if ClearConfig.hideStories {
++        return false
++    }
+     if !storySubscriptions.items.isEmpty {
+         return true
+     }

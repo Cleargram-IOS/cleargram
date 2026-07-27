@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 01:26:00 +0700
+Subject: Hide sponsored messages
+
+---
+ submodules/TelegramUI/Sources/ChatControllerNode.swift | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/submodules/TelegramUI/Sources/ChatControllerNode.swift b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatControllerNode.swift
++++ b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+@@ -772,7 +772,7 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+                 break
+             }
+         }
+-        if let displayAdPeer {
++        if let displayAdPeer, !ClearConfig.hideSponsoredMessages {
+             self.adMessagesContext = context.engine.messages.adMessages(peerId: displayAdPeer, activateManually: true)
+         } else {
+             self.adMessagesContext = nil
