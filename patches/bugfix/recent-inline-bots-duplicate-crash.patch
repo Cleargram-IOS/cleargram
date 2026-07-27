@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Mon, 27 Jul 2026 04:16:41 +0700
+Subject: Fix crash on duplicate recent inline bots
+
+---
+ .../Sources/TelegramEngine/Peers/RecentPeers.swift          | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/TelegramCore/Sources/TelegramEngine/Peers/RecentPeers.swift b/submodules/TelegramCore/Sources/TelegramEngine/Peers/RecentPeers.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/TelegramEngine/Peers/RecentPeers.swift
++++ b/submodules/TelegramCore/Sources/TelegramEngine/Peers/RecentPeers.swift
+@@ -194,8 +194,12 @@ func _internal_managedRecentlyUsedInlineBots(postbox: Postbox, network: Network,
+                 updatePeers(transaction: transaction, accountPeerId: accountPeerId, peers: parsedPeers)
+                 
+                 let sortedPeersWithRating = peersWithRating.sorted(by: { $0.1 > $1.1 })
++                var seenInlineBotPeerIds = Set<PeerId>()
++                let uniqueSortedPeersWithRating = sortedPeersWithRating.filter { peerId, _ in
++                    seenInlineBotPeerIds.insert(peerId).inserted
++                }
+                 
+-                transaction.replaceOrderedItemListItems(collectionId: Namespaces.OrderedItemList.CloudRecentInlineBots, items: sortedPeersWithRating.compactMap { (peerId, rating) in
++                transaction.replaceOrderedItemListItems(collectionId: Namespaces.OrderedItemList.CloudRecentInlineBots, items: uniqueSortedPeersWithRating.compactMap { (peerId, rating) in
+                     if let entry = CodableEntry(RecentPeerItem(rating: rating)) {
+                         return OrderedItemListEntry(id: RecentPeerItemId(peerId).rawValue, contents: entry)
+                     } else {

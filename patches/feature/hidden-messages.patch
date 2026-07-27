@@ -1,0 +1,378 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Mon, 27 Jul 2026 04:38:56 +0700
+Subject: Add hidden messages
+
+---
+ .../Sources/Panes/PeerInfoGifPaneNode.swift   | 19 ++++++++--
+ .../Sources/PeerInfoVisualMediaPaneNode.swift | 28 ++++++++++++---
+ .../Sources/ChatControllerNode.swift          |  2 +-
+ .../Sources/ChatControllerUpdateSearch.swift  | 35 +++++++++++++++++--
+ .../Sources/ChatHistoryEntriesForView.swift   |  8 +++--
+ .../Sources/ChatHistoryListNode.swift         | 15 ++++++--
+ .../ChatInterfaceStateContextMenus.swift      | 24 ++++++++++---
+ .../ChatSearchResultsContollerNode.swift      | 24 ++++++++++++-
+ 8 files changed, 135 insertions(+), 20 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/Panes/PeerInfoGifPaneNode.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/Panes/PeerInfoGifPaneNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/Panes/PeerInfoGifPaneNode.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/Panes/PeerInfoGifPaneNode.swift
+@@ -3,6 +3,8 @@ import UIKit
+ import Display
+ import TelegramCore
+ import SwiftSignalKit
++import Postbox
++import TelegramUIPreferences
+ import TelegramPresentationData
+ import AccountContext
+ import ContextUI
+@@ -651,6 +653,7 @@ final class PeerInfoGifPaneNode: ASDisplayNode, PeerInfoPaneNode, ASScrollViewDe
+     
+     private var numberOfItemsToRequest: Int = 50
+     private var currentView: EngineRawMessageHistoryView?
++    private var hiddenMessageIds: Set<MessageId> = []
+     private var isRequestingView: Bool = false
+     private var isFirstHistoryView: Bool = true
+     
+@@ -771,11 +774,20 @@ final class PeerInfoGifPaneNode: ASDisplayNode, PeerInfoPaneNode, ASScrollViewDe
+             return
+         }
+         self.isRequestingView = true
+-        self.listDisposable.set((self.context.account.viewTracker.aroundMessageHistoryViewForLocation(.peer(peerId: self.peerId, threadId: self.chatLocation.threadId), index: .upperBound, anchorIndex: .upperBound, count: self.numberOfItemsToRequest, fixedCombinedReadStates: nil, tag: .tag(tagMaskForType(self.contentType)))
+-        |> deliverOnMainQueue).start(next: { [weak self] (view, updateType, _) in
++        let hiddenMessageIdsSignal: Signal<Set<MessageId>, NoError> = self.context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenMessagesSettings])
++        |> map { sharedData -> Set<MessageId> in
++            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenMessagesSettings]?.get(HiddenMessagesSettings.self) ?? .defaultSettings
++            return settings.hiddenMessageIdSet
++        }
++        |> distinctUntilChanged
++
++        self.listDisposable.set((combineLatest(self.context.account.viewTracker.aroundMessageHistoryViewForLocation(.peer(peerId: self.peerId, threadId: self.chatLocation.threadId), index: .upperBound, anchorIndex: .upperBound, count: self.numberOfItemsToRequest, fixedCombinedReadStates: nil, tag: .tag(tagMaskForType(self.contentType))), hiddenMessageIdsSignal)
++        |> deliverOnMainQueue).start(next: { [weak self] viewData, hiddenMessageIds in
+             guard let strongSelf = self else {
+                 return
+             }
++            let (view, updateType, _) = viewData
++            strongSelf.hiddenMessageIds = hiddenMessageIds
+             strongSelf.updateHistory(view: view, updateType: updateType)
+             strongSelf.isRequestingView = false
+         }))
+@@ -790,6 +802,9 @@ final class PeerInfoGifPaneNode: ASDisplayNode, PeerInfoPaneNode, ASScrollViewDe
+         default:
+             self.mediaItems.removeAll()
+             for entry in view.entries.reversed() {
++                if !self.hiddenMessageIds.isEmpty && self.hiddenMessageIds.contains(entry.message.id) {
++                    continue
++                }
+                 self.mediaItems.append(VisualMediaItem(message: entry.message))
+             }
+             self.itemsLayout = nil
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoVisualMediaPaneNode/Sources/PeerInfoVisualMediaPaneNode.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoVisualMediaPaneNode/Sources/PeerInfoVisualMediaPaneNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoVisualMediaPaneNode/Sources/PeerInfoVisualMediaPaneNode.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoVisualMediaPaneNode/Sources/PeerInfoVisualMediaPaneNode.swift
+@@ -1789,8 +1789,15 @@ public final class PeerInfoVisualMediaPaneNode: ASDisplayNode, PeerInfoPaneNode,
+         var firstTimeRealData = true
+         let queue = Queue()
+ 
+-        self.listDisposable.set((self.listSource.state
+-        |> deliverOn(queue)).start(next: { [weak self] list in
++        let hiddenMessageIdsSignal: Signal<Set<MessageId>, NoError> = self.context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenMessagesSettings])
++        |> map { sharedData -> Set<MessageId> in
++            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenMessagesSettings]?.get(HiddenMessagesSettings.self) ?? .defaultSettings
++            return settings.hiddenMessageIdSet
++        }
++        |> distinctUntilChanged
++
++        self.listDisposable.set((combineLatest(self.listSource.state, hiddenMessageIdsSignal)
++        |> deliverOn(queue)).start(next: { [weak self] list, hiddenMessageIds in
+             let timezoneOffset = Int32(TimeZone.current.secondsFromGMT())
+ 
+             var mappedItems: [SparseItemGrid.Item] = []
+@@ -1799,17 +1806,28 @@ public final class PeerInfoVisualMediaPaneNode: ASDisplayNode, PeerInfoPaneNode,
+             if list.items.isEmpty && list.isLoading && list.totalCount == 0 {
+                 totalCount = 100
+             } else {
++                // Hidden messages are dropped locally. Because SparseMessageList indices are sparse
++                // (range placeholders advance the position without an item), each retained item's index
++                // is shifted down by the number of hidden items preceding it, and the total shrinks by
++                // the hidden count — this keeps the range gaps intact.
++                var hiddenShift = 0
+                 for item in list.items {
+                     switch item.content {
+                     case let .message(message, isLocal):
+-                        mappedItems.append(VisualMediaItem(index: item.index, message: message, localMonthTimestamp: Month(localTimestamp: message.timestamp + timezoneOffset).packedValue))
++                        if !hiddenMessageIds.isEmpty && hiddenMessageIds.contains(message.id) {
++                            hiddenShift += 1
++                            continue
++                        }
++                        let mappedIndex = item.index - hiddenShift
++                        mappedItems.append(VisualMediaItem(index: mappedIndex, message: message, localMonthTimestamp: Month(localTimestamp: message.timestamp + timezoneOffset).packedValue))
+                         if !isLocal {
+-                            mappedHoles.append(VisualMediaHoleAnchor(index: item.index, messageId: message.id, localMonthTimestamp: Month(localTimestamp: message.timestamp + timezoneOffset).packedValue))
++                            mappedHoles.append(VisualMediaHoleAnchor(index: mappedIndex, messageId: message.id, localMonthTimestamp: Month(localTimestamp: message.timestamp + timezoneOffset).packedValue))
+                         }
+                     case let .placeholder(id, timestamp):
+-                        mappedHoles.append(VisualMediaHoleAnchor(index: item.index, messageId: id, localMonthTimestamp: Month(localTimestamp: timestamp + timezoneOffset).packedValue))
++                        mappedHoles.append(VisualMediaHoleAnchor(index: item.index - hiddenShift, messageId: id, localMonthTimestamp: Month(localTimestamp: timestamp + timezoneOffset).packedValue))
+                     }
+                 }
++                totalCount = max(0, totalCount - hiddenShift)
+             }
+ 
+             Queue.mainQueue().async {
+diff --git a/submodules/TelegramUI/Sources/ChatControllerNode.swift b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatControllerNode.swift
++++ b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+@@ -3431,7 +3431,7 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+                             }
+                             
+                             self.loadMoreSearchResultsDisposable?.dispose()
+-                            self.loadMoreSearchResultsDisposable = (self.context.engine.messages.searchMessages(location: currentSearchState.location, query: currentSearchState.query, state: currentResultsState.state)
++                            self.loadMoreSearchResultsDisposable = (controller.searchMessagesFilteringHidden(location: currentSearchState.location, query: currentSearchState.query, state: currentResultsState.state)
+                             |> deliverOnMainQueue).startStrict(next: { [weak self] results, updatedState in
+                                 guard let self, let controller = self.controller else {
+                                     return
+diff --git a/submodules/TelegramUI/Sources/ChatControllerUpdateSearch.swift b/submodules/TelegramUI/Sources/ChatControllerUpdateSearch.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatControllerUpdateSearch.swift
++++ b/submodules/TelegramUI/Sources/ChatControllerUpdateSearch.swift
+@@ -3,9 +3,40 @@ import TelegramPresentationData
+ import AccountContext
+ import ChatPresentationInterfaceState
+ import SwiftSignalKit
++import Postbox
+ import TelegramCore
++import TelegramUIPreferences
+ 
+ extension ChatControllerImpl {    
++    // Wraps engine.searchMessages, dropping locally-hidden messages from the results and decrementing
++    // the loaded-page count, so hidden messages never surface in in-chat search (list, count, next/prev nav).
++    func searchMessagesFilteringHidden(location: SearchMessagesLocation, query: String, state: SearchMessagesState?, limit: Int32 = 100) -> Signal<(SearchMessagesResult, SearchMessagesState), NoError> {
++        let hiddenMessageIdsSignal: Signal<Set<MessageId>, NoError> = self.context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenMessagesSettings])
++        |> map { sharedData -> Set<MessageId> in
++            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenMessagesSettings]?.get(HiddenMessagesSettings.self) ?? .defaultSettings
++            return settings.hiddenMessageIdSet
++        }
++        |> distinctUntilChanged
++
++        return combineLatest(
++            self.context.engine.messages.searchMessages(location: location, query: query, state: state, limit: limit),
++            hiddenMessageIdsSignal
++        )
++        |> map { result, hiddenIds -> (SearchMessagesResult, SearchMessagesState) in
++            let (r, s) = result
++            if hiddenIds.isEmpty {
++                return (r, s)
++            }
++            let filtered = r.messages.filter { !hiddenIds.contains($0.id) }
++            if filtered.count == r.messages.count {
++                return (r, s)
++            }
++            let removed = Int32(r.messages.count - filtered.count)
++            let newResult = SearchMessagesResult(messages: filtered, readStates: r.readStates, threadInfo: r.threadInfo, totalCount: max(0, r.totalCount - removed), completed: r.completed)
++            return (newResult, s)
++        }
++    }
++
+     func updateSearch(_ interfaceState: ChatPresentationInterfaceState) -> ChatPresentationInterfaceState? {
+         guard let peerId = self.chatLocation.peerId else {
+             return nil
+@@ -92,7 +123,7 @@ extension ChatControllerImpl {
+                             self.searchDisposable = searchDisposable
+                         }
+ 
+-                        let search = self.context.engine.messages.searchMessages(location: searchState.location, query: searchState.query, state: nil, limit: limit)
++                        let search = self.searchMessagesFilteringHidden(location: searchState.location, query: searchState.query, state: nil, limit: limit)
+                         |> delay(0.2, queue: Queue.mainQueue())
+                         self.searchResult.set(search
+                         |> map { (result, state) -> (SearchMessagesResult, SearchMessagesState, SearchMessagesLocation)? in
+@@ -147,7 +178,7 @@ extension ChatControllerImpl {
+                             searchDisposable = MetaDisposable()
+                             self.searchDisposable = searchDisposable
+                         }
+-                        searchDisposable.set((self.context.engine.messages.searchMessages(location: searchState.location, query: searchState.query, state: loadMoreState, limit: limit)
++                        searchDisposable.set((self.searchMessagesFilteringHidden(location: searchState.location, query: searchState.query, state: loadMoreState, limit: limit)
+                         |> delay(0.2, queue: Queue.mainQueue())
+                         |> deliverOnMainQueue).startStrict(next: { [weak self] results, updatedState in
+                             guard let strongSelf = self else {
+diff --git a/submodules/TelegramUI/Sources/ChatHistoryEntriesForView.swift b/submodules/TelegramUI/Sources/ChatHistoryEntriesForView.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatHistoryEntriesForView.swift
++++ b/submodules/TelegramUI/Sources/ChatHistoryEntriesForView.swift
+@@ -60,7 +60,8 @@ func chatHistoryEntriesForView(
+     adMessage: Message?,
+     dynamicAdMessages: [Message],
+     isMusicPlaylist: Bool,
+-    pinToTopStableId: EngineMessage.StableId?
++    pinToTopStableId: EngineMessage.StableId?,
++    hiddenMessageIds: Set<MessageId>
+ ) -> ([ChatHistoryEntry], ChatHistoryEntriesForViewState) {
+     var currentState = currentState
+     
+@@ -153,7 +154,10 @@ func chatHistoryEntriesForView(
+         if pendingRemovedMessages.contains(message.id) {
+             continue
+         }
+-        
++        if !hiddenMessageIds.isEmpty && hiddenMessageIds.contains(message.id) {
++            continue
++        }
++
+         if case let .replyThread(replyThreadMessage) = location, replyThreadMessage.isForumPost {
+             for media in message.media {
+                 if let action = media as? TelegramMediaAction {
+diff --git a/submodules/TelegramUI/Sources/ChatHistoryListNode.swift b/submodules/TelegramUI/Sources/ChatHistoryListNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatHistoryListNode.swift
++++ b/submodules/TelegramUI/Sources/ChatHistoryListNode.swift
+@@ -1816,6 +1816,13 @@ public final class ChatHistoryListNodeImpl: ASDisplayNode, ChatHistoryNode, Chat
+             translationState = .single(nil)
+         }
+         
++        let hiddenMessageIdsSignal: Signal<Set<MessageId>, NoError> = context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenMessagesSettings])
++        |> map { sharedData -> Set<MessageId> in
++            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenMessagesSettings]?.get(HiddenMessagesSettings.self) ?? .defaultSettings
++            return settings.hiddenMessageIdSet
++        }
++        |> distinctUntilChanged
++
+         let promises = combineLatest(
+             self.historyAppearsClearedPromise.get(),
+             self.pendingUnpinnedAllMessagesPromise.get(),
+@@ -1823,7 +1830,8 @@ public final class ChatHistoryListNodeImpl: ASDisplayNode, ChatHistoryNode, Chat
+             self.currentlyPlayingMessageIdPromise.get(),
+             self.scrollToMessageIdPromise.get(),
+             self.chatHasBotsPromise.get(),
+-            self.allAdMessagesPromise.get()
++            self.allAdMessagesPromise.get(),
++            hiddenMessageIdsSignal
+         )
+         
+         let contentSettings = self.context.engine.data.subscribe(TelegramEngine.EngineData.Item.Configuration.ContentSettings())
+@@ -1936,7 +1944,7 @@ public final class ChatHistoryListNodeImpl: ASDisplayNode, ChatHistoryNode, Chat
+             deviceContactsNumbers |> debug_measureTimeToFirstEvent(label: "chatHistoryNode_deviceContactsNumbers"),
+             contentSettings |> debug_measureTimeToFirstEvent(label: "chatHistoryNode_contentSettings")
+         ) |> debug_measureTimeToFirstEvent(label: "chatHistoryNode_firstChatHistoryTransition")).startStrict(next: { [weak self] update, chatPresentationData, selectedMessages, updatingMedia, networkType, preferredStoryHighQuality, animatedEmojiStickers, additionalAnimatedEmojiStickers, customChannelDiscussionReadState, customThreadOutgoingReadState, availableReactions, availableMessageEffects, savedMessageTags, defaultReaction, accountPeer, accountCountry, suggestAudioTranscription, promises, topicAuthorId, translationState, maxReadStoryId, recommendedChannels, audioTranscriptionTrial, chatThemes, deviceContactsNumbers, contentSettings in
+-            let (historyAppearsCleared, pendingUnpinnedAllMessages, pendingRemovedMessages, currentlyPlayingMessageIdAndType, scrollToMessageId, chatHasBots, allAdMessages) = promises
++            let (historyAppearsCleared, pendingUnpinnedAllMessages, pendingRemovedMessages, currentlyPlayingMessageIdAndType, scrollToMessageId, chatHasBots, allAdMessages, hiddenMessageIds) = promises
+             
+             if measure_isFirstTime {
+                 measure_isFirstTime = false
+@@ -2237,7 +2245,8 @@ public final class ChatHistoryListNodeImpl: ASDisplayNode, ChatHistoryNode, Chat
+                     adMessage: allAdMessages.fixed,
+                     dynamicAdMessages: allAdMessages.opportunistic,
+                     isMusicPlaylist: isMusicPlaylist,
+-                    pinToTopStableId: pinToTopStableId
++                    pinToTopStableId: pinToTopStableId,
++                    hiddenMessageIds: hiddenMessageIds
+                 )
+                 let lastHeaderId = filteredEntries.last.flatMap { listMessageDateHeaderId(timestamp: $0.index.timestamp) } ?? 0
+                 let processedView = ChatHistoryView(originalView: view, filteredEntries: filteredEntries, associatedData: associatedData, lastHeaderId: lastHeaderId, id: id, locationInput: update.2, ignoreMessagesInTimestampRange: update.3, ignoreMessageIds: update.4)
+diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
++++ b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+@@ -47,6 +47,7 @@ private struct MessageContextMenuData {
+     let canSelect: Bool
+     let resourceStatus: EngineMediaResource.FetchStatus?
+     let messageActions: ChatAvailableMessageActions
++    let hiddenMessagesEnabled: Bool
+ }
+ 
+ func canEditMessage(context: AccountContext, limitsConfiguration: EngineConfiguration.Limits, message: EngineRawMessage) -> Bool {
+@@ -902,7 +903,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+         readCounters,
+         ApplicationSpecificNotice.getMessageViewsPrivacyTips(accountManager: context.sharedContext.accountManager),
+         context.engine.stickers.availableReactions(),
+-        context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.translationSettings, SharedDataKeys.loggingSettings]) |> take(1),
++        context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.translationSettings, SharedDataKeys.loggingSettings, ApplicationSpecificSharedDataKeys.hiddenMessagesSettings]) |> take(1),
+         context.engine.peers.notificationSoundList() |> take(1),
+         context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId))
+     )
+@@ -927,7 +928,9 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+         } else {
+             loggingSettings = LoggingSettings.defaultSettings
+         }
+-        
++
++        let hiddenMessagesEnabled = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenMessagesSettings]?.get(HiddenMessagesSettings.self)?.enabled ?? false
++
+         var messageActions = messageActions
+         if isEmbeddedMode {
+             messageActions = ChatAvailableMessageActions(
+@@ -951,7 +954,8 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+             canEdit: canEdit && !isEmbeddedMode,
+             canSelect: canSelect && !isEmbeddedMode,
+             resourceStatus: resourceStatus,
+-            messageActions: messageActions
++            messageActions: messageActions,
++            hiddenMessagesEnabled: hiddenMessagesEnabled
+         )
+         
+         return (data, updatingMessageMedia, infoSummaryData, appConfig, isMessageRead, messageViewsPrivacyTips, availableReactions, translationSettings, loggingSettings, notificationSoundList, accountPeer)
+@@ -1225,7 +1229,19 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+                 })
+             })))
+         }
+-        
++
++        if data.hiddenMessagesEnabled {
++            actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.SponsoredMessageMenu_Hide, icon: { theme in
++                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Clear"), color: theme.actionSheet.primaryTextColor)
++            }, action: { _, f in
++                let ids = messages.map { $0.id }
++                let _ = updateHiddenMessagesSettingsInteractively(accountManager: context.sharedContext.accountManager) { settings in
++                    return settings.withAdded(ids)
++                }.start()
++                f(.default)
++            })))
++        }
++
+         if data.messageActions.options.contains(.sendScheduledNow) {
+             actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.ScheduledMessages_SendNow, icon: { theme in
+                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Resend"), color: theme.actionSheet.primaryTextColor)
+diff --git a/submodules/TelegramUI/Sources/ChatSearchResultsContollerNode.swift b/submodules/TelegramUI/Sources/ChatSearchResultsContollerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatSearchResultsContollerNode.swift
++++ b/submodules/TelegramUI/Sources/ChatSearchResultsContollerNode.swift
+@@ -5,6 +5,7 @@ import AsyncDisplayKit
+ import SwiftSignalKit
+ import Postbox
+ import TelegramCore
++import TelegramUIPreferences
+ import TelegramPresentationData
+ import TelegramStringFormatting
+ import MergeLists
+@@ -339,7 +340,28 @@ class ChatSearchResultsControllerNode: ViewControllerTracingNode, ASScrollViewDe
+     private func loadMore() {
+         self.isLoadingMore = true
+         
+-        self.loadMoreDisposable.set((self.context.engine.messages.searchMessages(location: self.location, query: self.searchQuery, state: self.searchState)
++        let hiddenMessageIdsSignal: Signal<Set<MessageId>, NoError> = self.context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenMessagesSettings])
++        |> map { sharedData -> Set<MessageId> in
++            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenMessagesSettings]?.get(HiddenMessagesSettings.self) ?? .defaultSettings
++            return settings.hiddenMessageIdSet
++        }
++        |> distinctUntilChanged
++
++        let searchSignal = combineLatest(self.context.engine.messages.searchMessages(location: self.location, query: self.searchQuery, state: self.searchState), hiddenMessageIdsSignal)
++        |> map { result, hiddenIds -> (SearchMessagesResult, SearchMessagesState) in
++            let (r, s) = result
++            if hiddenIds.isEmpty {
++                return (r, s)
++            }
++            let filtered = r.messages.filter { !hiddenIds.contains($0.id) }
++            if filtered.count == r.messages.count {
++                return (r, s)
++            }
++            let removed = Int32(r.messages.count - filtered.count)
++            return (SearchMessagesResult(messages: filtered, readStates: r.readStates, threadInfo: r.threadInfo, totalCount: max(0, r.totalCount - removed), completed: r.completed), s)
++        }
++
++        self.loadMoreDisposable.set((searchSignal
+         |> deliverOnMainQueue).startStrict(next: { [weak self] (updatedResult, updatedState) in
+             guard let strongSelf = self else {
+                 return

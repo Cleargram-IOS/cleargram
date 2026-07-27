@@ -1,0 +1,14 @@
+{
+  "bundle_id": "org.YOUR_BUNDLE_ID_HERE.Telegram",
+  "api_id": "YOUR_API_ID_HERE",
+  "api_hash": "YOUR_API_HASH_HERE",
+  "team_id": "YOUR_TEAM_ID_HERE",
+  "app_center_id": "",
+  "is_internal_build": false,
+  "is_appstore_build": false,
+  "appstore_id": "",
+  "app_specific_url_scheme": "tg",
+  "premium_iap_product_id": "",
+  "enable_siri": false,
+  "enable_icloud": false
+}

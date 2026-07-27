@@ -1,0 +1,39 @@
+# Cleargram build config — gitignored, заполни из .example
+/template_minimal_development_configuration.json
+/build-system/template_minimal_development_configuration.json
+/appstore-configuration.json
+/build-system/appstore-configuration.json
+
+# Fork tooling
+node_modules/
+/worktree/
+patches/**/*.rej
+patches/**/*.orig
+
+# Bazel
+/bazel-*
+/.bazel-cache/
+/telegram-bazel-cache/
+
+# Сборочные артефакты
+/build/
+/artifacts/
+/artifacts-ad-hoc/
+*.ipa
+*.app/
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.xcodebuildmcp/
+
+# SwiftPM
+.build/
+.swiftpm/
+
+# Misc
+CLAUDE.local.md
+TODO.md
+STATUS.md

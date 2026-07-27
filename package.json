@@ -1,0 +1,27 @@
+{
+  "name": "cleargram",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8",
+  "scripts": {
+    "setup": "tsx scripts/setup.ts",
+    "export": "tsx scripts/export.ts",
+    "rebase": "tsx scripts/rebase.ts",
+    "sync": "tsx scripts/sync.ts",
+    "find-patches": "tsx scripts/find-patches.ts",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@antfu/eslint-config": "^8.1.0",
+    "@fuman/utils": "^0.0.19",
+    "eslint": "^10.2.0",
+    "tinyglobby": "^0.2.16",
+    "zx": "^8.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.1",
+    "husky": "^9.1.7",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

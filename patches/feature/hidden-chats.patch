@@ -1,0 +1,454 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Mon, 27 Jul 2026 02:30:05 +0700
+Subject: Add hidden chats
+
+---
+ .../ChatListSearchRecentPeersNode.swift       |  5 +-
+ .../Sources/ChatListRecentPeersListItem.swift |  7 ++
+ .../Sources/ChatListSearchListPaneNode.swift  | 86 +++++++++++++++----
+ .../Sources/Node/ChatListNode.swift           | 29 ++++++-
+ submodules/DebugSettingsUI/BUILD              |  1 +
+ .../Sources/DebugController.swift             | 20 ++++-
+ .../Sources/ApplicationContext.swift          | 26 +++++-
+ .../Sources/NavigateToChatController.swift    | 15 ++++
+ 8 files changed, 162 insertions(+), 27 deletions(-)
+
+diff --git a/submodules/ChatListSearchRecentPeersNode/Sources/ChatListSearchRecentPeersNode.swift b/submodules/ChatListSearchRecentPeersNode/Sources/ChatListSearchRecentPeersNode.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListSearchRecentPeersNode/Sources/ChatListSearchRecentPeersNode.swift
++++ b/submodules/ChatListSearchRecentPeersNode/Sources/ChatListSearchRecentPeersNode.swift
+@@ -207,6 +207,7 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
+         theme: PresentationTheme,
+         mode: HorizontalPeerItemMode,
+         strings: PresentationStrings,
++        hiddenPeerIds: Signal<Set<EnginePeer.Id>, NoError> = .single(Set()),
+         peerSelected: @escaping (EnginePeer) -> Void, peerContextAction: @escaping (EnginePeer, ASDisplayNode, ContextGesture?, CGPoint?) -> Void, isPeerSelected: @escaping (EnginePeer.Id) -> Bool, share: Bool = false)
+     {
+         self.theme = theme
+@@ -306,10 +307,10 @@ public final class ChatListSearchRecentPeersNode: ASDisplayNode {
+         
+         let previous: Atomic<[ChatListSearchRecentPeersEntry]> = Atomic(value: [])
+         let firstTime:Atomic<Bool> = Atomic(value: true)
+-        peersDisposable.add((combineLatest(queue: .mainQueue(), recent, self.itemCustomWidthValuePromise.get(), self.themeAndStringsPromise.get()) |> deliverOnMainQueue).startStrict(next: { [weak self] peers, itemCustomWidth, themeAndStrings in
++        peersDisposable.add((combineLatest(queue: .mainQueue(), recent, hiddenPeerIds, self.itemCustomWidthValuePromise.get(), self.themeAndStringsPromise.get()) |> deliverOnMainQueue).startStrict(next: { [weak self] peers, hiddenIds, itemCustomWidth, themeAndStrings in
+             if let strongSelf = self {
+                 var entries: [ChatListSearchRecentPeersEntry] = []
+-                for peer in peers.0 {
++                for peer in peers.0 where !hiddenIds.contains(peer.id) {
+                     entries.append(ChatListSearchRecentPeersEntry(index: entries.count, peer: peer, presence: peers.2[peer.id], unreadBadge: peers.1[peer.id], theme: themeAndStrings.0, strings: themeAndStrings.1, itemCustomWidth: itemCustomWidth))
+                 }
+                 
+diff --git a/submodules/ChatListUI/Sources/ChatListRecentPeersListItem.swift b/submodules/ChatListUI/Sources/ChatListRecentPeersListItem.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/ChatListRecentPeersListItem.swift
++++ b/submodules/ChatListUI/Sources/ChatListRecentPeersListItem.swift
+@@ -8,6 +8,8 @@ import TelegramPresentationData
+ import ChatListSearchRecentPeersNode
+ import ContextUI
+ import AccountContext
++import TelegramUIPreferences
++import Postbox
+ 
+ class ChatListRecentPeersListItem: ListViewItem {
+     let theme: PresentationTheme
+@@ -131,6 +133,11 @@ class ChatListRecentPeersListItemNode: ListViewItemNode {
+                             theme: item.theme,
+                             mode: .list(compact: false),
+                             strings: item.strings,
++                            hiddenPeerIds: item.context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenChatsSettings])
++                            |> map { data -> Set<EnginePeer.Id> in
++                                let settings = data.entries[ApplicationSpecificSharedDataKeys.hiddenChatsSettings]?.get(HiddenChatsSettings.self) ?? .defaultSettings
++                                return Set(settings.hiddenPeerIds.map { PeerId($0) })
++                            },
+                             peerSelected: { peer in
+                                 self?.item?.peerSelected(peer)
+                             },
+diff --git a/submodules/ChatListUI/Sources/ChatListSearchListPaneNode.swift b/submodules/ChatListUI/Sources/ChatListSearchListPaneNode.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/ChatListSearchListPaneNode.swift
++++ b/submodules/ChatListUI/Sources/ChatListSearchListPaneNode.swift
+@@ -2016,6 +2016,14 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
+                 }
+                 return result
+             }
++            |> mapToSignal { peers in
++                context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenChatsSettings])
++                |> take(1)
++                |> map { sharedData -> [RecentlySearchedPeer] in
++                    let hidden = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenChatsSettings]?.get(HiddenChatsSettings.self) ?? .defaultSettings
++                    return peers.filter { !hidden.isHidden($0.peer.peerId) }
++                }
++            }
+         } else {
+             fixedRecentlySearchedPeers = .single([])
+         }
+@@ -2370,6 +2378,14 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
+ 
+                         return result
+                     }
++                    |> mapToSignal { peers in
++                        context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenChatsSettings])
++                        |> take(1)
++                        |> map { sharedData -> [RecentlySearchedPeer] in
++                            let hidden = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenChatsSettings]?.get(HiddenChatsSettings.self) ?? .defaultSettings
++                            return peers.filter { !hidden.isHidden($0.peer.peerId) }
++                        }
++                    }
+ 
+                     var predicate: Signal<ChatListFilterPredicate?, NoError> = .single(nil)
+                     if let folderId = options?.folder?.0 {
+@@ -2407,6 +2423,14 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
+                             }
+                         }
+                     }
++                    |> mapToSignal { peers in
++                        context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenChatsSettings])
++                        |> take(1)
++                        |> map { sharedData -> [EngineRenderedPeer] in
++                            let hidden = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenChatsSettings]?.get(HiddenChatsSettings.self) ?? .defaultSettings
++                            return peers.filter { !hidden.isHidden($0.peerId) }
++                        }
++                    }
+ 
+                     foundLocalPeers = combineLatest(
+                         updatedLocalPeers,
+@@ -2993,21 +3017,39 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
+                 foundThreads = .single([])
+             }
+ 
++            let hiddenChatsSettingsSignal = context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenChatsSettings])
++            |> map { sharedData -> HiddenChatsSettings in
++                return sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenChatsSettings]?.get(HiddenChatsSettings.self) ?? .defaultSettings
++            }
++            |> distinctUntilChanged
++
++            let hiddenMessagesSettingsSignal = context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenMessagesSettings])
++            |> map { sharedData -> Set<MessageId> in
++                let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenMessagesSettings]?.get(HiddenMessagesSettings.self) ?? .defaultSettings
++                return settings.hiddenMessageIdSet
++            }
++            |> distinctUntilChanged
++
+             return combineLatest(
+-                accountPeer,
+-                foundLocalPeers,
+-                foundRemotePeers,
+-                foundRemoteMessages,
+-                foundPublicMessages,
+-                presentationDataPromise.get(),
+-                searchStatePromise.get(),
+-                selectionPromise.get(),
+-                resolvedMessage,
+-                fixedRecentlySearchedPeers,
+-                foundThreads,
+-                adsHiddenPromise.get()
++                combineLatest(
++                    accountPeer,
++                    foundLocalPeers,
++                    foundRemotePeers,
++                    foundRemoteMessages,
++                    foundPublicMessages,
++                    presentationDataPromise.get(),
++                    searchStatePromise.get(),
++                    selectionPromise.get(),
++                    resolvedMessage,
++                    fixedRecentlySearchedPeers,
++                    foundThreads,
++                    adsHiddenPromise.get()
++                ),
++                hiddenChatsSettingsSignal,
++                hiddenMessagesSettingsSignal
+             )
+-            |> map { accountPeer, foundLocalPeers, foundRemotePeers, foundRemoteMessages, foundPublicMessages, presentationData, searchState, selectionState, resolvedMessage, recentPeers, allAndFoundThreads, adsHidden -> ([ChatListSearchEntry], Bool, String?)? in
++            |> map { combined, hiddenSettings, hiddenMessageIds -> ([ChatListSearchEntry], Bool, String?)? in
++                let (accountPeer, rawFoundLocalPeers, foundRemotePeers, foundRemoteMessages, foundPublicMessages, presentationData, searchState, selectionState, resolvedMessage, rawRecentPeers, allAndFoundThreads, adsHidden) = combined
+                 let isSearching = foundRemotePeers.3 || foundRemoteMessages.1 || foundPublicMessages.1
+                 var entries: [ChatListSearchEntry] = []
+                 var index = 0
+@@ -3019,10 +3061,13 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
+                     }
+                 }
+ 
+-                var recentPeers = recentPeers
+-                if query != nil {
+-                    recentPeers = []
+-                }
++                let recentPeers = query != nil ? [] as [RecentlySearchedPeer] : rawRecentPeers.filter { !hiddenSettings.isHidden($0.peer.peerId) }
++
++                let foundLocalPeers = (
++                    peers: rawFoundLocalPeers.peers.filter { !hiddenSettings.isHidden($0.peerId) },
++                    unread: rawFoundLocalPeers.unread,
++                    recentlySearchedPeerIds: rawFoundLocalPeers.recentlySearchedPeerIds.filter { !hiddenSettings.isHidden($0) }
++                )
+ 
+                 let _ = currentRemotePeers.swap((foundRemotePeers.0, foundRemotePeers.1, foundRemotePeers.2))
+ 
+@@ -3342,6 +3387,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
+                         break
+                     }
+ 
++                    if hiddenSettings.isHidden(peer.peer.id) { continue }
+                     if !existingPeerIds.contains(peer.peer.id), filteredPeer(peer.peer, EnginePeer(accountPeer)) {
+                         existingPeerIds.insert(peer.peer.id)
+                         entries.append(.localPeer(peer.peer, nil, nil, index, presentationData.theme, presentationData.strings, presentationData.nameSortOrder, presentationData.nameDisplayOrder, localExpandType, nil, false, false))
+@@ -3379,7 +3425,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
+                     }
+                 }
+ 
+-                if let message = resolvedMessage {
++                if let message = resolvedMessage, !hiddenSettings.isHidden(message.id.peerId), !hiddenMessageIds.contains(message.id) {
+                     var peer = EngineRenderedPeer(message: message)
+                     if let group = message.peers[message.id.peerId] as? TelegramGroup, let migrationReference = group.migrationReference {
+                         if let channelPeer = message.peers[migrationReference.peerId] {
+@@ -3400,6 +3446,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
+                             if existingPostIds.contains(message.id) {
+                                 continue
+                             }
++                            if hiddenSettings.isHidden(message.id.peerId) { continue }
++                            if hiddenMessageIds.contains(message.id) { continue }
+                             existingPostIds.insert(message.id)
+ 
+                             let headerId = listMessageDateHeaderId(timestamp: message.timestamp)
+@@ -3426,6 +3474,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
+                                 if existingMessageIds.contains(message.id) {
+                                     continue
+                                 }
++                                if hiddenSettings.isHidden(message.id.peerId) { continue }
++                                if hiddenMessageIds.contains(message.id) { continue }
+                                 existingMessageIds.insert(message.id)
+ 
+                                 if searchState.deletedMessageIds.contains(message.id) {
+diff --git a/submodules/ChatListUI/Sources/Node/ChatListNode.swift b/submodules/ChatListUI/Sources/Node/ChatListNode.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/Node/ChatListNode.swift
++++ b/submodules/ChatListUI/Sources/Node/ChatListNode.swift
+@@ -1928,7 +1928,7 @@ public final class ChatListNode: ListViewImpl {
+             shouldLoadCanMessagePeer = false
+         }
+         
+-        let chatListViewUpdate = self.chatListLocation.get()
++        let chatListViewUpdateRaw = self.chatListLocation.get()
+         |> distinctUntilChanged
+         |> mapToSignal { listLocation -> Signal<(ChatListNodeViewUpdate, ChatListFilter?), NoError> in
+             return chatListViewForLocation(chatListLocation: location, location: listLocation, account: context.account, shouldLoadCanMessagePeer: shouldLoadCanMessagePeer)
+@@ -1936,6 +1936,33 @@ public final class ChatListNode: ListViewImpl {
+                 return (update, listLocation.filter)
+             }
+         }
++
++        let hiddenChatsSignal = context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenChatsSettings])
++        |> map { sharedData -> HiddenChatsSettings in
++            return sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenChatsSettings]?.get(HiddenChatsSettings.self) ?? .defaultSettings
++        }
++        |> distinctUntilChanged
++
++        let chatListViewUpdate = combineLatest(chatListViewUpdateRaw, hiddenChatsSignal)
++        |> map { updateAndFilter, hiddenSettings -> (ChatListNodeViewUpdate, ChatListFilter?) in
++            let (update, filter) = updateAndFilter
++            guard !hiddenSettings.hiddenPeerIds.isEmpty else { return (update, filter) }
++            let filteredItems = update.list.items.filter { item in
++                if case let .chatList(peerId) = item.id {
++                    return !hiddenSettings.isHidden(peerId)
++                }
++                return true
++            }
++            let filteredList = EngineChatList(
++                items: filteredItems,
++                groupItems: update.list.groupItems,
++                additionalItems: update.list.additionalItems,
++                hasEarlier: update.list.hasEarlier,
++                hasLater: update.list.hasLater,
++                isLoading: update.list.isLoading
++            )
++            return (ChatListNodeViewUpdate(list: filteredList, type: update.type, scrollPosition: update.scrollPosition), filter)
++        }
+         
+         let previousState = Atomic<ChatListNodeState>(value: self.currentState)
+         let previousView = Atomic<ChatListNodeView?>(value: nil)
+diff --git a/submodules/DebugSettingsUI/BUILD b/submodules/DebugSettingsUI/BUILD
+index 0000000..0000000 100644
+--- a/submodules/DebugSettingsUI/BUILD
++++ b/submodules/DebugSettingsUI/BUILD
+@@ -17,6 +17,7 @@ swift_library(
+         "//submodules/TelegramPresentationData:TelegramPresentationData",
+         "//submodules/TelegramUIPreferences:TelegramUIPreferences",
+         "//submodules/ItemListUI:ItemListUI",
++        "//submodules/ItemListPeerItem:ItemListPeerItem",
+         "//submodules/PresentationDataUtils:PresentationDataUtils",
+         "//submodules/OverlayStatusController:OverlayStatusController",
+         "//submodules/AccountContext:AccountContext",
+diff --git a/submodules/DebugSettingsUI/Sources/DebugController.swift b/submodules/DebugSettingsUI/Sources/DebugController.swift
+index 0000000..0000000 100644
+--- a/submodules/DebugSettingsUI/Sources/DebugController.swift
++++ b/submodules/DebugSettingsUI/Sources/DebugController.swift
+@@ -31,8 +31,9 @@ private final class DebugControllerArguments {
+     let pushController: (ViewController) -> Void
+     let getRootController: () -> UIViewController?
+     let getNavigationController: () -> NavigationController?
+-    
+-    init(sharedContext: SharedAccountContext, context: AccountContext?, mailComposeDelegate: DebugControllerMailComposeDelegate, presentController: @escaping (ViewController, ViewControllerPresentationArguments?) -> Void, pushController: @escaping (ViewController) -> Void, getRootController: @escaping () -> UIViewController?, getNavigationController: @escaping () -> NavigationController?) {
++    let manageQuietChats: () -> Void
++
++    init(sharedContext: SharedAccountContext, context: AccountContext?, mailComposeDelegate: DebugControllerMailComposeDelegate, presentController: @escaping (ViewController, ViewControllerPresentationArguments?) -> Void, pushController: @escaping (ViewController) -> Void, getRootController: @escaping () -> UIViewController?, getNavigationController: @escaping () -> NavigationController?, manageQuietChats: @escaping () -> Void) {
+         self.sharedContext = sharedContext
+         self.context = context
+         self.mailComposeDelegate = mailComposeDelegate
+@@ -40,6 +41,7 @@ private final class DebugControllerArguments {
+         self.pushController = pushController
+         self.getRootController = getRootController
+         self.getNavigationController = getNavigationController
++        self.manageQuietChats = manageQuietChats
+     }
+ }
+ 
+@@ -122,6 +124,7 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+     case resetTranslationStates
+     case hostInfo(PresentationTheme, String)
+     case versionInfo(PresentationTheme)
++    case quietChats(PresentationTheme)
+     
+     var section: ItemListSectionId {
+         switch self {
+@@ -147,6 +150,8 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+             return DebugControllerSection.videoExperiments2.rawValue
+         case .hostInfo, .versionInfo:
+             return DebugControllerSection.info.rawValue
++        case .quietChats:
++            return DebugControllerSection.experiments.rawValue
+         }
+     }
+     
+@@ -284,6 +289,8 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+             return 103
+         case .versionInfo:
+             return 104
++        case .quietChats:
++            return 19
+         }
+     }
+     
+@@ -1533,6 +1540,10 @@ private enum DebugControllerEntry: ItemListNodeEntry {
+             let bundleVersion = bundle.infoDictionary?["CFBundleShortVersionString"] ?? ""
+             let bundleBuild = bundle.infoDictionary?[kCFBundleVersionKey as String] ?? ""
+             return ItemListTextItem(presentationData: presentationData, text: .plain("\(bundleId)\n\(bundleVersion) (\(bundleBuild))"), sectionId: self.section)
++        case .quietChats:
++            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: "Peer Sync Preferences", label: "", sectionId: self.section, style: .blocks, action: {
++                arguments.manageQuietChats()
++            })
+         }
+     }
+ }
+@@ -1569,6 +1580,7 @@ private func debugControllerEntries(context: AccountContext?, sharedContext: Sha
+         #endif
+         entries.append(.alwaysDisplayTyping(experimentalSettings.alwaysDisplayTyping))
+         entries.append(.debugRatingLayout(experimentalSettings.debugRatingLayout))
++        entries.append(.quietChats(presentationData.theme))
+     }
+     entries.append(.crashOnSlowQueries(presentationData.theme, experimentalSettings.crashOnLongQueries))
+     entries.append(.crashOnMemoryPressure(presentationData.theme, experimentalSettings.crashOnMemoryPressure))
+@@ -1669,6 +1681,10 @@ public func debugController(sharedContext: SharedAccountContext, context: Accoun
+         return getRootControllerImpl?()
+     }, getNavigationController: {
+         return getNavigationControllerImpl?()
++    }, manageQuietChats: {
++        guard let context = context else { return }
++        let controller = quietChatsSelectionController(context: context)
++        pushControllerImpl?(controller)
+     })
+     
+     let appGroupName = "group.\(Bundle.main.bundleIdentifier!)"
+diff --git a/submodules/TelegramUI/Sources/ApplicationContext.swift b/submodules/TelegramUI/Sources/ApplicationContext.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ApplicationContext.swift
++++ b/submodules/TelegramUI/Sources/ApplicationContext.swift
+@@ -123,6 +123,7 @@ final class AuthorizedApplicationContext {
+     private let appUpdateInfoDisposable = MetaDisposable()
+     
+     private var inAppNotificationSettings: InAppNotificationSettings?
++    private var hiddenChatsSettings: HiddenChatsSettings = .defaultSettings
+     
+     var passcodeController: PasscodeEntryController?
+     
+@@ -137,10 +138,23 @@ final class AuthorizedApplicationContext {
+     }
+     
+     var applicationBadge: Signal<Int32, NoError> {
+-        return renderedTotalUnreadCount(accountManager: self.context.sharedContext.accountManager, engine: self.context.engine)
+-        |> map {
+-            $0.0
++        let base = renderedTotalUnreadCount(accountManager: self.context.sharedContext.accountManager, engine: self.context.engine)
++        |> map { $0.0 }
++
++        let hiddenUnread = self.context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenChatsSettings])
++        |> map { sharedData -> [EnginePeer.Id] in
++            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenChatsSettings]?.get(HiddenChatsSettings.self) ?? .defaultSettings
++            return settings.hiddenPeerIds.map { PeerId($0) }
++        }
++        |> distinctUntilChanged
++        |> mapToSignal { [weak self] peerIds -> Signal<Int32, NoError> in
++            guard let self, !peerIds.isEmpty else { return .single(0) }
++            return self.context.engine.data.subscribe(EngineDataMap(peerIds.map { TelegramEngine.EngineData.Item.Messages.PeerUnreadCount(id: $0) }))
++            |> map { counts in Int32(counts.values.reduce(0, +)) }
+         }
++
++        return combineLatest(base, hiddenUnread)
++        |> map { total, hidden in max(0, total - hidden) }
+     }
+     
+     let isReady = Promise<Bool>()
+@@ -278,7 +292,7 @@ final class AuthorizedApplicationContext {
+             }
+         }))
+         
+-        self.inAppNotificationSettingsDisposable.set(((context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.inAppNotificationSettings])) |> deliverOnMainQueue).start(next: { [weak self] sharedData in
++        self.inAppNotificationSettingsDisposable.set(((context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.inAppNotificationSettings, ApplicationSpecificSharedDataKeys.hiddenChatsSettings])) |> deliverOnMainQueue).start(next: { [weak self] sharedData in
+             if let strongSelf = self {
+                 if let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.inAppNotificationSettings]?.get(InAppNotificationSettings.self) {
+                     let previousSettings = strongSelf.inAppNotificationSettings
+@@ -287,6 +301,7 @@ final class AuthorizedApplicationContext {
+                         reinitializedNotificationSettings()
+                     }
+                 }
++                strongSelf.hiddenChatsSettings = sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenChatsSettings]?.get(HiddenChatsSettings.self) ?? .defaultSettings
+             }
+         }))
+ 
+@@ -321,6 +336,9 @@ final class AuthorizedApplicationContext {
+             }
+ 
+             if let strongSelf = self, let (messages, _, notify, threadData) = messageList.last, let firstMessage = messages.first {
++                if strongSelf.hiddenChatsSettings.isHidden(firstMessage.id.peerId) {
++                    return
++                }
+                 if UIApplication.shared.applicationState == .active {
+                     let chatLocation: NavigateToChatControllerParams.Location
+                     if let _ = threadData, let threadId = firstMessage.threadId {
+diff --git a/submodules/TelegramUI/Sources/NavigateToChatController.swift b/submodules/TelegramUI/Sources/NavigateToChatController.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/NavigateToChatController.swift
++++ b/submodules/TelegramUI/Sources/NavigateToChatController.swift
+@@ -20,8 +20,23 @@ import SavedMessagesScreen
+ import WallpaperGalleryScreen
+ import ChatMessageNotificationItem
+ import FaceScanScreen
++import TelegramUIPreferences
+ 
+ public func navigateToChatControllerImpl(_ params: NavigateToChatControllerParams) {
++    let hiddenSettings = (params.context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.hiddenChatsSettings])
++    |> take(1)
++    |> map { sharedData -> HiddenChatsSettings in
++        return sharedData.entries[ApplicationSpecificSharedDataKeys.hiddenChatsSettings]?.get(HiddenChatsSettings.self) ?? .defaultSettings
++    })
++    let _ = (hiddenSettings |> deliverOnMainQueue).start(next: { settings in
++        if settings.isHidden(params.chatLocation.peerId) {
++            return
++        }
++        navigateToChatControllerImplUnchecked(params)
++    })
++}
++
++private func navigateToChatControllerImplUnchecked(_ params: NavigateToChatControllerParams) {
+     if case let .peer(peer) = params.chatLocation {
+         let _ = params.context.engine.peers.ensurePeerIsLocallyAvailable(peer: peer).startStandalone()
+     }

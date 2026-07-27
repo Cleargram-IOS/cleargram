@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Mon, 27 Jul 2026 02:24:39 +0700
+Subject: Add cleargram shared-data keys
+
+---
+ .../TelegramUIPreferences/Sources/PostboxKeys.swift       | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/submodules/TelegramUIPreferences/Sources/PostboxKeys.swift b/submodules/TelegramUIPreferences/Sources/PostboxKeys.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUIPreferences/Sources/PostboxKeys.swift
++++ b/submodules/TelegramUIPreferences/Sources/PostboxKeys.swift
+@@ -51,6 +51,10 @@ private enum ApplicationSpecificSharedDataKeyValues: Int32 {
+     case mediaDisplaySettings = 20
+     case updateSettings = 21
+     case chatSettings = 22
++    // cleargram fork keys — 30..39 (kept clear of stock <=22 and keetgram 23,24)
++    case clearConfigSettings = 30
++    case hiddenChatsSettings = 31
++    case hiddenMessagesSettings = 32
+ }
+ 
+ public struct ApplicationSpecificSharedDataKeys {
+@@ -77,6 +81,10 @@ public struct ApplicationSpecificSharedDataKeys {
+     public static let mediaDisplaySettings: EngineDataBuffer = applicationSpecificPreferencesKey(ApplicationSpecificSharedDataKeyValues.mediaDisplaySettings.rawValue)
+     public static let updateSettings: EngineDataBuffer = applicationSpecificPreferencesKey(ApplicationSpecificSharedDataKeyValues.updateSettings.rawValue)
+     public static let chatSettings: EngineDataBuffer = applicationSpecificPreferencesKey(ApplicationSpecificSharedDataKeyValues.chatSettings.rawValue)
++    // cleargram fork keys
++    public static let clearConfigSettings: EngineDataBuffer = applicationSpecificSharedDataKey(ApplicationSpecificSharedDataKeyValues.clearConfigSettings.rawValue)
++    public static let hiddenChatsSettings: EngineDataBuffer = applicationSpecificSharedDataKey(ApplicationSpecificSharedDataKeyValues.hiddenChatsSettings.rawValue)
++    public static let hiddenMessagesSettings: EngineDataBuffer = applicationSpecificSharedDataKey(ApplicationSpecificSharedDataKeyValues.hiddenMessagesSettings.rawValue)
+ }
+ 
+ private enum ApplicationSpecificItemCacheCollectionIdValues: Int8 {
