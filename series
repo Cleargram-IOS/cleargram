@@ -41,3 +41,4 @@ feature/show-audio-format-bitrate.patch
 debloat/hide-channel-bottom-button.patch
 feature/faster-file-load.patch
 feature/profile-copy-name.patch
+feature/font-size-override.patch

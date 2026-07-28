@@ -453,13 +453,17 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let .allChatsTitleLengthOverride(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "All Chats Title Length Override (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .fontSizeOverride(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Font Size Override (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Font Size Override", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateFontSizeOverride(value)
+            })
         case let .searchByUserId(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Search by User ID (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .adminLogsImprovements(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Admin Logs Improvements (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .paranoiaMode(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Paranoia Mode (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Paranoia Mode", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateParanoiaMode(value)
+            })
         case let .showChannelPostAuthor(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Channel Post Author (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .hideChannelJoinRequests(_, value):
@@ -540,6 +544,8 @@ private struct ClearSettingsArguments {
     let updateDisableCallsButton: (Bool) -> Void
     let updateFakeGlass: (Bool) -> Void
     let updateForceClearGlass: (Bool) -> Void
+    let updateFontSizeOverride: (Bool) -> Void
+    let updateParanoiaMode: (Bool) -> Void
     let resetSettings: () -> Void
 }
 
@@ -723,6 +729,14 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
                     return EnginePreferencesEntry(s)
                 }
             }.start()
+        },
+        updateFontSizeOverride: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.fontSizeOverride = value; return s }.start()
+            askForRestartImpl?()
+        },
+        updateParanoiaMode: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.paranoiaMode = value; return s }.start()
+            askForRestartImpl?()
         },
         resetSettings: {
             let _ = ClearConfig.reset(accountManager: context.sharedContext.accountManager).start()

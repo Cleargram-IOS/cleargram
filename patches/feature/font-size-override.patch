@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 16:56:18 +0700
+Subject: Font size override in chats
+
+---
+ .../TelegramPresentationData/Sources/PresentationData.swift  | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/TelegramPresentationData/Sources/PresentationData.swift b/submodules/TelegramPresentationData/Sources/PresentationData.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramPresentationData/Sources/PresentationData.swift
++++ b/submodules/TelegramPresentationData/Sources/PresentationData.swift
+@@ -845,7 +845,7 @@ public func updatedPresentationData(accountManager: AccountManager<TelegramAccou
+ }
+ 
+ private func resolveFontSize(settings: PresentationThemeSettings) -> (chat: PresentationFontSize, lists: PresentationFontSize) {
+-    let fontSize: PresentationFontSize
++    var fontSize: PresentationFontSize
+     let listsFontSize: PresentationFontSize
+     if settings.useSystemFont {
+         let pointSize = UIFont.preferredFont(forTextStyle: .body).pointSize
+@@ -855,6 +855,9 @@ private func resolveFontSize(settings: PresentationThemeSettings) -> (chat: Pres
+         fontSize = settings.fontSize
+         listsFontSize = settings.listsFontSize
+     }
++    if ClearConfig.fontSizeOverride {
++        fontSize = .large
++    }
+     return (fontSize, listsFontSize)
+ }
+ 
