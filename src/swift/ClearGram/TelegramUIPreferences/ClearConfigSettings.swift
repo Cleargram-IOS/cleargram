@@ -30,7 +30,6 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var showInlineReactions: Bool
     public var blockCloudDrafts: Bool
     public var showForwardedTime: Bool
-    public var noSelectionCap: Bool
     public var stripTrackingParams: Bool
     public var replacePreviewLinks: Bool
     public var confirmInternalLinks: Bool
@@ -53,12 +52,26 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var wideChannelPosts: Bool
     public var hideChannelBottomButton: Bool
     public var disableGalleryCamera: Bool
-    public var disableGalleryCameraPreview: Bool
     public var disableStoryCameraSwipe: Bool
     public var enableMultiColumnLayout: Bool
     public var flatStickerCorners: Bool
     public var saveStickerToPhotos: Bool
     public var collapseLongMessages: Bool
+    public var disableContactsTab: Bool
+    public var disableCallsButton: Bool
+    public var showAudioFormatBitrate: Bool
+    public var allChatsTitleLengthOverride: Int32
+    public var fontSizeOverride: Bool
+    public var searchByUserId: Bool
+    public var adminLogsImprovements: Bool
+    public var paranoiaMode: Bool
+    public var showChannelPostAuthor: Bool
+    public var hideChannelJoinRequests: Bool
+    public var fasterFileLoad: Bool
+    public var videoCircleAudioSource: Bool
+    public var videoQualityOriginalToggle: Bool
+    public var sendVideoAsCircle: Bool
+    public var hidePremiumStarsGifts: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -81,7 +94,6 @@ public struct ClearConfigSettings: Codable, Equatable {
             showInlineReactions: false,
             blockCloudDrafts: false,
             showForwardedTime: false,
-            noSelectionCap: false,
             stripTrackingParams: false,
             replacePreviewLinks: false,
             confirmInternalLinks: false,
@@ -104,12 +116,26 @@ public struct ClearConfigSettings: Codable, Equatable {
             wideChannelPosts: false,
             hideChannelBottomButton: false,
             disableGalleryCamera: false,
-            disableGalleryCameraPreview: false,
             disableStoryCameraSwipe: false,
             enableMultiColumnLayout: false,
             flatStickerCorners: false,
             saveStickerToPhotos: false,
-            collapseLongMessages: false
+            collapseLongMessages: false,
+            disableContactsTab: false,
+            disableCallsButton: false,
+            showAudioFormatBitrate: false,
+            allChatsTitleLengthOverride: 0,
+            fontSizeOverride: false,
+            searchByUserId: false,
+            adminLogsImprovements: false,
+            paranoiaMode: false,
+            showChannelPostAuthor: false,
+            hideChannelJoinRequests: false,
+            fasterFileLoad: false,
+            videoCircleAudioSource: false,
+            videoQualityOriginalToggle: false,
+            sendVideoAsCircle: false,
+            hidePremiumStarsGifts: false
         )
     }
 
@@ -133,7 +159,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         showInlineReactions: Bool = false,
         blockCloudDrafts: Bool = false,
         showForwardedTime: Bool = false,
-        noSelectionCap: Bool = false,
         stripTrackingParams: Bool = false,
         replacePreviewLinks: Bool = false,
         confirmInternalLinks: Bool = false,
@@ -156,12 +181,26 @@ public struct ClearConfigSettings: Codable, Equatable {
         wideChannelPosts: Bool = false,
         hideChannelBottomButton: Bool = false,
         disableGalleryCamera: Bool = false,
-        disableGalleryCameraPreview: Bool = false,
         disableStoryCameraSwipe: Bool = false,
         enableMultiColumnLayout: Bool = false,
         flatStickerCorners: Bool = false,
         saveStickerToPhotos: Bool = false,
-        collapseLongMessages: Bool = false
+        collapseLongMessages: Bool = false,
+        disableContactsTab: Bool = false,
+        disableCallsButton: Bool = false,
+        showAudioFormatBitrate: Bool = false,
+        allChatsTitleLengthOverride: Int32 = 0,
+        fontSizeOverride: Bool = false,
+        searchByUserId: Bool = false,
+        adminLogsImprovements: Bool = false,
+        paranoiaMode: Bool = false,
+        showChannelPostAuthor: Bool = false,
+        hideChannelJoinRequests: Bool = false,
+        fasterFileLoad: Bool = false,
+        videoCircleAudioSource: Bool = false,
+        videoQualityOriginalToggle: Bool = false,
+        sendVideoAsCircle: Bool = false,
+        hidePremiumStarsGifts: Bool = false
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -182,7 +221,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.showInlineReactions = showInlineReactions
         self.blockCloudDrafts = blockCloudDrafts
         self.showForwardedTime = showForwardedTime
-        self.noSelectionCap = noSelectionCap
         self.stripTrackingParams = stripTrackingParams
         self.replacePreviewLinks = replacePreviewLinks
         self.confirmInternalLinks = confirmInternalLinks
@@ -205,12 +243,26 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.wideChannelPosts = wideChannelPosts
         self.hideChannelBottomButton = hideChannelBottomButton
         self.disableGalleryCamera = disableGalleryCamera
-        self.disableGalleryCameraPreview = disableGalleryCameraPreview
         self.disableStoryCameraSwipe = disableStoryCameraSwipe
         self.enableMultiColumnLayout = enableMultiColumnLayout
         self.flatStickerCorners = flatStickerCorners
         self.saveStickerToPhotos = saveStickerToPhotos
         self.collapseLongMessages = collapseLongMessages
+        self.disableContactsTab = disableContactsTab
+        self.disableCallsButton = disableCallsButton
+        self.showAudioFormatBitrate = showAudioFormatBitrate
+        self.allChatsTitleLengthOverride = allChatsTitleLengthOverride
+        self.fontSizeOverride = fontSizeOverride
+        self.searchByUserId = searchByUserId
+        self.adminLogsImprovements = adminLogsImprovements
+        self.paranoiaMode = paranoiaMode
+        self.showChannelPostAuthor = showChannelPostAuthor
+        self.hideChannelJoinRequests = hideChannelJoinRequests
+        self.fasterFileLoad = fasterFileLoad
+        self.videoCircleAudioSource = videoCircleAudioSource
+        self.videoQualityOriginalToggle = videoQualityOriginalToggle
+        self.sendVideoAsCircle = sendVideoAsCircle
+        self.hidePremiumStarsGifts = hidePremiumStarsGifts
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -220,13 +272,16 @@ public struct ClearConfigSettings: Codable, Equatable {
         case showProfileId, showDC, hidePhoneInSettings
         case hideContextMenuReply, hideContextMenuPin, hideContextMenuForward, hideContextMenuReport, hideContextMenuSelect
         case doubleTapDelay, defaultEmojisFirst, disableScrollToNextChannel, showInlineReactions
-        case blockCloudDrafts, showForwardedTime, noSelectionCap, stripTrackingParams, replacePreviewLinks, confirmInternalLinks, biometricConfirmation
+        case blockCloudDrafts, showForwardedTime, stripTrackingParams, replacePreviewLinks, confirmInternalLinks, biometricConfirmation
         case hideSponsoredMessages, hideStarReactionButton, hideStarReactionCount, hideSimilarChannels, warnPollsRevote, showPackOwner, timeOnServiceMessages
         case showTabNames, compactChatList, chatListLines, compactFolderNames, allChatsHidden, hideTabBar, wideTabBar, tabBarSearchEnabled, wideChannelPosts, hideChannelBottomButton
-        case disableGalleryCamera, disableGalleryCameraPreview, disableStoryCameraSwipe, enableMultiColumnLayout
+        case disableGalleryCamera, disableStoryCameraSwipe, enableMultiColumnLayout
         case flatStickerCorners
         case saveStickerToPhotos
         case collapseLongMessages
+        case disableContactsTab, disableCallsButton, showAudioFormatBitrate, allChatsTitleLengthOverride, fontSizeOverride
+        case searchByUserId, adminLogsImprovements, paranoiaMode, showChannelPostAuthor, hideChannelJoinRequests
+        case fasterFileLoad, videoCircleAudioSource, videoQualityOriginalToggle, sendVideoAsCircle, hidePremiumStarsGifts
     }
 
     public init(from decoder: Decoder) throws {
@@ -250,7 +305,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.showInlineReactions = try c.decodeIfPresent(Bool.self, forKey: .showInlineReactions) ?? false
         self.blockCloudDrafts = try c.decodeIfPresent(Bool.self, forKey: .blockCloudDrafts) ?? false
         self.showForwardedTime = try c.decodeIfPresent(Bool.self, forKey: .showForwardedTime) ?? false
-        self.noSelectionCap = try c.decodeIfPresent(Bool.self, forKey: .noSelectionCap) ?? false
         self.stripTrackingParams = try c.decodeIfPresent(Bool.self, forKey: .stripTrackingParams) ?? false
         self.replacePreviewLinks = try c.decodeIfPresent(Bool.self, forKey: .replacePreviewLinks) ?? false
         self.confirmInternalLinks = try c.decodeIfPresent(Bool.self, forKey: .confirmInternalLinks) ?? false
@@ -273,12 +327,26 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.wideChannelPosts = try c.decodeIfPresent(Bool.self, forKey: .wideChannelPosts) ?? false
         self.hideChannelBottomButton = try c.decodeIfPresent(Bool.self, forKey: .hideChannelBottomButton) ?? false
         self.disableGalleryCamera = try c.decodeIfPresent(Bool.self, forKey: .disableGalleryCamera) ?? false
-        self.disableGalleryCameraPreview = try c.decodeIfPresent(Bool.self, forKey: .disableGalleryCameraPreview) ?? false
         self.disableStoryCameraSwipe = try c.decodeIfPresent(Bool.self, forKey: .disableStoryCameraSwipe) ?? false
         self.enableMultiColumnLayout = try c.decodeIfPresent(Bool.self, forKey: .enableMultiColumnLayout) ?? false
         self.flatStickerCorners = try c.decodeIfPresent(Bool.self, forKey: .flatStickerCorners) ?? false
         self.saveStickerToPhotos = try c.decodeIfPresent(Bool.self, forKey: .saveStickerToPhotos) ?? false
         self.collapseLongMessages = try c.decodeIfPresent(Bool.self, forKey: .collapseLongMessages) ?? false
+        self.disableContactsTab = try c.decodeIfPresent(Bool.self, forKey: .disableContactsTab) ?? false
+        self.disableCallsButton = try c.decodeIfPresent(Bool.self, forKey: .disableCallsButton) ?? false
+        self.showAudioFormatBitrate = try c.decodeIfPresent(Bool.self, forKey: .showAudioFormatBitrate) ?? false
+        self.allChatsTitleLengthOverride = try c.decodeIfPresent(Int32.self, forKey: .allChatsTitleLengthOverride) ?? 0
+        self.fontSizeOverride = try c.decodeIfPresent(Bool.self, forKey: .fontSizeOverride) ?? false
+        self.searchByUserId = try c.decodeIfPresent(Bool.self, forKey: .searchByUserId) ?? false
+        self.adminLogsImprovements = try c.decodeIfPresent(Bool.self, forKey: .adminLogsImprovements) ?? false
+        self.paranoiaMode = try c.decodeIfPresent(Bool.self, forKey: .paranoiaMode) ?? false
+        self.showChannelPostAuthor = try c.decodeIfPresent(Bool.self, forKey: .showChannelPostAuthor) ?? false
+        self.hideChannelJoinRequests = try c.decodeIfPresent(Bool.self, forKey: .hideChannelJoinRequests) ?? false
+        self.fasterFileLoad = try c.decodeIfPresent(Bool.self, forKey: .fasterFileLoad) ?? false
+        self.videoCircleAudioSource = try c.decodeIfPresent(Bool.self, forKey: .videoCircleAudioSource) ?? false
+        self.videoQualityOriginalToggle = try c.decodeIfPresent(Bool.self, forKey: .videoQualityOriginalToggle) ?? false
+        self.sendVideoAsCircle = try c.decodeIfPresent(Bool.self, forKey: .sendVideoAsCircle) ?? false
+        self.hidePremiumStarsGifts = try c.decodeIfPresent(Bool.self, forKey: .hidePremiumStarsGifts) ?? false
     }
 }
 

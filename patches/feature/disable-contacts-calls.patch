@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 14:43:47 +0700
+Subject: Disable contacts tab and call button
+
+---
+ .../PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift   | 2 +-
+ .../TelegramUI/Sources/TelegramRootController.swift      | 9 +++++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift
+@@ -2591,7 +2591,7 @@ func peerInfoHeaderButtons(peer: EnginePeer?, cachedData: CachedPeerData?, isOpe
+                 videoCallsAvailable = true
+             }
+         }
+-        if callsAvailable {
++        if callsAvailable && !ClearConfig.disableCallsButton {
+             result.append(.call)
+             if videoCallsEnabled && videoCallsAvailable {
+                 result.append(.videoCall)
+diff --git a/submodules/TelegramUI/Sources/TelegramRootController.swift b/submodules/TelegramUI/Sources/TelegramRootController.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/TelegramRootController.swift
++++ b/submodules/TelegramUI/Sources/TelegramRootController.swift
+@@ -6,6 +6,7 @@ import TelegramCore
+ import SwiftSignalKit
+ import TelegramPresentationData
+ import AccountContext
++import TelegramUIPreferences
+ import ContactListUI
+ import CallListUI
+ import ChatListUI
+@@ -213,7 +214,9 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
+         contactsController.switchToChatsController = {  [weak self] in
+             self?.openChatsController(activateSearch: false)
+         }
+-        controllers.append(contactsController)
++        if !ClearConfig.disableContactsTab {
++            controllers.append(contactsController)
++        }
+         
+         if showCallsTab {
+             controllers.append(callListController)
+@@ -254,7 +257,9 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
+             return
+         }
+         var controllers: [ViewController] = []
+-        controllers.append(self.contactsController!)
++        if !ClearConfig.disableContactsTab {
++            controllers.append(self.contactsController!)
++        }
+         if showCallsTab {
+             controllers.append(self.callListController!)
+         }

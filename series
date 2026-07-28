@@ -34,3 +34,4 @@ feature/confirm-internal-links.patch
 feature/visual-swiftgram.patch
 feature/compact-chat-list.patch
 feature/settings-ui-fixes.patch
+feature/disable-contacts-calls.patch

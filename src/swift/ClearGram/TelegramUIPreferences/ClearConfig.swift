@@ -55,7 +55,6 @@ public enum ClearConfig {
     public static var showInlineReactions: Bool { current().showInlineReactions }
     public static var blockCloudDrafts: Bool { current().blockCloudDrafts }
     public static var showForwardedTime: Bool { current().showForwardedTime }
-    public static var noSelectionCap: Bool { current().noSelectionCap }
     public static var stripTrackingParams: Bool { current().stripTrackingParams }
     public static var replacePreviewLinks: Bool { current().replacePreviewLinks }
     public static var confirmInternalLinks: Bool { current().confirmInternalLinks }
@@ -79,11 +78,25 @@ public enum ClearConfig {
     public static var wideChannelPosts: Bool { current().wideChannelPosts }
     public static var hideChannelBottomButton: Bool { current().hideChannelBottomButton }
     public static var disableGalleryCamera: Bool { current().disableGalleryCamera }
-    public static var disableGalleryCameraPreview: Bool { current().disableGalleryCameraPreview }
     public static var disableStoryCameraSwipe: Bool { current().disableStoryCameraSwipe }
     public static var enableMultiColumnLayout: Bool { current().enableMultiColumnLayout }
     public static var flatStickerCorners: Bool { current().flatStickerCorners }
     public static var saveStickerToPhotos: Bool { current().saveStickerToPhotos }
     public static var collapseLongMessages: Bool { current().collapseLongMessages }
+    public static var disableContactsTab: Bool { current().disableContactsTab }
+    public static var disableCallsButton: Bool { current().disableCallsButton }
+    public static var showAudioFormatBitrate: Bool { current().showAudioFormatBitrate }
+    public static var allChatsTitleLengthOverride: Int32 { current().allChatsTitleLengthOverride }
+    public static var fontSizeOverride: Bool { current().fontSizeOverride }
+    public static var searchByUserId: Bool { current().searchByUserId }
+    public static var adminLogsImprovements: Bool { current().adminLogsImprovements }
+    public static var paranoiaMode: Bool { current().paranoiaMode }
+    public static var showChannelPostAuthor: Bool { current().showChannelPostAuthor }
+    public static var hideChannelJoinRequests: Bool { current().hideChannelJoinRequests }
+    public static var fasterFileLoad: Bool { current().fasterFileLoad }
+    public static var videoCircleAudioSource: Bool { current().videoCircleAudioSource }
+    public static var videoQualityOriginalToggle: Bool { current().videoQualityOriginalToggle }
+    public static var sendVideoAsCircle: Bool { current().sendVideoAsCircle }
+    public static var hidePremiumStarsGifts: Bool { current().hidePremiumStarsGifts }
 }
 

@@ -38,6 +38,21 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
     case hideStarReactionButton(PresentationTheme, Bool)
     case hideStarReactionCount(PresentationTheme, Bool)
     case collapseLongMessages(PresentationTheme, Bool)
+    case disableContactsTab(PresentationTheme, Bool)
+    case disableCallsButton(PresentationTheme, Bool)
+    case showAudioFormatBitrate(PresentationTheme, Bool)
+    case allChatsTitleLengthOverride(PresentationTheme, Bool)
+    case fontSizeOverride(PresentationTheme, Bool)
+    case searchByUserId(PresentationTheme, Bool)
+    case adminLogsImprovements(PresentationTheme, Bool)
+    case paranoiaMode(PresentationTheme, Bool)
+    case showChannelPostAuthor(PresentationTheme, Bool)
+    case hideChannelJoinRequests(PresentationTheme, Bool)
+    case fasterFileLoad(PresentationTheme, Bool)
+    case videoCircleAudioSource(PresentationTheme, Bool)
+    case videoQualityOriginalToggle(PresentationTheme, Bool)
+    case sendVideoAsCircle(PresentationTheme, Bool)
+    case hidePremiumStarsGifts(PresentationTheme, Bool)
     case fakeGlass(PresentationTheme, Bool)
     case forceClearGlass(PresentationTheme, Bool)
     case showForwardedTime(PresentationTheme, Bool)
@@ -59,7 +74,6 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
     case showPackOwner(PresentationTheme, Bool)
     case hidePhoneInSettings(PresentationTheme, Bool)
     case disableGalleryCamera(PresentationTheme, Bool)
-    case disableGalleryCameraPreview(PresentationTheme, Bool)
     case disableStoryCameraSwipe(PresentationTheme, Bool)
     case flatStickerCorners(PresentationTheme, Bool)
     case saveStickerToPhotos(PresentationTheme, Bool)
@@ -70,16 +84,15 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
     case confirmCalls(PresentationTheme, Bool)
     case biometricConfirmation(PresentationTheme, Bool)
     case defaultEmojisFirst(PresentationTheme, Bool)
-    case noSelectionCap(PresentationTheme, Bool)
     case resetSettings(PresentationTheme)
 
     var section: ItemListSectionId {
         switch self {
-        case .compactChatList, .compactFolderNames, .allChatsHidden:
+        case .compactChatList, .compactFolderNames, .allChatsHidden, .allChatsTitleLengthOverride:
             return ClearSettingsSection.chatList.rawValue
-        case .hideTabBar, .showTabNames, .wideTabBar, .tabBarSearchEnabled:
+        case .hideTabBar, .showTabNames, .wideTabBar, .tabBarSearchEnabled, .disableContactsTab, .disableCallsButton:
             return ClearSettingsSection.tabBar.rawValue
-        case .wideChannelPosts, .hideChannelBottomButton, .disableScrollToNextChannel, .hideStarReactionButton, .hideStarReactionCount, .collapseLongMessages, .showForwardedTime, .timeOnServiceMessages:
+        case .wideChannelPosts, .hideChannelBottomButton, .disableScrollToNextChannel, .hideStarReactionButton, .hideStarReactionCount, .collapseLongMessages, .showForwardedTime, .timeOnServiceMessages, .fontSizeOverride:
             return ClearSettingsSection.chat.rawValue
         case .secondsInMessages, .doubleTapToEdit, .blockCloudDrafts, .warnPollsRevote:
             return ClearSettingsSection.messages.rawValue
@@ -89,9 +102,9 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ClearSettingsSection.contextMenu.rawValue
         case .showProfileId, .showDC, .showPackOwner, .hidePhoneInSettings:
             return ClearSettingsSection.profile.rawValue
-        case .disableGalleryCamera, .disableGalleryCameraPreview, .disableStoryCameraSwipe, .flatStickerCorners, .saveStickerToPhotos:
+        case .disableGalleryCamera, .disableStoryCameraSwipe, .flatStickerCorners, .saveStickerToPhotos, .showAudioFormatBitrate, .fasterFileLoad, .videoCircleAudioSource, .videoQualityOriginalToggle, .sendVideoAsCircle:
             return ClearSettingsSection.media.rawValue
-        case .hideStories, .hideAiFeatures, .hideSponsoredMessages, .hideSimilarChannels, .confirmCalls, .biometricConfirmation, .defaultEmojisFirst, .noSelectionCap, .fakeGlass, .forceClearGlass:
+        case .hideStories, .hideAiFeatures, .hideSponsoredMessages, .hideSimilarChannels, .confirmCalls, .biometricConfirmation, .defaultEmojisFirst, .fakeGlass, .forceClearGlass, .searchByUserId, .adminLogsImprovements, .paranoiaMode, .showChannelPostAuthor, .hideChannelJoinRequests, .hidePremiumStarsGifts:
             return ClearSettingsSection.privacy.rawValue
         case .resetSettings:
             return ClearSettingsSection.reset.rawValue
@@ -133,10 +146,14 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case .showPackOwner: return 62
         case .hidePhoneInSettings: return 63
         case .disableGalleryCamera: return 70
-        case .disableGalleryCameraPreview: return 71
         case .disableStoryCameraSwipe: return 72
         case .flatStickerCorners: return 73
         case .saveStickerToPhotos: return 74
+        case .showAudioFormatBitrate: return 75
+        case .fasterFileLoad: return 76
+        case .videoCircleAudioSource: return 77
+        case .videoQualityOriginalToggle: return 78
+        case .sendVideoAsCircle: return 79
         case .hideStories: return 80
         case .hideAiFeatures: return 81
         case .hideSponsoredMessages: return 82
@@ -144,9 +161,18 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case .confirmCalls: return 84
         case .biometricConfirmation: return 85
         case .defaultEmojisFirst: return 86
-        case .noSelectionCap: return 87
         case .fakeGlass: return 88
         case .forceClearGlass: return 89
+        case .searchByUserId: return 90
+        case .adminLogsImprovements: return 91
+        case .paranoiaMode: return 92
+        case .showChannelPostAuthor: return 93
+        case .hideChannelJoinRequests: return 94
+        case .hidePremiumStarsGifts: return 95
+        case .allChatsTitleLengthOverride: return 96
+        case .fontSizeOverride: return 97
+        case .disableContactsTab: return 14
+        case .disableCallsButton: return 15
         case .resetSettings: return 99
         }
     }
@@ -168,6 +194,21 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let (.hideStarReactionButton(lt, lv), .hideStarReactionButton(rt, rv)): return lt === rt && lv == rv
         case let (.hideStarReactionCount(lt, lv), .hideStarReactionCount(rt, rv)): return lt === rt && lv == rv
         case let (.collapseLongMessages(lt, lv), .collapseLongMessages(rt, rv)): return lt === rt && lv == rv
+        case let (.disableContactsTab(lt, lv), .disableContactsTab(rt, rv)): return lt === rt && lv == rv
+        case let (.disableCallsButton(lt, lv), .disableCallsButton(rt, rv)): return lt === rt && lv == rv
+        case let (.showAudioFormatBitrate(lt, lv), .showAudioFormatBitrate(rt, rv)): return lt === rt && lv == rv
+        case let (.allChatsTitleLengthOverride(lt, lv), .allChatsTitleLengthOverride(rt, rv)): return lt === rt && lv == rv
+        case let (.fontSizeOverride(lt, lv), .fontSizeOverride(rt, rv)): return lt === rt && lv == rv
+        case let (.searchByUserId(lt, lv), .searchByUserId(rt, rv)): return lt === rt && lv == rv
+        case let (.adminLogsImprovements(lt, lv), .adminLogsImprovements(rt, rv)): return lt === rt && lv == rv
+        case let (.paranoiaMode(lt, lv), .paranoiaMode(rt, rv)): return lt === rt && lv == rv
+        case let (.showChannelPostAuthor(lt, lv), .showChannelPostAuthor(rt, rv)): return lt === rt && lv == rv
+        case let (.hideChannelJoinRequests(lt, lv), .hideChannelJoinRequests(rt, rv)): return lt === rt && lv == rv
+        case let (.fasterFileLoad(lt, lv), .fasterFileLoad(rt, rv)): return lt === rt && lv == rv
+        case let (.videoCircleAudioSource(lt, lv), .videoCircleAudioSource(rt, rv)): return lt === rt && lv == rv
+        case let (.videoQualityOriginalToggle(lt, lv), .videoQualityOriginalToggle(rt, rv)): return lt === rt && lv == rv
+        case let (.sendVideoAsCircle(lt, lv), .sendVideoAsCircle(rt, rv)): return lt === rt && lv == rv
+        case let (.hidePremiumStarsGifts(lt, lv), .hidePremiumStarsGifts(rt, rv)): return lt === rt && lv == rv
         case let (.fakeGlass(lt, lv), .fakeGlass(rt, rv)): return lt === rt && lv == rv
         case let (.forceClearGlass(lt, lv), .forceClearGlass(rt, rv)): return lt === rt && lv == rv
         case let (.showForwardedTime(lt, lv), .showForwardedTime(rt, rv)): return lt === rt && lv == rv
@@ -189,7 +230,6 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let (.showPackOwner(lt, lv), .showPackOwner(rt, rv)): return lt === rt && lv == rv
         case let (.hidePhoneInSettings(lt, lv), .hidePhoneInSettings(rt, rv)): return lt === rt && lv == rv
         case let (.disableGalleryCamera(lt, lv), .disableGalleryCamera(rt, rv)): return lt === rt && lv == rv
-        case let (.disableGalleryCameraPreview(lt, lv), .disableGalleryCameraPreview(rt, rv)): return lt === rt && lv == rv
         case let (.disableStoryCameraSwipe(lt, lv), .disableStoryCameraSwipe(rt, rv)): return lt === rt && lv == rv
         case let (.flatStickerCorners(lt, lv), .flatStickerCorners(rt, rv)): return lt === rt && lv == rv
         case let (.saveStickerToPhotos(lt, lv), .saveStickerToPhotos(rt, rv)): return lt === rt && lv == rv
@@ -200,7 +240,6 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let (.confirmCalls(lt, lv), .confirmCalls(rt, rv)): return lt === rt && lv == rv
         case let (.biometricConfirmation(lt, lv), .biometricConfirmation(rt, rv)): return lt === rt && lv == rv
         case let (.defaultEmojisFirst(lt, lv), .defaultEmojisFirst(rt, rv)): return lt === rt && lv == rv
-        case let (.noSelectionCap(lt, lv), .noSelectionCap(rt, rv)): return lt === rt && lv == rv
         case let (.resetSettings(lt), .resetSettings(rt)): return lt === rt
         default: return false
         }
@@ -343,8 +382,6 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Disable Gallery Camera", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateDisableGalleryCamera(value)
             })
-        case let .disableGalleryCameraPreview(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Disable Gallery Camera Preview (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .disableStoryCameraSwipe(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Disable Story Camera Swipe", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateDisableStoryCameraSwipe(value)
@@ -383,8 +420,40 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Default Emojis First", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateDefaultEmojisFirst(value)
             })
-        case let .noSelectionCap(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "No Selection Cap (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .disableContactsTab(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Contacts Tab", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateDisableContactsTab(value)
+            })
+        case let .disableCallsButton(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Call Button", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateDisableCallsButton(value)
+            })
+        case let .showAudioFormatBitrate(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Audio Format & Bitrate (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .allChatsTitleLengthOverride(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "All Chats Title Length Override (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .fontSizeOverride(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Font Size Override (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .searchByUserId(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Search by User ID (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .adminLogsImprovements(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Admin Logs Improvements (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .paranoiaMode(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Paranoia Mode (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .showChannelPostAuthor(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Channel Post Author (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .hideChannelJoinRequests(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Channel Join Requests (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .fasterFileLoad(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Faster File Load (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .videoCircleAudioSource(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Video Circle Audio Source (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .videoQualityOriginalToggle(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Video Quality Original Toggle (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .sendVideoAsCircle(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Send Video as Circle (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .hidePremiumStarsGifts(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Premium/Stars/Gifts (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case .resetSettings:
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: "Reset Settings", label: "", sectionId: self.section, style: .blocks, action: {
                 args.resetSettings()
@@ -436,6 +505,8 @@ private struct ClearSettingsArguments {
     let updateHideSimilarChannels: (Bool) -> Void
     let updateConfirmCalls: (Bool) -> Void
     let updateDefaultEmojisFirst: (Bool) -> Void
+    let updateDisableContactsTab: (Bool) -> Void
+    let updateDisableCallsButton: (Bool) -> Void
     let updateFakeGlass: (Bool) -> Void
     let updateForceClearGlass: (Bool) -> Void
     let resetSettings: () -> Void
@@ -576,6 +647,13 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         updateDefaultEmojisFirst: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.defaultEmojisFirst = value; return s }.start()
         },
+        updateDisableContactsTab: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.disableContactsTab = value; return s }.start()
+            askForRestartImpl?()
+        },
+        updateDisableCallsButton: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.disableCallsButton = value; return s }.start()
+        },
         updateFakeGlass: { value in
             let _ = context.sharedContext.accountManager.transaction { transaction in
                 transaction.updateSharedData(ApplicationSpecificSharedDataKeys.experimentalUISettings) { settings in
@@ -616,6 +694,8 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         entries.append(.showTabNames(presentationData.theme, settings.showTabNames, settings.hideTabBar))
         entries.append(.wideTabBar(presentationData.theme, settings.wideTabBar, settings.hideTabBar))
         entries.append(.tabBarSearchEnabled(presentationData.theme, settings.tabBarSearchEnabled, settings.hideTabBar))
+        entries.append(.disableContactsTab(presentationData.theme, settings.disableContactsTab))
+        entries.append(.disableCallsButton(presentationData.theme, settings.disableCallsButton))
         entries.append(.wideChannelPosts(presentationData.theme, settings.wideChannelPosts))
         entries.append(.hideChannelBottomButton(presentationData.theme, settings.hideChannelBottomButton))
         entries.append(.disableScrollToNextChannel(presentationData.theme, settings.disableScrollToNextChannel))
@@ -642,10 +722,15 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         entries.append(.showPackOwner(presentationData.theme, settings.showPackOwner))
         entries.append(.hidePhoneInSettings(presentationData.theme, settings.hidePhoneInSettings))
         entries.append(.disableGalleryCamera(presentationData.theme, settings.disableGalleryCamera))
-        entries.append(.disableGalleryCameraPreview(presentationData.theme, settings.disableGalleryCameraPreview))
         entries.append(.disableStoryCameraSwipe(presentationData.theme, settings.disableStoryCameraSwipe))
         entries.append(.flatStickerCorners(presentationData.theme, settings.flatStickerCorners))
         entries.append(.saveStickerToPhotos(presentationData.theme, settings.saveStickerToPhotos))
+        entries.append(.showAudioFormatBitrate(presentationData.theme, settings.showAudioFormatBitrate))
+        entries.append(.fasterFileLoad(presentationData.theme, settings.fasterFileLoad))
+        entries.append(.videoCircleAudioSource(presentationData.theme, settings.videoCircleAudioSource))
+        entries.append(.videoQualityOriginalToggle(presentationData.theme, settings.videoQualityOriginalToggle))
+        entries.append(.sendVideoAsCircle(presentationData.theme, settings.sendVideoAsCircle))
+        entries.append(.allChatsTitleLengthOverride(presentationData.theme, settings.allChatsTitleLengthOverride != 0))
         entries.append(.hideStories(presentationData.theme, settings.hideStories))
         entries.append(.hideAiFeatures(presentationData.theme, settings.hideAiFeatures))
         entries.append(.hideSponsoredMessages(presentationData.theme, settings.hideSponsoredMessages))
@@ -653,9 +738,15 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         entries.append(.confirmCalls(presentationData.theme, settings.confirmCalls))
         entries.append(.biometricConfirmation(presentationData.theme, settings.biometricConfirmation))
         entries.append(.defaultEmojisFirst(presentationData.theme, settings.defaultEmojisFirst))
-        entries.append(.noSelectionCap(presentationData.theme, settings.noSelectionCap))
         entries.append(.fakeGlass(presentationData.theme, experimentalSettings.fakeGlass))
         entries.append(.forceClearGlass(presentationData.theme, experimentalSettings.forceClearGlass))
+        entries.append(.searchByUserId(presentationData.theme, settings.searchByUserId))
+        entries.append(.adminLogsImprovements(presentationData.theme, settings.adminLogsImprovements))
+        entries.append(.paranoiaMode(presentationData.theme, settings.paranoiaMode))
+        entries.append(.showChannelPostAuthor(presentationData.theme, settings.showChannelPostAuthor))
+        entries.append(.hideChannelJoinRequests(presentationData.theme, settings.hideChannelJoinRequests))
+        entries.append(.hidePremiumStarsGifts(presentationData.theme, settings.hidePremiumStarsGifts))
+        entries.append(.fontSizeOverride(presentationData.theme, settings.fontSizeOverride))
         entries.append(.resetSettings(presentationData.theme))
         let state = ItemListControllerState(presentationData: pd, title: .text("Cleargram Settings"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         return (state, (ItemListNodeState(presentationData: pd, entries: entries, style: .blocks, animateChanges: true), arguments))
