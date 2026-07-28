@@ -1,0 +1,214 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 15:29:08 +0700
+Subject: Show audio format and bitrate in music player
+
+---
+ .../Sources/SharedMediaPlayer.swift           |  6 ++---
+ .../Sources/InstantPageMediaPlaylist.swift    |  4 +--
+ .../MediaNavigationAccessoryHeaderNode.swift  |  2 +-
+ .../Sources/PeerMessagesMediaPlaylist.swift   |  5 ++--
+ .../MediaNavigationAccessoryHeaderNode.swift  |  2 +-
+ .../TelegramUI/Sources/MediaManager.swift     |  2 +-
+ .../OverlayAudioPlayerControlsNode.swift      | 27 +++++++++++++------
+ 7 files changed, 30 insertions(+), 18 deletions(-)
+
+diff --git a/submodules/AccountContext/Sources/SharedMediaPlayer.swift b/submodules/AccountContext/Sources/SharedMediaPlayer.swift
+index 0000000..0000000 100644
+--- a/submodules/AccountContext/Sources/SharedMediaPlayer.swift
++++ b/submodules/AccountContext/Sources/SharedMediaPlayer.swift
+@@ -60,14 +60,14 @@ public struct SharedMediaPlaybackAlbumArt: Equatable {
+ }
+ 
+ public enum SharedMediaPlaybackDisplayData: Equatable {
+-    case music(title: String?, performer: String?, albumArt: SharedMediaPlaybackAlbumArt?, long: Bool, caption: NSAttributedString?)
++    case music(title: String?, performer: String?, albumArt: SharedMediaPlaybackAlbumArt?, long: Bool, caption: NSAttributedString?, formatInfo: String?)
+     case voice(author: EnginePeer?, peer: EnginePeer?)
+     case instantVideo(author: EnginePeer?, peer: EnginePeer?, timestamp: Int32)
+     
+     public static func ==(lhs: SharedMediaPlaybackDisplayData, rhs: SharedMediaPlaybackDisplayData) -> Bool {
+         switch lhs {
+-        case let .music(lhsTitle, lhsPerformer, lhsAlbumArt, lhsDuration, lhsCaption):
+-            if case let .music(rhsTitle, rhsPerformer, rhsAlbumArt, rhsDuration, rhsCaption) = rhs, lhsTitle == rhsTitle, lhsPerformer == rhsPerformer, lhsAlbumArt == rhsAlbumArt, lhsDuration == rhsDuration, lhsCaption?.string == rhsCaption?.string {
++        case let .music(lhsTitle, lhsPerformer, lhsAlbumArt, lhsDuration, lhsCaption, lhsFormatInfo):
++            if case let .music(rhsTitle, rhsPerformer, rhsAlbumArt, rhsDuration, rhsCaption, rhsFormatInfo) = rhs, lhsTitle == rhsTitle, lhsPerformer == rhsPerformer, lhsAlbumArt == rhsAlbumArt, lhsDuration == rhsDuration, lhsCaption?.string == rhsCaption?.string, lhsFormatInfo == rhsFormatInfo {
+                 return true
+             } else {
+                 return false
+diff --git a/submodules/InstantPageUI/Sources/InstantPageMediaPlaylist.swift b/submodules/InstantPageUI/Sources/InstantPageMediaPlaylist.swift
+index 0000000..0000000 100644
+--- a/submodules/InstantPageUI/Sources/InstantPageMediaPlaylist.swift
++++ b/submodules/InstantPageUI/Sources/InstantPageMediaPlaylist.swift
+@@ -110,7 +110,7 @@ final class InstantPageMediaPlaylistItem: SharedMediaPlaylistItem {
+                                 albumArt = SharedMediaPlaybackAlbumArt(thumbnailResource: ExternalMusicAlbumArtResource(file: .standalone(media: file), title: updatedTitle ?? "", performer: updatedPerformer ?? "", isThumbnail: true), fullSizeResource: ExternalMusicAlbumArtResource(file: .standalone(media: file), title: updatedTitle ?? "", performer: updatedPerformer ?? "", isThumbnail: false))
+                             }
+                             
+-                            return SharedMediaPlaybackDisplayData.music(title: updatedTitle, performer: updatedPerformer, albumArt: albumArt, long: false, caption: nil)
++                            return SharedMediaPlaybackDisplayData.music(title: updatedTitle, performer: updatedPerformer, albumArt: albumArt, long: false, caption: nil, formatInfo: nil)
+                         }
+                     case let .Video(_, _, flags, _, _, _):
+                         if flags.contains(.instantRoundVideo) {
+@@ -123,7 +123,7 @@ final class InstantPageMediaPlaylistItem: SharedMediaPlaylistItem {
+                 }
+             }
+             
+-            return SharedMediaPlaybackDisplayData.music(title: file.fileName ?? "", performer: "", albumArt: nil, long: false, caption: nil)
++            return SharedMediaPlaybackDisplayData.music(title: file.fileName ?? "", performer: "", albumArt: nil, long: false, caption: nil, formatInfo: nil)
+         }
+         return nil
+     }
+diff --git a/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift b/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift
++++ b/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift
+@@ -48,7 +48,7 @@ private class MediaHeaderItemNode: ASDisplayNode {
+         var subtitleString: NSAttributedString?
+         if let playbackItem = playbackItem, let displayData = playbackItem.displayData {
+             switch displayData {
+-                case let .music(title, performer, _, long, _):
++                case let .music(title, performer, _, long, _, _):
+                     rateButtonHidden = !long
+                     let titleText: String = title ?? strings.MediaPlayer_UnknownTrack
+                     let subtitleText: String = performer ?? strings.MediaPlayer_UnknownArtist
+diff --git a/submodules/TelegramUI/Components/MediaManager/PeerMessagesMediaPlaylist/Sources/PeerMessagesMediaPlaylist.swift b/submodules/TelegramUI/Components/MediaManager/PeerMessagesMediaPlaylist/Sources/PeerMessagesMediaPlaylist.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/MediaManager/PeerMessagesMediaPlaylist/Sources/PeerMessagesMediaPlaylist.swift
++++ b/submodules/TelegramUI/Components/MediaManager/PeerMessagesMediaPlaylist/Sources/PeerMessagesMediaPlaylist.swift
+@@ -135,7 +135,8 @@ public final class MessageMediaPlaylistItem: SharedMediaPlaylistItem {
+                             albumArt = SharedMediaPlaybackAlbumArt(thumbnailResource: ExternalMusicAlbumArtResource(file: .message(message: MessageReference(self.message), media: file), title: updatedTitle ?? "", performer: updatedPerformer ?? "", isThumbnail: true), fullSizeResource: ExternalMusicAlbumArtResource(file: .message(message: MessageReference(self.message), media: file), title: updatedTitle ?? "", performer: updatedPerformer ?? "", isThumbnail: false))
+                         }
+                         
+-                        displayData = SharedMediaPlaybackDisplayData.music(title: updatedTitle, performer: updatedPerformer, albumArt: albumArt, long: CGFloat(duration) > 10.0 * 60.0, caption: caption)
++                        let clearFormatInfo = clearAudioFormatInfo(mimeType: file.mimeType, size: file.size, duration: TimeInterval(duration))
++                        displayData = SharedMediaPlaybackDisplayData.music(title: updatedTitle, performer: updatedPerformer, albumArt: albumArt, long: CGFloat(duration) > 10.0 * 60.0, caption: caption, formatInfo: clearFormatInfo)
+                     }
+                     return displayData
+                 case let .Video(_, _, flags, _, _, _):
+@@ -149,7 +150,7 @@ public final class MessageMediaPlaylistItem: SharedMediaPlaylistItem {
+                 }
+             }
+             
+-            return SharedMediaPlaybackDisplayData.music(title: file.fileName ?? "", performer: self.message.effectiveAuthor?.debugDisplayTitle ?? "", albumArt: nil, long: false, caption: caption)
++            return SharedMediaPlaybackDisplayData.music(title: file.fileName ?? "", performer: self.message.effectiveAuthor?.debugDisplayTitle ?? "", albumArt: nil, long: false, caption: caption, formatInfo: clearAudioFormatInfo(mimeType: file.mimeType, size: file.size, duration: file.duration))
+         }
+         return nil
+     }()
+diff --git a/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift b/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift
++++ b/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift
+@@ -48,7 +48,7 @@ private class MediaHeaderItemNode: ASDisplayNode {
+         var subtitleString: NSAttributedString?
+         if let playbackItem = playbackItem, let displayData = playbackItem.displayData {
+             switch displayData {
+-                case let .music(title, performer, _, long, _):
++                case let .music(title, performer, _, long, _, _):
+                     rateButtonHidden = !long
+                     let titleText: String = title ?? strings.MediaPlayer_UnknownTrack
+                     let subtitleText: String = performer ?? strings.MediaPlayer_UnknownArtist
+diff --git a/submodules/TelegramUI/Sources/MediaManager.swift b/submodules/TelegramUI/Sources/MediaManager.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/MediaManager.swift
++++ b/submodules/TelegramUI/Sources/MediaManager.swift
+@@ -253,7 +253,7 @@ public final class MediaManagerImpl: NSObject, MediaManager {
+                     var artwork: SharedMediaPlaybackAlbumArt?
+                     
+                     switch displayData {
+-                        case let .music(title, performer, artworkValue, _, _):
++                        case let .music(title, performer, artworkValue, _, _, _):
+                             artwork = artworkValue
+                             
+                             let titleText: String = title ?? presentationData.strings.MediaPlayer_UnknownTrack
+diff --git a/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift b/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
++++ b/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
+@@ -110,21 +110,23 @@ private func timestampLabelWidthForDuration(_ timestamp: Double) -> CGFloat {
+ private let titleFont = Font.semibold(17.0)
+ private let descriptionFont = Font.regular(15.0)
+ 
+-private func stringsForDisplayData(_ data: SharedMediaPlaybackDisplayData?, presentationData: PresentationData) -> (NSAttributedString?, NSAttributedString?, Bool, NSAttributedString?) {
++private func stringsForDisplayData(_ data: SharedMediaPlaybackDisplayData?, presentationData: PresentationData) -> (NSAttributedString?, NSAttributedString?, Bool, NSAttributedString?, String?) {
+     var titleString: NSAttributedString?
+     var descriptionString: NSAttributedString?
+     var hasArtist = false
+     var captionString: NSAttributedString?
++    var formatInfoString: String?
+     
+     if let data = data {
+         let titleText: String
+         let subtitleText: String
+         switch data {
+-            case let .music(title, performer, _, _, caption):
++            case let .music(title, performer, _, _, caption, formatInfo):
+                 titleText = title ?? presentationData.strings.MediaPlayer_UnknownTrack
+                 subtitleText = performer ?? presentationData.strings.MediaPlayer_UnknownArtist
+                 hasArtist = performer != nil
+                 captionString = caption
++                formatInfoString = formatInfo
+             case .voice, .instantVideo:
+                 titleText = ""
+                 subtitleText = ""
+@@ -134,7 +136,7 @@ private func stringsForDisplayData(_ data: SharedMediaPlaybackDisplayData?, pres
+         descriptionString = NSAttributedString(string: subtitleText, font: descriptionFont, textColor: presentationData.theme.list.itemSecondaryTextColor)
+     }
+     
+-    return (titleString, descriptionString, hasArtist, captionString)
++    return (titleString, descriptionString, hasArtist, captionString, formatInfoString)
+ }
+ 
+ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+@@ -419,7 +421,7 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+                     strongSelf.updateRateButton(baseRate)
+                 }
+                 
+-                if let displayData = displayData, case let .music(_, _, _, long, _) = displayData, long {
++                if let displayData = displayData, case let .music(_, _, _, long, _, _) = displayData, long {
+                     strongSelf.scrubberNode.enableFineScrubbing = true
+                     rateButtonIsHidden = false
+                 } else {
+@@ -705,7 +707,16 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         
+         let infoVerticalOrigin: CGFloat = 21.0
+         
+-        let (titleString, descriptionString, hasArtist, caption) = stringsForDisplayData(self.displayData, presentationData: self.presentationData)
++        let (titleString, descriptionString, hasArtist, caption, formatInfo) = stringsForDisplayData(self.displayData, presentationData: self.presentationData)
++        
++        let clearSubtitleString: NSAttributedString?
++        if let formatInfo = formatInfo, ClearConfig.showAudioFormatBitrate {
++            let base = descriptionString?.string ?? ""
++            let combined = base.isEmpty ? formatInfo : "\(base)  ·  \(formatInfo)"
++            clearSubtitleString = NSAttributedString(string: combined, font: descriptionFont, textColor: self.presentationData.theme.list.itemSecondaryTextColor)
++        } else {
++            clearSubtitleString = descriptionString
++        }
+         
+         if self.previousCaption?.string != caption?.string {
+             self.previousCaption = caption
+@@ -735,7 +746,7 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         }
+         
+         let makeDescriptionLayout = TextNode.asyncLayout(self.descriptionNode)
+-        let (descriptionLayout, descriptionApply) = makeDescriptionLayout(TextNodeLayoutArguments(attributedString: descriptionString, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: width - sideInset * 2.0 - leftInset - rightInset - infoLabelsLeftInset - infoLabelsRightInset, height: CGFloat.greatestFiniteMagnitude), alignment: .left, lineSpacing: 0.0, cutout: nil, insets: UIEdgeInsets()))
++        let (descriptionLayout, descriptionApply) = makeDescriptionLayout(TextNodeLayoutArguments(attributedString: clearSubtitleString, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: width - sideInset * 2.0 - leftInset - rightInset - infoLabelsLeftInset - infoLabelsRightInset, height: CGFloat.greatestFiniteMagnitude), alignment: .left, lineSpacing: 0.0, cutout: nil, insets: UIEdgeInsets()))
+         
+         transition.updateFrame(node: self.titleNode, frame: CGRect(origin: CGPoint(x: self.isExpanded ? floor((width - titleLayout.size.width) / 2.0) : (leftInset + sideInset + infoLabelsLeftInset), y: infoVerticalOrigin + 1.0), size: titleLayout.size))
+         let _ = titleApply()
+@@ -749,7 +760,7 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         var albumArt: SharedMediaPlaybackAlbumArt?
+         if let displayData = self.displayData {
+             switch displayData {
+-                case let .music(_, _, value, _, _):
++                case let .music(_, _, value, _, _, _):
+                     albumArt = value
+                 default:
+                     break
+@@ -1213,7 +1224,7 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+     }
+     
+     @objc func artistPressed() {
+-        let (_, descriptionString, _, _) = stringsForDisplayData(self.displayData, presentationData: self.presentationData)
++        let (_, descriptionString, _, _, _) = stringsForDisplayData(self.displayData, presentationData: self.presentationData)
+         if let artist = descriptionString?.string {
+             self.requestSearchByArtist?(artist)
+         }

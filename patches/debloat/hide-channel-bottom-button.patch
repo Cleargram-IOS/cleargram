@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 16:08:52 +0700
+Subject: Hide channel bottom button in channel preview
+
+---
+ .../TelegramUI/Sources/ChatInterfaceStateInputPanels.swift    | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
++++ b/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
+@@ -47,6 +47,10 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
+         return (nil, nil)
+     }
+     
++    if ClearConfig.hideChannelBottomButton, let peer = chatPresentationInterfaceState.renderedPeer?.peer, let channel = peer as? TelegramChannel, channel.participationStatus != .member {
++        return (nil, nil)
++    }
++    
+     if context.isFrozen {
+         var isActuallyFrozen = true
+         let accountFreezeConfiguration = AccountFreezeConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })

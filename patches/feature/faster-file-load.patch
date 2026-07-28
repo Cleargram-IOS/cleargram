@@ -1,0 +1,75 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 16:08:57 +0700
+Subject: Bump download and upload chunk sizes for faster file transfer
+
+---
+ submodules/TelegramCore/Sources/Network/FetchV2.swift    | 2 ++
+ .../TelegramCore/Sources/Network/MultipartFetch.swift    | 9 +++++++--
+ .../TelegramCore/Sources/Network/MultipartUpload.swift   | 4 ++--
+ .../State/SynchronizeChatInputStateOperation.swift       | 1 +
+ 4 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/submodules/TelegramCore/Sources/Network/FetchV2.swift b/submodules/TelegramCore/Sources/Network/FetchV2.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/Network/FetchV2.swift
++++ b/submodules/TelegramCore/Sources/Network/FetchV2.swift
+@@ -389,6 +389,8 @@ private final class FetchImpl {
+             
+             if isStory {
+                 self.defaultPartSize = 512 * 1024
++            } else if ClearHooks.fasterFileLoad.with({ $0 }) {
++                self.defaultPartSize = 512 * 1024
+             } else {
+                 self.defaultPartSize = 128 * 1024
+             }
+diff --git a/submodules/TelegramCore/Sources/Network/MultipartFetch.swift b/submodules/TelegramCore/Sources/Network/MultipartFetch.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/Network/MultipartFetch.swift
++++ b/submodules/TelegramCore/Sources/Network/MultipartFetch.swift
+@@ -576,8 +576,13 @@ private final class MultipartFetchManager {
+                 self.defaultPartSize = 16 * 1024
+                 self.parallelParts = 4 * 4
+             } else {
+-                self.defaultPartSize = 512 * 1024
+-                self.parallelParts = 8
++                if ClearHooks.fasterFileLoad.with({ $0 }) {
++                    self.defaultPartSize = 1024 * 1024
++                    self.parallelParts = 8
++                } else {
++                    self.defaultPartSize = 512 * 1024
++                    self.parallelParts = 8
++                }
+             }
+         } else {
+             self.parallelParts = 1
+diff --git a/submodules/TelegramCore/Sources/Network/MultipartUpload.swift b/submodules/TelegramCore/Sources/Network/MultipartUpload.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/Network/MultipartUpload.swift
++++ b/submodules/TelegramCore/Sources/Network/MultipartUpload.swift
+@@ -182,11 +182,11 @@ private final class MultipartUploadManager {
+             self.bigParts = true
+         } else if useLargerParts {
+             self.bigParts = false
+-            self.defaultPartSize = 256 * 1024
++            self.defaultPartSize = ClearHooks.fasterFileLoad.with({ $0 }) ? 512 * 1024 : 256 * 1024
+             self.bigTotalParts = nil
+         } else {
+             self.bigParts = false
+-            self.defaultPartSize = 128 * 1024
++            self.defaultPartSize = ClearHooks.fasterFileLoad.with({ $0 }) ? 256 * 1024 : 128 * 1024
+             self.bigTotalParts = nil
+         }
+     }
+diff --git a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
++++ b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+@@ -5,6 +5,7 @@ import SwiftSignalKit
+ public enum ClearHooks {
+     public static let blockCloudDrafts = Atomic<Bool>(value: false)
+     public static let expandedMessageIds = Atomic<Set<MessageId>>(value: Set())
++    public static let fasterFileLoad = Atomic<Bool>(value: false)
+ }
+ 
+ func addSynchronizeChatInputStateOperation(transaction: Transaction, peerId: PeerId, threadId: Int64?) {

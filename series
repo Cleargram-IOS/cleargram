@@ -35,3 +35,8 @@ feature/visual-swiftgram.patch
 feature/compact-chat-list.patch
 feature/settings-ui-fixes.patch
 feature/disable-contacts-calls.patch
+feature/biometric-confirmation.patch
+debloat/hide-channel-join-requests.patch
+feature/show-audio-format-bitrate.patch
+debloat/hide-channel-bottom-button.patch
+feature/faster-file-load.patch

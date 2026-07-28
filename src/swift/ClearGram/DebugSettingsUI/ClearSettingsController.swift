@@ -82,7 +82,9 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
     case hideSponsoredMessages(PresentationTheme, Bool)
     case hideSimilarChannels(PresentationTheme, Bool)
     case confirmCalls(PresentationTheme, Bool)
-    case biometricConfirmation(PresentationTheme, Bool)
+    case biometricConfirmDeleteChat(PresentationTheme, Bool)
+    case biometricConfirmClearHistory(PresentationTheme, Bool)
+    case biometricConfirmLogout(PresentationTheme, Bool)
     case defaultEmojisFirst(PresentationTheme, Bool)
     case resetSettings(PresentationTheme)
 
@@ -104,7 +106,7 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ClearSettingsSection.profile.rawValue
         case .disableGalleryCamera, .disableStoryCameraSwipe, .flatStickerCorners, .saveStickerToPhotos, .showAudioFormatBitrate, .fasterFileLoad, .videoCircleAudioSource, .videoQualityOriginalToggle, .sendVideoAsCircle:
             return ClearSettingsSection.media.rawValue
-        case .hideStories, .hideAiFeatures, .hideSponsoredMessages, .hideSimilarChannels, .confirmCalls, .biometricConfirmation, .defaultEmojisFirst, .fakeGlass, .forceClearGlass, .searchByUserId, .adminLogsImprovements, .paranoiaMode, .showChannelPostAuthor, .hideChannelJoinRequests, .hidePremiumStarsGifts:
+        case .hideStories, .hideAiFeatures, .hideSponsoredMessages, .hideSimilarChannels, .confirmCalls, .biometricConfirmDeleteChat, .biometricConfirmClearHistory, .biometricConfirmLogout, .defaultEmojisFirst, .fakeGlass, .forceClearGlass, .searchByUserId, .adminLogsImprovements, .paranoiaMode, .showChannelPostAuthor, .hideChannelJoinRequests, .hidePremiumStarsGifts:
             return ClearSettingsSection.privacy.rawValue
         case .resetSettings:
             return ClearSettingsSection.reset.rawValue
@@ -159,7 +161,9 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case .hideSponsoredMessages: return 82
         case .hideSimilarChannels: return 83
         case .confirmCalls: return 84
-        case .biometricConfirmation: return 85
+        case .biometricConfirmDeleteChat: return 841
+        case .biometricConfirmClearHistory: return 842
+        case .biometricConfirmLogout: return 843
         case .defaultEmojisFirst: return 86
         case .fakeGlass: return 88
         case .forceClearGlass: return 89
@@ -238,7 +242,9 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let (.hideSponsoredMessages(lt, lv), .hideSponsoredMessages(rt, rv)): return lt === rt && lv == rv
         case let (.hideSimilarChannels(lt, lv), .hideSimilarChannels(rt, rv)): return lt === rt && lv == rv
         case let (.confirmCalls(lt, lv), .confirmCalls(rt, rv)): return lt === rt && lv == rv
-        case let (.biometricConfirmation(lt, lv), .biometricConfirmation(rt, rv)): return lt === rt && lv == rv
+        case let (.biometricConfirmDeleteChat(lt, lv), .biometricConfirmDeleteChat(rt, rv)): return lt === rt && lv == rv
+        case let (.biometricConfirmClearHistory(lt, lv), .biometricConfirmClearHistory(rt, rv)): return lt === rt && lv == rv
+        case let (.biometricConfirmLogout(lt, lv), .biometricConfirmLogout(rt, rv)): return lt === rt && lv == rv
         case let (.defaultEmojisFirst(lt, lv), .defaultEmojisFirst(rt, rv)): return lt === rt && lv == rv
         case let (.resetSettings(lt), .resetSettings(rt)): return lt === rt
         default: return false
@@ -281,7 +287,9 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
                 args.updateWideChannelPosts(value)
             })
         case let .hideChannelBottomButton(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Channel Bottom Button (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Channel Bottom Button", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateHideChannelBottomButton(value)
+            })
         case let .disableScrollToNextChannel(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Disable Scroll to Next Channel", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateDisableScrollToNextChannel(value)
@@ -414,8 +422,18 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Confirm Calls", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateConfirmCalls(value)
             })
-        case let .biometricConfirmation(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Biometric Confirmation (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+        case let .biometricConfirmDeleteChat(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Biometric Confirm: Delete Chat", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateBiometricConfirmDeleteChat(value)
+            })
+        case let .biometricConfirmClearHistory(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Biometric Confirm: Clear History", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateBiometricConfirmClearHistory(value)
+            })
+        case let .biometricConfirmLogout(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Biometric Confirm: Logout", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateBiometricConfirmLogout(value)
+            })
         case let .defaultEmojisFirst(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Default Emojis First", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateDefaultEmojisFirst(value)
@@ -429,7 +447,9 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
                 args.updateDisableCallsButton(value)
             })
         case let .showAudioFormatBitrate(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Audio Format & Bitrate (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Audio Format & Bitrate", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateShowAudioFormatBitrate(value)
+            })
         case let .allChatsTitleLengthOverride(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "All Chats Title Length Override (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .fontSizeOverride(_, value):
@@ -443,9 +463,13 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let .showChannelPostAuthor(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Channel Post Author (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .hideChannelJoinRequests(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Channel Join Requests (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Channel Join Requests", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateHideChannelJoinRequests(value)
+            })
         case let .fasterFileLoad(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Faster File Load (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Faster File Load", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateFasterFileLoad(value)
+            })
         case let .videoCircleAudioSource(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Video Circle Audio Source (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .videoQualityOriginalToggle(_, value):
@@ -472,6 +496,7 @@ private struct ClearSettingsArguments {
     let updateWideTabBar: (Bool) -> Void
     let updateTabBarSearchEnabled: (Bool) -> Void
     let updateWideChannelPosts: (Bool) -> Void
+    let updateHideChannelBottomButton: (Bool) -> Void
     let updateDisableScrollToNextChannel: (Bool) -> Void
     // let updateShowInlineReactions: (Bool) -> Void
     let updateHideStarReactionButton: (Bool) -> Void
@@ -499,11 +524,17 @@ private struct ClearSettingsArguments {
     let updateDisableStoryCameraSwipe: (Bool) -> Void
     let updateFlatStickerCorners: (Bool) -> Void
     let updateSaveStickerToPhotos: (Bool) -> Void
+    let updateShowAudioFormatBitrate: (Bool) -> Void
     let updateHideStories: (Bool) -> Void
     let updateHideAiFeatures: (Bool) -> Void
     let updateHideSponsoredMessages: (Bool) -> Void
     let updateHideSimilarChannels: (Bool) -> Void
+    let updateHideChannelJoinRequests: (Bool) -> Void
+    let updateFasterFileLoad: (Bool) -> Void
     let updateConfirmCalls: (Bool) -> Void
+    let updateBiometricConfirmDeleteChat: (Bool) -> Void
+    let updateBiometricConfirmClearHistory: (Bool) -> Void
+    let updateBiometricConfirmLogout: (Bool) -> Void
     let updateDefaultEmojisFirst: (Bool) -> Void
     let updateDisableContactsTab: (Bool) -> Void
     let updateDisableCallsButton: (Bool) -> Void
@@ -546,6 +577,9 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         },
         updateWideChannelPosts: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.wideChannelPosts = value; return s }.start()
+        },
+        updateHideChannelBottomButton: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideChannelBottomButton = value; return s }.start()
         },
         updateDisableScrollToNextChannel: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.disableScrollToNextChannel = value; return s }.start()
@@ -629,6 +663,9 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         updateSaveStickerToPhotos: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.saveStickerToPhotos = value; return s }.start()
         },
+        updateShowAudioFormatBitrate: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showAudioFormatBitrate = value; return s }.start()
+        },
         updateHideStories: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideStories = value; return s }.start()
         },
@@ -641,8 +678,23 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         updateHideSimilarChannels: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideSimilarChannels = value; return s }.start()
         },
+        updateHideChannelJoinRequests: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideChannelJoinRequests = value; return s }.start()
+        },
+        updateFasterFileLoad: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.fasterFileLoad = value; return s }.start()
+        },
         updateConfirmCalls: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.confirmCalls = value; return s }.start()
+        },
+        updateBiometricConfirmDeleteChat: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.biometricConfirmDeleteChat = value; return s }.start()
+        },
+        updateBiometricConfirmClearHistory: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.biometricConfirmClearHistory = value; return s }.start()
+        },
+        updateBiometricConfirmLogout: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.biometricConfirmLogout = value; return s }.start()
         },
         updateDefaultEmojisFirst: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.defaultEmojisFirst = value; return s }.start()
@@ -736,7 +788,9 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         entries.append(.hideSponsoredMessages(presentationData.theme, settings.hideSponsoredMessages))
         entries.append(.hideSimilarChannels(presentationData.theme, settings.hideSimilarChannels))
         entries.append(.confirmCalls(presentationData.theme, settings.confirmCalls))
-        entries.append(.biometricConfirmation(presentationData.theme, settings.biometricConfirmation))
+        entries.append(.biometricConfirmDeleteChat(presentationData.theme, settings.biometricConfirmDeleteChat))
+        entries.append(.biometricConfirmClearHistory(presentationData.theme, settings.biometricConfirmClearHistory))
+        entries.append(.biometricConfirmLogout(presentationData.theme, settings.biometricConfirmLogout))
         entries.append(.defaultEmojisFirst(presentationData.theme, settings.defaultEmojisFirst))
         entries.append(.fakeGlass(presentationData.theme, experimentalSettings.fakeGlass))
         entries.append(.forceClearGlass(presentationData.theme, experimentalSettings.forceClearGlass))

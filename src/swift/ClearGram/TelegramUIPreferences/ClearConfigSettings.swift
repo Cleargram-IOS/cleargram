@@ -33,7 +33,9 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var stripTrackingParams: Bool
     public var replacePreviewLinks: Bool
     public var confirmInternalLinks: Bool
-    public var biometricConfirmation: Bool
+    public var biometricConfirmDeleteChat: Bool
+    public var biometricConfirmClearHistory: Bool
+    public var biometricConfirmLogout: Bool
     public var hideSponsoredMessages: Bool
     public var hideStarReactionButton: Bool
     public var hideStarReactionCount: Bool
@@ -97,7 +99,9 @@ public struct ClearConfigSettings: Codable, Equatable {
             stripTrackingParams: false,
             replacePreviewLinks: false,
             confirmInternalLinks: false,
-            biometricConfirmation: false,
+            biometricConfirmDeleteChat: false,
+            biometricConfirmClearHistory: false,
+            biometricConfirmLogout: false,
             hideSponsoredMessages: false,
             hideStarReactionButton: false,
             hideStarReactionCount: false,
@@ -162,7 +166,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         stripTrackingParams: Bool = false,
         replacePreviewLinks: Bool = false,
         confirmInternalLinks: Bool = false,
-        biometricConfirmation: Bool = false,
+        biometricConfirmDeleteChat: Bool = false,
+        biometricConfirmClearHistory: Bool = false,
+        biometricConfirmLogout: Bool = false,
         hideSponsoredMessages: Bool = false,
         hideStarReactionButton: Bool = false,
         hideStarReactionCount: Bool = false,
@@ -224,7 +230,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.stripTrackingParams = stripTrackingParams
         self.replacePreviewLinks = replacePreviewLinks
         self.confirmInternalLinks = confirmInternalLinks
-        self.biometricConfirmation = biometricConfirmation
+        self.biometricConfirmDeleteChat = biometricConfirmDeleteChat
+        self.biometricConfirmClearHistory = biometricConfirmClearHistory
+        self.biometricConfirmLogout = biometricConfirmLogout
         self.hideSponsoredMessages = hideSponsoredMessages
         self.hideStarReactionButton = hideStarReactionButton
         self.hideStarReactionCount = hideStarReactionCount
@@ -272,7 +280,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case showProfileId, showDC, hidePhoneInSettings
         case hideContextMenuReply, hideContextMenuPin, hideContextMenuForward, hideContextMenuReport, hideContextMenuSelect
         case doubleTapDelay, defaultEmojisFirst, disableScrollToNextChannel, showInlineReactions
-        case blockCloudDrafts, showForwardedTime, stripTrackingParams, replacePreviewLinks, confirmInternalLinks, biometricConfirmation
+        case blockCloudDrafts, showForwardedTime, stripTrackingParams, replacePreviewLinks, confirmInternalLinks, biometricConfirmDeleteChat, biometricConfirmClearHistory, biometricConfirmLogout
         case hideSponsoredMessages, hideStarReactionButton, hideStarReactionCount, hideSimilarChannels, warnPollsRevote, showPackOwner, timeOnServiceMessages
         case showTabNames, compactChatList, chatListLines, compactFolderNames, allChatsHidden, hideTabBar, wideTabBar, tabBarSearchEnabled, wideChannelPosts, hideChannelBottomButton
         case disableGalleryCamera, disableStoryCameraSwipe, enableMultiColumnLayout
@@ -308,7 +316,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.stripTrackingParams = try c.decodeIfPresent(Bool.self, forKey: .stripTrackingParams) ?? false
         self.replacePreviewLinks = try c.decodeIfPresent(Bool.self, forKey: .replacePreviewLinks) ?? false
         self.confirmInternalLinks = try c.decodeIfPresent(Bool.self, forKey: .confirmInternalLinks) ?? false
-        self.biometricConfirmation = try c.decodeIfPresent(Bool.self, forKey: .biometricConfirmation) ?? false
+        self.biometricConfirmDeleteChat = try c.decodeIfPresent(Bool.self, forKey: .biometricConfirmDeleteChat) ?? false
+        self.biometricConfirmClearHistory = try c.decodeIfPresent(Bool.self, forKey: .biometricConfirmClearHistory) ?? false
+        self.biometricConfirmLogout = try c.decodeIfPresent(Bool.self, forKey: .biometricConfirmLogout) ?? false
         self.hideSponsoredMessages = try c.decodeIfPresent(Bool.self, forKey: .hideSponsoredMessages) ?? false
         self.hideStarReactionButton = try c.decodeIfPresent(Bool.self, forKey: .hideStarReactionButton) ?? false
         self.hideStarReactionCount = try c.decodeIfPresent(Bool.self, forKey: .hideStarReactionCount) ?? false

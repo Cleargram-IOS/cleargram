@@ -22,16 +22,17 @@
 | ✅ `feature__hidden-chats` | hide selected chats from lists, search, recents; suppress notifications; subtract from app badge. Ported from keetgram `76131c1ec7` + presets `c4650d972a` (net diff against `6ad963e5b6`, since keetgram merged origin/master forward). Fork code: `src/swift/ClearGram/TelegramUIPreferences/HiddenChatsSettings.swift` + `src/swift/ClearGram/DebugSettingsUI/QuietChatsController.swift`. |
 | ✅ `feature__hidden-messages` | per-message hide via context-menu (gated by an `enabled` toggle); filtered from chat history, in-chat and global search, and shared-media/gif panes without deleting from the server. Ported from keetgram `f2e0edb417` (net diff against `6ad963e5b6` for 8 stock files; the overlapping `ChatListSearchListPaneNode.swift` was already captured by the hidden-chats net diff). Fork code: `src/swift/ClearGram/TelegramUIPreferences/HiddenMessagesSettings.swift` + `src/swift/ClearGram/DebugSettingsUI/QuietChatsController.swift` (management UI). |
 | ✅ `feature__camera-picker-video-messages` | front/back camera picker for video messages. Ported from keetgram `4798e9fd8e` (net diff against `6ad963e5b6`, 7 stock files). Build-verified. |
-
-## Debloat
-
-_(none yet)_
+| ✅ `feature__biometric-confirmation` | Face/Touch ID prompt before destructive actions: delete chat (chat list swipe/menu + in-chat delete), clear history, logout. Three independent toggles (`biometricConfirmDeleteChat`, `biometricConfirmClearHistory`, `biometricConfirmLogout`), default-off. Falls through silently when no biometric is available (simulator / unsupported device) so users are never locked out. Uses the stock `LocalAuth` submodule (`LocalAuth.auth(reason:)`); fork helper `ClearBiometricHelper.gate(reason:enabled:onSuccess:)` in `src/swift/ClearGram/TelegramUIPreferences/`. Stock wiring: gate wrappers via the `Impl`-split pattern (no call-site re-indent) in `ChatListController.schedulePeerChatRemoval`, `ChatController.deleteChat` + `beginClearHistory`, `LogoutOptionsController` logout action; `LocalAuth` BUILD dep added to `TelegramUIPreferences`. Inspired by inugram `7b92f5b`. |
+| ✅ `feature__show-audio-format-bitrate` | display audio codec (MP3/AAC/OGG/FLAC/WAV/OPUS) and bitrate (kbps) in the music player subtitle. Extends `SharedMediaPlaybackDisplayData.music` with an optional `formatInfo: String?` parameter (signature change in `AccountContext` — touches 6 stock files: enum + == + 4 call sites + 2 consumer destructure sites). Fork helper `clearAudioFormatInfo(mimeType:size:duration:)` in `src/swift/ClearGram/TelegramUIPreferences/ClearAudioFormatInfo.swift`. Appended to the performer/artist subtitle in `OverlayAudioPlayerControlsNode` (gated by `ClearConfig.showAudioFormatBitrate`, default-off). |
+| ✅ `feature__faster-file-load` | bump download/upload chunk sizes for faster file transfer. Download: large files use 1MB part size (up from 512KB) in `MultipartFetch`, non-story uses 512KB (up from 128KB) in `FetchV2`. Upload: `useLargerParts` path uses 512KB (up from 256KB), default uses 256KB (up from 128KB) in `MultipartUpload`. Gated by `ClearConfig.fasterFileLoad` (default-off) bridged into `TelegramCore` via `ClearHooks.fasterFileLoad` (`Atomic<Bool>`), synced from `ClearConfig.start()`. 4 stock files. Inspired by inugram `abe0373`. |
 
 ## Debloat
 
 | patch | description |
 | --- | --- |
 | ✅ `debloat__hide-ai-features` | hide all AI features behind `ClearConfig.hideAiFeatures` toggle (default-off). Gates: summarize button on messages (`ChatMessageBubbleItemNode`), AI compose button in legacy and new Text Field v2 input panels (`ChatTextInputPanelNode`, `MessageInputPanelComponent` via `isAIEnabled` flag, `AttachmentTextInputPanelNode`, `LegacyMessageInputPanel`), AI button in `RichTextAttachmentScreen`. 12 stock files. UI toggle in Settings → Debug → Cleargram Settings. `ClearConfig.start()` called from `AppDelegate` at launch. |
+| ✅ `debloat__hide-channel-join-requests` | hide the "X wants to join" pending-join-request banner in channel/group chats from admins. Gates the `ChatTitlePanelContext.inviteRequests` panel at 3 sites in `ChatControllerLoadDisplayNode.swift` (previous-state flag, current-state `displayActionsPanel` flag, and `.inviteRequests` context-add to `updatedTitlePanelContext`). One stock file, +3/-3 chars. Default-off via `ClearConfig.hideChannelJoinRequests`. |
+| ✅ `debloat__hide-channel-bottom-button` | hide the bottom action bar (mute/join/leave buttons) in channel preview chats for non-members. Early-return in `inputPanelForChatPresentationIntefaceState` (`ChatInterfaceStateInputPanels.swift`) when `ClearConfig.hideChannelBottomButton` is on and the peer is a channel with `participationStatus != .member`. One stock file, +3 lines. Default-off. |
 
 ## Misc
 
@@ -62,8 +63,6 @@ All have a disabled toggle in Cleargram Settings marked "(soon)". Wire-up in pro
 - `replacePreviewLinks` — rewrite twitter.com/x.com→fixupx/fxtwitter, bsky.app→fxbsky.app
   for link previews. From yukigram/inugram.
 - `confirmInternalLinks` — confirmation alert before opening tg:// / t.me links. From inugram.
-- `biometricConfirmation` — Face/Touch ID prompt before delete-chat, clear-history, logout.
-  From inugram (iOS LocalAuth infra exists).
 - `hideSponsoredMessages` — suppress sponsored posts in channels. From yukigram/patchgram.
 - `hideStarReactionButton` — hide the Star (paid) reaction button in the reaction bar.
   From yukigram.

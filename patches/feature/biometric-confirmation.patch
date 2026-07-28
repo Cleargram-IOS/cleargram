@@ -1,0 +1,96 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 15:28:50 +0700
+Subject: Add biometric confirmation for destructive actions
+
+---
+ .../ChatListUI/Sources/ChatListController.swift      |  6 ++++++
+ .../SettingsUI/Sources/LogoutOptionsController.swift |  7 +++++--
+ submodules/TelegramUI/Sources/ChatController.swift   | 12 ++++++++++++
+ submodules/TelegramUIPreferences/BUILD               |  1 +
+ 4 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/submodules/ChatListUI/Sources/ChatListController.swift b/submodules/ChatListUI/Sources/ChatListController.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/ChatListController.swift
++++ b/submodules/ChatListUI/Sources/ChatListController.swift
+@@ -6154,6 +6154,12 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController
+     }
+     
+     private func schedulePeerChatRemoval(peer: EngineRenderedPeer, type: InteractiveMessagesDeletionType, deleteGloballyIfPossible: Bool, completion: @escaping () -> Void) {
++        ClearBiometricHelper.gate(reason: "Confirm delete chat", enabled: ClearConfig.biometricConfirmDeleteChat) { [weak self] in
++            self?.schedulePeerChatRemovalImpl(peer: peer, type: type, deleteGloballyIfPossible: deleteGloballyIfPossible, completion: completion)
++        }
++    }
++
++    private func schedulePeerChatRemovalImpl(peer: EngineRenderedPeer, type: InteractiveMessagesDeletionType, deleteGloballyIfPossible: Bool, completion: @escaping () -> Void) {
+         guard let chatPeer = peer.peers[peer.peerId] else {
+             return
+         }
+diff --git a/submodules/SettingsUI/Sources/LogoutOptionsController.swift b/submodules/SettingsUI/Sources/LogoutOptionsController.swift
+index 0000000..0000000 100644
+--- a/submodules/SettingsUI/Sources/LogoutOptionsController.swift
++++ b/submodules/SettingsUI/Sources/LogoutOptionsController.swift
+@@ -5,6 +5,7 @@ import SwiftSignalKit
+ import TelegramCore
+ import LegacyComponents
+ import TelegramPresentationData
++import TelegramUIPreferences
+ import ItemListUI
+ import PresentationDataUtils
+ import OverlayStatusController
+@@ -260,8 +261,10 @@ public func logoutOptionsController(context: AccountContext, navigationControlle
+             TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {
+             }),
+             TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {
+-                let _ = logoutFromAccount(id: context.account.id, accountManager: context.sharedContext.accountManager, alreadyLoggedOutRemotely: false).start()
+-                dismissImpl?()
++                ClearBiometricHelper.gate(reason: "Confirm logout", enabled: ClearConfig.biometricConfirmLogout) {
++                    let _ = logoutFromAccount(id: context.account.id, accountManager: context.sharedContext.accountManager, alreadyLoggedOutRemotely: false).start()
++                    dismissImpl?()
++                }
+             })
+         ])
+         presentControllerImpl?(alertController, nil)
+diff --git a/submodules/TelegramUI/Sources/ChatController.swift b/submodules/TelegramUI/Sources/ChatController.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatController.swift
++++ b/submodules/TelegramUI/Sources/ChatController.swift
+@@ -8455,6 +8455,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
+     }
+     
+     public func beginClearHistory(type: InteractiveHistoryClearingType) {
++        ClearBiometricHelper.gate(reason: "Confirm clear history", enabled: ClearConfig.biometricConfirmClearHistory) { [weak self] in
++            self?.beginClearHistoryImpl(type: type)
++        }
++    }
++
++    private func beginClearHistoryImpl(type: InteractiveHistoryClearingType) {
+         guard case let .peer(peerId) = self.chatLocation else {
+             return
+         }
+@@ -9745,6 +9751,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
+     }
+     
+     func deleteChat(reportChatSpam: Bool) {
++        ClearBiometricHelper.gate(reason: "Confirm delete chat", enabled: ClearConfig.biometricConfirmDeleteChat) { [weak self] in
++            self?.deleteChatImpl(reportChatSpam: reportChatSpam)
++        }
++    }
++
++    private func deleteChatImpl(reportChatSpam: Bool) {
+         guard case let .peer(peerId) = self.chatLocation else {
+             return
+         }
+diff --git a/submodules/TelegramUIPreferences/BUILD b/submodules/TelegramUIPreferences/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUIPreferences/BUILD
++++ b/submodules/TelegramUIPreferences/BUILD
+@@ -13,6 +13,7 @@ swift_library(
+         "//submodules/TelegramCore:TelegramCore",
+         "//submodules/Postbox:Postbox",
+         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
++        "//submodules/LocalAuth:LocalAuth",
+     ],
+     visibility = [
+         "//visibility:public",

@@ -15,6 +15,7 @@ public enum ClearConfig {
         _ = clearConfigEntry(accountManager: accountManager).start(next: { value in
             _ = cache.swap(value)
             _ = ClearHooks.blockCloudDrafts.swap(value.blockCloudDrafts)
+            _ = ClearHooks.fasterFileLoad.swap(value.fasterFileLoad)
         })
     }
 
@@ -58,7 +59,9 @@ public enum ClearConfig {
     public static var stripTrackingParams: Bool { current().stripTrackingParams }
     public static var replacePreviewLinks: Bool { current().replacePreviewLinks }
     public static var confirmInternalLinks: Bool { current().confirmInternalLinks }
-    public static var biometricConfirmation: Bool { current().biometricConfirmation }
+    public static var biometricConfirmDeleteChat: Bool { current().biometricConfirmDeleteChat }
+    public static var biometricConfirmClearHistory: Bool { current().biometricConfirmClearHistory }
+    public static var biometricConfirmLogout: Bool { current().biometricConfirmLogout }
     public static var hideSponsoredMessages: Bool { current().hideSponsoredMessages }
     public static var hideStarReactionButton: Bool { current().hideStarReactionButton }
     public static var hideStarReactionCount: Bool { current().hideStarReactionCount }

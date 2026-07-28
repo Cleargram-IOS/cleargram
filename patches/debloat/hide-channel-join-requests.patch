@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 15:29:02 +0700
+Subject: Hide channel join requests banner in chats
+
+---
+ .../Sources/Chat/ChatControllerLoadDisplayNode.swift        | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/submodules/TelegramUI/Sources/Chat/ChatControllerLoadDisplayNode.swift b/submodules/TelegramUI/Sources/Chat/ChatControllerLoadDisplayNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/Chat/ChatControllerLoadDisplayNode.swift
++++ b/submodules/TelegramUI/Sources/Chat/ChatControllerLoadDisplayNode.swift
+@@ -324,7 +324,7 @@ extension ChatControllerImpl {
+         if let dismissedInvitationRequests = previousState.dismissedInvitationRequests, Set(previousInvitationPeers.map({ $0.id.toInt64() })) == Set(dismissedInvitationRequests) {
+             previousInvitationRequestsPeersDismissed = true
+         }
+-        if let requestsState = previousState.requestsState, requestsState.count > 0 && !previousInvitationRequestsPeersDismissed {
++        if let requestsState = previousState.requestsState, requestsState.count > 0 && !previousInvitationRequestsPeersDismissed && !ClearConfig.hideChannelJoinRequests {
+             didDisplayActionsPanel = true
+         }
+         if previousState.removePaidMessageFeeData != nil {
+@@ -360,7 +360,7 @@ extension ChatControllerImpl {
+         if let dismissedInvitationRequests = contentData.state.dismissedInvitationRequests, Set(invitationPeers.map({ $0.id.toInt64() })) == Set(dismissedInvitationRequests) {
+             invitationRequestsPeersDismissed = true
+         }
+-        if let requestsState = contentData.state.requestsState, requestsState.count > 0 && !invitationRequestsPeersDismissed {
++        if let requestsState = contentData.state.requestsState, requestsState.count > 0 && !invitationRequestsPeersDismissed && !ClearConfig.hideChannelJoinRequests {
+             displayActionsPanel = true
+         }
+         if contentData.state.removePaidMessageFeeData != nil {
+@@ -494,7 +494,7 @@ extension ChatControllerImpl {
+                 if let dismissedInvitationRequests = contentData.state.dismissedInvitationRequests, Set(peers.map({ $0.id.toInt64() })) == Set(dismissedInvitationRequests) {
+                     peersDismissed = true
+                 }
+-                if let requestsState = contentData.state.requestsState, requestsState.count > 0 && !peersDismissed {
++                if let requestsState = contentData.state.requestsState, requestsState.count > 0 && !peersDismissed && !ClearConfig.hideChannelJoinRequests {
+                     if !context.contains(where: {
+                         switch $0 {
+                         case .inviteRequests(peers, requestsState.count):
