@@ -1,0 +1,82 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 13:52:36 +0700
+Subject: Fix settings button icon and back navigation, add UndoUI restart overlay
+
+---
+ .../ChatListUI/Sources/ChatListController.swift | 17 +++++++++++++++++
+ submodules/DebugSettingsUI/BUILD                |  1 +
+ .../PeerInfoScreen/Sources/PeerInfoScreen.swift |  6 +++++-
+ 3 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/ChatListUI/Sources/ChatListController.swift b/submodules/ChatListUI/Sources/ChatListController.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/ChatListController.swift
++++ b/submodules/ChatListUI/Sources/ChatListController.swift
+@@ -6792,6 +6792,7 @@ private final class ChatListLocationContext {
+     var rightButton: AnyComponentWithIdentity<NavigationButtonComponentEnvironment>?
+     var proxyButton: AnyComponentWithIdentity<NavigationButtonComponentEnvironment>?
+     var storyButton: AnyComponentWithIdentity<NavigationButtonComponentEnvironment>?
++    var settingsButton: AnyComponentWithIdentity<NavigationButtonComponentEnvironment>?
+     
+     var rightButtons: [AnyComponentWithIdentity<NavigationButtonComponentEnvironment>] {
+         var result: [AnyComponentWithIdentity<NavigationButtonComponentEnvironment>] = []
+@@ -6801,6 +6802,9 @@ private final class ChatListLocationContext {
+         if let storyButton = self.storyButton {
+             result.append(storyButton)
+         }
++        if let settingsButton = self.settingsButton {
++            result.append(settingsButton)
++        }
+         if let proxyButton = self.proxyButton {
+             result.append(proxyButton)
+         }
+@@ -7288,6 +7292,19 @@ private final class ChatListLocationContext {
+                 } else {
+                     self.storyButton = nil
+                 }
++                if ClearConfig.hideTabBar {
++                    self.settingsButton = AnyComponentWithIdentity(id: "settings", component: AnyComponent(NavigationButtonComponent(
++                        content: .icon(imageName: "Chat List/Tabs/IconSettings"),
++                        pressed: { [weak self] _ in
++                            guard let self else { return }
++                            if let rootController = self.context.sharedContext.mainWindow?.viewController as? TelegramRootControllerInterface {
++                                rootController.openSettings(edit: false)
++                            }
++                        }
++                    )))
++                } else {
++                    self.settingsButton = nil
++                }
+             } else {
+                 let parentController = self.parentController
+                 self.rightButton = AnyComponentWithIdentity(id: "more", component: AnyComponent(NavigationButtonComponent(
+diff --git a/submodules/DebugSettingsUI/BUILD b/submodules/DebugSettingsUI/BUILD
+index 0000000..0000000 100644
+--- a/submodules/DebugSettingsUI/BUILD
++++ b/submodules/DebugSettingsUI/BUILD
+@@ -26,6 +26,7 @@ swift_library(
+         "//third-party/ZipArchive:ZipArchive",
+         "//submodules/InAppPurchaseManager:InAppPurchaseManager",
+         "//submodules/TelegramVoip",
++        "//submodules/UndoUI:UndoUI",
+     ],
+     visibility = [
+         "//visibility:public",
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+@@ -1635,7 +1635,11 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+             }
+             switch key {
+             case .back:
+-                strongSelf.controller?.dismiss()
++                if let tabController = strongSelf.controller?.parent as? TabBarController, let chatListIndex = tabController.controllers.firstIndex(where: { $0 is ChatListController }) {
++                    tabController.selectedIndex = chatListIndex
++                } else {
++                    strongSelf.controller?.dismiss()
++                }
+             case .edit:
+                 if case let .replyThread(message) = strongSelf.chatLocation {
+                     let threadId = message.threadId

@@ -32,3 +32,5 @@ feature/time-on-service-messages.patch
 feature/warn-polls-revote.patch
 feature/confirm-internal-links.patch
 feature/visual-swiftgram.patch
+feature/compact-chat-list.patch
+feature/settings-ui-fixes.patch

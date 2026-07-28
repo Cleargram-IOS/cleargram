@@ -29,6 +29,12 @@ public enum ClearConfig {
         return updateClearConfigInteractively(accountManager: accountManager, f)
     }
 
+    public static func reset(
+        accountManager: AccountManager<TelegramAccountManagerTypes>
+    ) -> Signal<Void, NoError> {
+        return updateClearConfigInteractively(accountManager: accountManager, { _ in ClearConfigSettings.defaultSettings })
+    }
+
     // individual toggles — add as ClearConfigSettings grows
     public static var hideStories: Bool { current().hideStories }
     public static var hideAiFeatures: Bool { current().hideAiFeatures }

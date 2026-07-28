@@ -50,6 +50,10 @@ export const forkSyncDirs: ForkSyncDir[] = [
     source: 'src/swift/ClearGram/TextFormat',
     target: 'submodules/TextFormat/Sources/ClearGram',
   },
+  {
+    source: 'src/swift/ClearGram/ChatListUI',
+    target: 'submodules/ChatListUI/Sources/ClearGram',
+  },
 ]
 
 // Kept for backward compat with any external callers; prefer forkSyncDirs.

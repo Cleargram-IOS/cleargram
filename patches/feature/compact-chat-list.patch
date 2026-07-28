@@ -1,0 +1,224 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 13:52:29 +0700
+Subject: Port compact chat list from Swiftgram (avatar scale, hideAuthor, maxTitleLines, itemHeight, badges, action button, text offsets, tag list, reveal options)
+
+---
+ .../Sources/Node/ChatListItem.swift           | 75 ++++++++++++-------
+ 1 file changed, 49 insertions(+), 26 deletions(-)
+
+diff --git a/submodules/ChatListUI/Sources/Node/ChatListItem.swift b/submodules/ChatListUI/Sources/Node/ChatListItem.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/Node/ChatListItem.swift
++++ b/submodules/ChatListUI/Sources/Node/ChatListItem.swift
+@@ -2023,11 +2023,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                 }
+             }
+             
+-            var avatarDiameter = min(60.0, floor(item.presentationData.fontSize.baseDisplaySize * 60.0 / 17.0))
+-            let clearAvatarScaleDivisor: CGFloat = ClearConfig.compactChatList ? 1.5 : (ClearConfig.compactMessagePreview ? 1.1 : 1.0)
+-            if clearAvatarScaleDivisor != 1.0 {
+-                avatarDiameter /= clearAvatarScaleDivisor
+-            }
++            var avatarDiameter = min(60.0, floor(item.presentationData.fontSize.baseDisplaySize * 60.0 / 17.0)) / ClearCompactLayout.avatarScaleDivisor
+             
+             if case let .peer(peerData) = item.content, let customMessageListData = peerData.customMessageListData, customMessageListData.commandPrefix != nil {
+                 avatarDiameter = 40.0
+@@ -2566,11 +2562,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+             let enableChatListPhotos = true
+             
+             // if changed, adjust setupItem accordingly
+-            var avatarDiameter = min(60.0, floor(item.presentationData.fontSize.baseDisplaySize * 60.0 / 17.0))
+-            let clearAvatarScaleDivisor: CGFloat = ClearConfig.compactChatList ? 1.5 : (ClearConfig.compactMessagePreview ? 1.1 : 1.0)
+-            if clearAvatarScaleDivisor != 1.0 {
+-                avatarDiameter /= clearAvatarScaleDivisor
+-            }
++            var avatarDiameter = min(60.0, floor(item.presentationData.fontSize.baseDisplaySize * 60.0 / 17.0)) / ClearCompactLayout.avatarScaleDivisor
+             let avatarLeftEdgeInset: CGFloat = item.useCommunityViewLayout ? 10.0 : 16.0
+             let avatarLeftInset: CGFloat
+             
+@@ -2643,6 +2635,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                     contentData = .group(peers: groupPeers)
+                     hideAuthor = true
+             }
++            let clearInlineAuthorPrefix = ClearCompactLayout.compactMessagePreview && !hideAuthor
++            if ClearCompactLayout.compactChatList || ClearCompactLayout.compactMessagePreview { hideAuthor = true }
+             
+             var attributedText: NSAttributedString
+             var hasDraft = false
+@@ -2671,6 +2665,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                     }
+                 }
+             }
++            if ClearCompactLayout.compactChatList || clearInlineAuthorPrefix { useInlineAuthorPrefix = true }
+             
+             if useInlineAuthorPrefix {
+                 if case let .user(author) = messages.last?.author {
+@@ -3820,10 +3815,16 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+             }
+             
+             let textLineSpacing: CGFloat = min(0.2, item.presentationData.fontSize.itemListBaseFontSize * 0.2 / 17.0)
++            let clearChatListMaxLines: Int
++            if ClearCompactLayout.compactMessagePreview {
++                clearChatListMaxLines = 1
++            } else {
++                clearChatListMaxLines = (authorAttributedString == nil && itemTags.isEmpty && forumThread == nil && topForumTopicItems.isEmpty && !ClearCompactLayout.compactChatList) ? 2 : 1
++            }
+             let (textLayout, textApply) = textLayout(TextNodeLayoutArguments(
+                 attributedString: textAttributedString,
+                 backgroundColor: nil,
+-                maximumNumberOfLines: (authorAttributedString == nil && itemTags.isEmpty && forumThread == nil && topForumTopicItems.isEmpty) ? 2 : 1,
++                maximumNumberOfLines: clearChatListMaxLines,
+                 truncationType: .end,
+                 constrainedSize: CGSize(width: textMaxWidth, height: .greatestFiniteMagnitude),
+                 alignment: .natural,
+@@ -3835,7 +3836,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+             let maxTitleLines: Int
+             switch item.index {
+             case .forum:
++                if ClearCompactLayout.compactChatList { maxTitleLines = 1 } else {
+                 maxTitleLines = 2
++                }
+             case .chatList:
+                 maxTitleLines = 1
+             }
+@@ -4031,6 +4034,14 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                 peerRevealOptions = []
+                 peerLeftRevealOptions = []
+             }
++            if ClearCompactLayout.compactChatList {
++                peerRevealOptions = peerRevealOptions.map { option in
++                    ItemListRevealOption(key: option.key, title: option.title, icon: .none, color: option.color, iconColor: option.iconColor, textColor: option.textColor)
++                }
++                peerLeftRevealOptions = peerLeftRevealOptions.map { option in
++                    ItemListRevealOption(key: option.key, title: option.title, icon: .none, color: option.color, iconColor: option.iconColor, textColor: option.textColor)
++                }
++            }
+             
+             let (onlineLayout, onlineApply) = onlineLayout(online, onlineIsVoiceChat)
+             var animateContent = false
+@@ -4053,10 +4064,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                 itemHeight += titleSpacing
+                 itemHeight += authorSpacing
+             }
+-            if ClearConfig.compactChatList {
+-                itemHeight /= 1.5
+-            }
+-                        
++            itemHeight = itemHeight / (ClearCompactLayout.compactChatList ? 1.5 : 1.0)
+             let rawContentRect = CGRect(origin: CGPoint(x: 2.0, y: layoutOffset + floor(item.presentationData.fontSize.itemListBaseFontSize * 8.0 / 17.0)), size: CGSize(width: rawContentWidth, height: itemHeight - 12.0 - 9.0))
+             
+             let insets = ChatListItemNode.insets(first: first, last: last, firstWithHeader: firstWithHeader)
+@@ -4215,7 +4223,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                     var avatarScaleOffset: CGFloat = 0.0
+                     var avatarScale: CGFloat = 1.0
+                     if let inlineNavigationLocation = item.interaction.inlineNavigationLocation {
+-                        let targetAvatarScale: CGFloat = floor(item.presentationData.fontSize.itemListBaseFontSize * 54.0 / 17.0) / avatarFrame.width
++                        let targetAvatarScale: CGFloat = floor(item.presentationData.fontSize.itemListBaseFontSize * 54.0 / 17.0) / ClearCompactLayout.avatarScaleDivisor / avatarFrame.width
+                         avatarScale = targetAvatarScale * inlineNavigationLocation.progress + 1.0 * (1.0 - inlineNavigationLocation.progress)
+                         
+                         let targetAvatarScaleOffset: CGFloat = -(avatarFrame.width - avatarFrame.width * avatarScale) * 0.5
+@@ -4623,10 +4631,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                     strongSelf.statusNode.fontSize = item.presentationData.fontSize.itemListBaseFontSize
+                     let _ = strongSelf.statusNode.transitionToState(statusState, animated: animateContent)
+                     
++                    let sizeFactor = item.presentationData.fontSize.itemListBaseFontSize / 17.0
++                    let clearBadgeOffset = ClearCompactLayout.badgeOffset(sizeFactor: sizeFactor)
+                     let rightAccessoryVerticalOffset: CGFloat = floorToScreenPixels(-4.0 * min(1.0, item.presentationData.fontSize.itemListBaseFontSize / 17.0))
+                     var nextBadgeX: CGFloat = contentRect.maxX
+                     if let _ = currentBadgeBackgroundImage {
+-                        let badgeFrame = CGRect(x: nextBadgeX - badgeLayout.width, y: contentRect.maxY - badgeLayout.height + rightAccessoryVerticalOffset, width: badgeLayout.width, height: badgeLayout.height)
++                        let badgeFrame = CGRect(x: nextBadgeX - badgeLayout.width, y: contentRect.maxY - badgeLayout.height + rightAccessoryVerticalOffset + (ClearCompactLayout.compactChatList ? 13.0 / sizeFactor : 0.0) - clearBadgeOffset, width: badgeLayout.width, height: badgeLayout.height)
+                         
+                         transition.updateFrame(node: strongSelf.badgeNode, frame: badgeFrame)
+                         nextBadgeX -= badgeLayout.width + 6.0
+@@ -4638,7 +4648,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                     }
+                     
+                     if currentMentionBadgeImage != nil || currentBadgeBackgroundImage != nil {
+-                        let badgeFrame = CGRect(x: nextBadgeX - mentionBadgeLayout.width, y: contentRect.maxY - mentionBadgeLayout.height + rightAccessoryVerticalOffset, width: mentionBadgeLayout.width, height: mentionBadgeLayout.height)
++                        let badgeFrame = CGRect(x: nextBadgeX - mentionBadgeLayout.width, y: contentRect.maxY - mentionBadgeLayout.height + rightAccessoryVerticalOffset + (ClearCompactLayout.compactChatList ? 13.0 / sizeFactor : 0.0) - clearBadgeOffset, width: mentionBadgeLayout.width, height: mentionBadgeLayout.height)
+                         
+                         transition.updateFrame(node: strongSelf.mentionBadgeNode, frame: badgeFrame)
+                         nextBadgeX -= mentionBadgeLayout.width + 6.0
+@@ -4654,7 +4664,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                         strongSelf.pinnedIconNode.isHidden = false
+                         
+                         let pinnedIconSize = currentPinnedIconImage.size
+-                        let pinnedIconFrame = CGRect(x: nextBadgeX - pinnedIconSize.width, y: contentRect.maxY - pinnedIconSize.height + rightAccessoryVerticalOffset, width: pinnedIconSize.width, height: pinnedIconSize.height)
++                        let pinnedIconFrame = CGRect(x: nextBadgeX - pinnedIconSize.width, y: contentRect.maxY - pinnedIconSize.height + rightAccessoryVerticalOffset + (ClearCompactLayout.compactChatList ? 13.0 / sizeFactor : 0.0) - clearBadgeOffset, width: pinnedIconSize.width, height: pinnedIconSize.height)
+                         
+                         strongSelf.pinnedIconNode.frame = pinnedIconFrame
+                         nextBadgeX -= pinnedIconSize.width + 6.0
+@@ -4668,7 +4678,15 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                         let actionButtonTopInset = floor(item.presentationData.fontSize.itemListBaseFontSize * 5.0 / 17.0)
+                         let actionButtonBottomInset = floor(item.presentationData.fontSize.itemListBaseFontSize * 4.0 / 17.0)
+                         
+-                        let actionButtonSize = CGSize(width: actionButtonTitleNodeLayout.size.width + actionButtonSideInset * 2.0, height: actionButtonTitleNodeLayout.size.height + actionButtonTopInset + actionButtonBottomInset)
++                        var actionButtonSize = CGSize(width: actionButtonTitleNodeLayout.size.width + actionButtonSideInset * 2.0, height: actionButtonTitleNodeLayout.size.height + actionButtonTopInset + actionButtonBottomInset)
++                        let clearActionButtonScaleDivisor: CGFloat = ClearCompactLayout.compactChatList ? 1.5 : 1.0
++                        if ClearCompactLayout.compactChatList {
++                            let clearCompactActionButtonSideInset = floor(item.presentationData.fontSize.itemListBaseFontSize * 3.0 / 17.0)
++                            actionButtonSize.width = max(actionButtonSize.width / clearActionButtonScaleDivisor, actionButtonTitleNodeLayout.size.width + clearCompactActionButtonSideInset * 2.0)
++                        } else {
++                            actionButtonSize.width = actionButtonSize.width / clearActionButtonScaleDivisor
++                        }
++                        actionButtonSize.height = actionButtonSize.height / clearActionButtonScaleDivisor
+                         var actionButtonFrame = CGRect(x: nextBadgeX - actionButtonSize.width, y: contentRect.minY + floor((contentRect.height - actionButtonSize.height) * 0.5), width: actionButtonSize.width, height: actionButtonSize.height)
+                         actionButtonFrame.origin.y = max(actionButtonFrame.origin.y, dateFrame.maxY + floor(item.presentationData.fontSize.itemListBaseFontSize * 4.0 / 17.0))
+                         actionButtonFrame.origin.y += 4.0
+@@ -4710,7 +4728,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                         actionButtonNode.isUserInteractionEnabled = true
+                         actionButtonNode.frame = actionButtonFrame
+                         actionButtonBackgroundView.frame = CGRect(origin: CGPoint(), size: actionButtonFrame.size)
+-                        actionButtonTitleNode.frame = CGRect(origin: CGPoint(x: floorToScreenPixels((actionButtonFrame.width - actionButtonTitleNodeLayout.size.width) * 0.5), y: actionButtonTopInset), size: actionButtonTitleNodeLayout.size)
++                        let clearActionButtonTitleYOffset: CGFloat = ClearCompactLayout.compactChatList ? floorToScreenPixels(1.0 * sizeFactor) : 0.0
++                        actionButtonTitleNode.frame = CGRect(origin: CGPoint(x: floorToScreenPixels(max(0.0, (actionButtonFrame.width - actionButtonTitleNodeLayout.size.width) * 0.5)), y: floorToScreenPixels((actionButtonFrame.height - actionButtonTitleNodeLayout.size.height) * 0.5 + clearActionButtonTitleYOffset)), size: actionButtonTitleNodeLayout.size)
+                         if animateActionButtonIn {
+                             actionButtonNode.alpha = 0.0
+                         }
+@@ -4744,6 +4763,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                         }
+                     }
+                     
++                    let clearCompactMessagePreviewVerticalOffset: CGFloat = ClearCompactLayout.textVerticalOffset(sizeFactor: sizeFactor, hasAuthorLine: !authorLayout.height.isZero)
++                    let clearCompactMessagePreviewTitleTextSpacing: CGFloat = ClearCompactLayout.titleTextSpacing(sizeFactor: sizeFactor, hasAuthorLine: !authorLayout.height.isZero)
++                    
+                     var titleOffset: CGFloat = titleLeftOffset
+                     if let currentSecretIconImage = currentSecretIconImage {
+                         let iconNode: ASImageNode
+@@ -4758,7 +4780,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                             strongSelf.secretIconNode = iconNode
+                         }
+                         iconNode.image = currentSecretIconImage
+-                        transition.updateFrame(node: iconNode, frame: CGRect(origin: CGPoint(x: contentRect.origin.x + titleLeftOffset, y: contentRect.origin.y + floor((titleLayout.size.height - currentSecretIconImage.size.height) / 2.0)), size: currentSecretIconImage.size))
++                        transition.updateFrame(node: iconNode, frame: CGRect(origin: CGPoint(x: contentRect.origin.x + titleLeftOffset, y: contentRect.origin.y + floor((titleLayout.size.height - currentSecretIconImage.size.height) / 2.0) + clearCompactMessagePreviewVerticalOffset), size: currentSecretIconImage.size))
+                         titleOffset += currentSecretIconImage.size.width + 3.0
+                     } else if let secretIconNode = strongSelf.secretIconNode {
+                         strongSelf.secretIconNode = nil
+@@ -4766,12 +4788,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                     }
+                     
+                     let contentDelta = CGPoint(x: contentRect.origin.x - (strongSelf.titleNode.frame.minX - titleOffset), y: contentRect.origin.y - (strongSelf.titleNode.frame.minY - UIScreenPixel))
+-                    let titleFrame = CGRect(origin: CGPoint(x: contentRect.origin.x + titleOffset, y: contentRect.origin.y + UIScreenPixel), size: titleLayout.size)
++                    let titleFrame = CGRect(origin: CGPoint(x: contentRect.origin.x + titleOffset, y: contentRect.origin.y + UIScreenPixel + clearCompactMessagePreviewVerticalOffset), size: titleLayout.size)
+                     strongSelf.titleNode.frame = titleFrame
+                     
+-                    let authorNodeFrame = CGRect(origin: CGPoint(x: contentRect.origin.x - 1.0, y: contentRect.minY + titleLayout.size.height - 2.0), size: authorLayout)
++                    let authorNodeFrame = CGRect(origin: CGPoint(x: contentRect.origin.x - 1.0, y: contentRect.minY + titleLayout.size.height - 2.0 + clearCompactMessagePreviewVerticalOffset), size: authorLayout)
+                     strongSelf.authorNode.frame = authorNodeFrame
+-                    let textNodeFrame = CGRect(origin: CGPoint(x: contentRect.origin.x - 1.0, y: contentRect.minY + titleLayout.size.height - 2.0 + (authorLayout.height.isZero ? 0.0 : (authorLayout.height - 3.0))), size: textLayout.size)
++                    let textNodeFrame = CGRect(origin: CGPoint(x: contentRect.origin.x - 1.0, y: contentRect.minY + titleLayout.size.height - 2.0 + (authorLayout.height.isZero ? 0.0 : (authorLayout.height - 3.0)) + clearCompactMessagePreviewVerticalOffset + clearCompactMessagePreviewTitleTextSpacing), size: textLayout.size)
+                     
+                     if let topForumTopicRect, !isSearching {
+                         let compoundHighlightingNode: LinkHighlightingNode
+@@ -4954,7 +4976,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                     if !itemTags.isEmpty {
+                         let sizeFactor = item.presentationData.fontSize.itemListBaseFontSize / 17.0
+                         
+-                        let itemTagListFrame = CGRect(origin: CGPoint(x: contentRect.minX, y: contentRect.minY + measureLayout.size.height * 2.0 + floorToScreenPixels(2.0 * sizeFactor)), size: CGSize(width: contentRect.width, height: floorToScreenPixels(20.0 * sizeFactor)))
++                        let clearTagListOffset = max(0.0, ClearCompactLayout.textBlockOffset(sizeFactor: sizeFactor, hasAuthorLine: false) - floorToScreenPixels(4.0 * sizeFactor))
++                        let itemTagListFrame = CGRect(origin: CGPoint(x: contentRect.minX, y: contentRect.minY + measureLayout.size.height * 2.0 + floorToScreenPixels(2.0 * sizeFactor) + clearTagListOffset), size: CGSize(width: contentRect.width, height: floorToScreenPixels(20.0 * sizeFactor)))
+                         
+                         var itemTagListTransition = transition
+                         let itemTagList: ComponentView<Empty>

@@ -100,7 +100,7 @@ public struct ClearConfigSettings: Codable, Equatable {
             allChatsHidden: false,
             hideTabBar: false,
             wideTabBar: false,
-            tabBarSearchEnabled: false,
+            tabBarSearchEnabled: true,
             wideChannelPosts: false,
             hideChannelBottomButton: false,
             disableGalleryCamera: false,
@@ -152,7 +152,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         allChatsHidden: Bool = false,
         hideTabBar: Bool = false,
         wideTabBar: Bool = false,
-        tabBarSearchEnabled: Bool = false,
+        tabBarSearchEnabled: Bool = true,
         wideChannelPosts: Bool = false,
         hideChannelBottomButton: Bool = false,
         disableGalleryCamera: Bool = false,
@@ -269,7 +269,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.allChatsHidden = try c.decodeIfPresent(Bool.self, forKey: .allChatsHidden) ?? false
         self.hideTabBar = try c.decodeIfPresent(Bool.self, forKey: .hideTabBar) ?? false
         self.wideTabBar = try c.decodeIfPresent(Bool.self, forKey: .wideTabBar) ?? false
-        self.tabBarSearchEnabled = try c.decodeIfPresent(Bool.self, forKey: .tabBarSearchEnabled) ?? false
+        self.tabBarSearchEnabled = try c.decodeIfPresent(Bool.self, forKey: .tabBarSearchEnabled) ?? true
         self.wideChannelPosts = try c.decodeIfPresent(Bool.self, forKey: .wideChannelPosts) ?? false
         self.hideChannelBottomButton = try c.decodeIfPresent(Bool.self, forKey: .hideChannelBottomButton) ?? false
         self.disableGalleryCamera = try c.decodeIfPresent(Bool.self, forKey: .disableGalleryCamera) ?? false
