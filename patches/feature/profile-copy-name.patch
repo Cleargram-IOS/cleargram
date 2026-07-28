@@ -1,0 +1,91 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: asyasocute <asya_bububu@proton.me>
+Date: Tue, 28 Jul 2026 16:28:29 +0700
+Subject: Copy profile name by long-press
+
+---
+ .../Sources/PeerInfoHeaderNode.swift          | 11 ++++++++
+ .../Sources/PeerInfoScreen.swift              | 27 +++++++++++++++++++
+ 2 files changed, 38 insertions(+)
+
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift
+@@ -174,6 +174,7 @@ final class PeerInfoHeaderNode: ASDisplayNode {
+     
+     var displayAvatarContextMenu: ((ASDisplayNode, ContextGesture?) -> Void)?
+     var displayCopyContextMenu: ((ASDisplayNode, Bool, Bool) -> Void)?
++    var displayCopyNameContextMenu: ((ASDisplayNode) -> Void)?
+     var displayEmojiPackTooltip: (() -> Void)?
+     
+     var displaySavedMusic: (() -> Void)?
+@@ -319,6 +320,7 @@ final class PeerInfoHeaderNode: ASDisplayNode {
+         
+         self.regularContentNode.addSubnode(self.avatarListNode.listContainerNode.controlsClippingOffsetNode)
+         self.regularContentNode.addSubnode(self.titleNodeContainer)
++        self.regularContentNode.addSubnode(self.titleNodeRawContainer)
+         self.regularContentNode.addSubnode(self.subtitleNodeContainer)
+         self.regularContentNode.addSubnode(self.subtitleNodeRawContainer)
+         self.regularContentNode.addSubnode(self.usernameNodeContainer)
+@@ -392,6 +394,9 @@ final class PeerInfoHeaderNode: ASDisplayNode {
+         
+         let phoneGestureRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(self.handlePhoneLongPress(_:)))
+         self.subtitleNodeRawContainer.view.addGestureRecognizer(phoneGestureRecognizer)
++        
++        let titleGestureRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(self.handleTitleLongPress(_:)))
++        self.titleNodeRawContainer.view.addGestureRecognizer(titleGestureRecognizer)
+     }
+     
+     @objc private func handleUsernameLongPress(_ gestureRecognizer: UILongPressGestureRecognizer) {
+@@ -406,6 +411,12 @@ final class PeerInfoHeaderNode: ASDisplayNode {
+         }
+     }
+     
++    @objc private func handleTitleLongPress(_ gestureRecognizer: UILongPressGestureRecognizer) {
++        if gestureRecognizer.state == .began {
++            self.displayCopyNameContextMenu?(self.titleNodeRawContainer)
++        }
++    }
++    
+     @objc private func subtitleBackgroundPressed() {
+         self.navigateToForum?()
+     }
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+@@ -2181,6 +2181,33 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+                 }))
+             }
+             
++            self.headerNode.displayCopyNameContextMenu = { [weak self] node in
++                guard let strongSelf = self, let data = strongSelf.data, let peer = data.peer else {
++                    return
++                }
++                let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
++                let name = peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder)
++                guard !name.isEmpty else {
++                    return
++                }
++                var actions: [ContextMenuAction] = []
++                actions.append(ContextMenuAction(content: .text(title: presentationData.strings.Conversation_ContextMenuCopy, accessibilityLabel: presentationData.strings.Conversation_ContextMenuCopy), action: { [weak self] in
++                    UIPasteboard.general.string = name
++                    if let strongSelf = self {
++                        let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
++                        strongSelf.controller?.present(UndoOverlayController(presentationData: presentationData, content: .copy(text: presentationData.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
++                    }
++                }))
++                let contextMenuController = makeContextMenuController(actions: actions)
++                strongSelf.controller?.present(contextMenuController, in: .window(.root), with: ContextMenuControllerPresentationArguments(sourceNodeAndRect: { [weak self, weak node] in
++                    if let strongSelf = self, let node = node {
++                        return (node, node.bounds.insetBy(dx: 0.0, dy: -2.0), strongSelf, strongSelf.view.bounds)
++                    } else {
++                        return nil
++                    }
++                }))
++            }
++            
+             var previousTimestamp: Double?
+             self.headerNode.displayPremiumIntro = { [weak self] sourceView, _, _, _ in
+                 guard let strongSelf = self else {
