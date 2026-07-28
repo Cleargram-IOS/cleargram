@@ -38,6 +38,8 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
     case hideStarReactionButton(PresentationTheme, Bool)
     case hideStarReactionCount(PresentationTheme, Bool)
     case collapseLongMessages(PresentationTheme, Bool)
+    case fakeGlass(PresentationTheme, Bool)
+    case forceClearGlass(PresentationTheme, Bool)
     case showForwardedTime(PresentationTheme, Bool)
     case timeOnServiceMessages(PresentationTheme, Bool)
     case secondsInMessages(PresentationTheme, Bool)
@@ -89,7 +91,7 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ClearSettingsSection.profile.rawValue
         case .disableGalleryCamera, .disableGalleryCameraPreview, .disableStoryCameraSwipe, .flatStickerCorners, .saveStickerToPhotos:
             return ClearSettingsSection.media.rawValue
-        case .hideStories, .hideAiFeatures, .hideSponsoredMessages, .hideSimilarChannels, .confirmCalls, .biometricConfirmation, .defaultEmojisFirst, .noSelectionCap:
+        case .hideStories, .hideAiFeatures, .hideSponsoredMessages, .hideSimilarChannels, .confirmCalls, .biometricConfirmation, .defaultEmojisFirst, .noSelectionCap, .fakeGlass, .forceClearGlass:
             return ClearSettingsSection.privacy.rawValue
         case .resetSettings:
             return ClearSettingsSection.reset.rawValue
@@ -143,6 +145,8 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case .biometricConfirmation: return 85
         case .defaultEmojisFirst: return 86
         case .noSelectionCap: return 87
+        case .fakeGlass: return 88
+        case .forceClearGlass: return 89
         case .resetSettings: return 99
         }
     }
@@ -164,6 +168,8 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let (.hideStarReactionButton(lt, lv), .hideStarReactionButton(rt, rv)): return lt === rt && lv == rv
         case let (.hideStarReactionCount(lt, lv), .hideStarReactionCount(rt, rv)): return lt === rt && lv == rv
         case let (.collapseLongMessages(lt, lv), .collapseLongMessages(rt, rv)): return lt === rt && lv == rv
+        case let (.fakeGlass(lt, lv), .fakeGlass(rt, rv)): return lt === rt && lv == rv
+        case let (.forceClearGlass(lt, lv), .forceClearGlass(rt, rv)): return lt === rt && lv == rv
         case let (.showForwardedTime(lt, lv), .showForwardedTime(rt, rv)): return lt === rt && lv == rv
         case let (.timeOnServiceMessages(lt, lv), .timeOnServiceMessages(rt, rv)): return lt === rt && lv == rv
         case let (.secondsInMessages(lt, lv), .secondsInMessages(rt, rv)): return lt === rt && lv == rv
@@ -252,6 +258,14 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let .collapseLongMessages(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Collapse Long Messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateCollapseLongMessages(value)
+            })
+        case let .fakeGlass(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Fake Glass (Legacy UI)", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateFakeGlass(value)
+            })
+        case let .forceClearGlass(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Force Clear Glass", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateForceClearGlass(value)
             })
         case let .showForwardedTime(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Forwarded Time", value: value, sectionId: self.section, style: .blocks, updated: { value in
@@ -422,6 +436,8 @@ private struct ClearSettingsArguments {
     let updateHideSimilarChannels: (Bool) -> Void
     let updateConfirmCalls: (Bool) -> Void
     let updateDefaultEmojisFirst: (Bool) -> Void
+    let updateFakeGlass: (Bool) -> Void
+    let updateForceClearGlass: (Bool) -> Void
     let resetSettings: () -> Void
 }
 
@@ -560,15 +576,37 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         updateDefaultEmojisFirst: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.defaultEmojisFirst = value; return s }.start()
         },
+        updateFakeGlass: { value in
+            let _ = context.sharedContext.accountManager.transaction { transaction in
+                transaction.updateSharedData(ApplicationSpecificSharedDataKeys.experimentalUISettings) { settings in
+                    var s = settings?.get(ExperimentalUISettings.self) ?? ExperimentalUISettings.defaultSettings
+                    s.fakeGlass = value
+                    return EnginePreferencesEntry(s)
+                }
+            }.start()
+        },
+        updateForceClearGlass: { value in
+            let _ = context.sharedContext.accountManager.transaction { transaction in
+                transaction.updateSharedData(ApplicationSpecificSharedDataKeys.experimentalUISettings) { settings in
+                    var s = settings?.get(ExperimentalUISettings.self) ?? ExperimentalUISettings.defaultSettings
+                    s.forceClearGlass = value
+                    return EnginePreferencesEntry(s)
+                }
+            }.start()
+        },
         resetSettings: {
             let _ = ClearConfig.reset(accountManager: context.sharedContext.accountManager).start()
         }
     )
 
     let settingsSignal = clearConfigEntry(accountManager: context.sharedContext.accountManager)
+    let experimentalSignal = context.sharedContext.accountManager.sharedData(keys: Set([ApplicationSpecificSharedDataKeys.experimentalUISettings]))
+    |> map { sharedData -> ExperimentalUISettings in
+        sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? ExperimentalUISettings.defaultSettings
+    }
 
-    let signal = combineLatest(context.sharedContext.presentationData, settingsSignal)
-    |> map { presentationData, settings -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    let signal = combineLatest(context.sharedContext.presentationData, settingsSignal, experimentalSignal)
+    |> map { presentationData, settings, experimentalSettings -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let pd = ItemListPresentationData(presentationData)
         var entries: [ClearSettingsEntry] = []
         entries.append(.compactChatList(presentationData.theme, settings.compactChatList))
@@ -616,6 +654,8 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         entries.append(.biometricConfirmation(presentationData.theme, settings.biometricConfirmation))
         entries.append(.defaultEmojisFirst(presentationData.theme, settings.defaultEmojisFirst))
         entries.append(.noSelectionCap(presentationData.theme, settings.noSelectionCap))
+        entries.append(.fakeGlass(presentationData.theme, experimentalSettings.fakeGlass))
+        entries.append(.forceClearGlass(presentationData.theme, experimentalSettings.forceClearGlass))
         entries.append(.resetSettings(presentationData.theme))
         let state = ItemListControllerState(presentationData: pd, title: .text("Cleargram Settings"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         return (state, (ItemListNodeState(presentationData: pd, entries: entries, style: .blocks, animateChanges: true), arguments))
