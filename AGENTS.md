@@ -35,8 +35,8 @@ adding/removing/materially changing a patch, update `docs/features.md` in the sa
    `worktree/CLAUDE.md`.)
 10. **Don't touch stock DB schema.** Fork state goes through `accountManager` shared-data
     keys (like keetgram `HiddenChatsSettings`, shared-data key 23).
-11. **No LSP, no local build.** Don't try to compile. Verification is the user's build
-    command (see `docs/build-codesigning.md`).
+11. **No LSP.** SourceKit/IDE diagnostics don't work here — ignore "No such module" noise.
+    Verify by building (see `docs/build-codesigning.md`); a Bazel build is slow but allowed.
 12. **`print(...)` for debug logging** in Swift, not stock loggers.
 
 ---

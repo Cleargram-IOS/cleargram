@@ -26,6 +26,48 @@ TrollStore only (unavailable on iOS 26+). Don't use it to install on an iPhone.
 i.e. the app-group entitlement wasn't granted by the profile. **Check signing/app-group
 first, then code.**
 
+## First build on a fresh machine — four blockers
+
+All four bite once, in this order. Verified 2026-08-02 on a clean clone.
+
+1. **`pnpm setup` dies on `misc/app-icon.patch`.** It carries the only binary hunk in the
+   stack, and `scripts/lib.ts` rewrites every `index a..b` line to `index 0000000..0000000`
+   for stable diffs. `git apply` requires a full 40-hex index for binary hunks, so the patch
+   can never be re-imported (`cannot apply binary patch ... without full index line`).
+   Workaround: repair the index line in a copy of the patch (decode the base85 literal,
+   recompute the blob sha) and `stg import` that. Real fix: skip the index rewrite for diffs
+   containing `GIT binary patch`.
+
+2. **git submodules are not initialized.** `pnpm setup` clones without `--recurse-submodules`,
+   so bazel fails with `No MODULE.bazel ... in build-system/bazel-rules/rules_swift`. Also
+   `rlottie` and `tgcalls` use relative URLs (`../rlottie.git`) which resolve against a
+   remote named `origin` — setup only creates `upstream`, so they fail to clone:
+
+   ```sh
+   git -C worktree remote add origin https://github.com/TelegramMessenger/Telegram-iOS.git
+   git -C worktree submodule sync --recursive
+   git -C worktree submodule update --init --recursive   # NOT --depth 1: pinned commits aren't tips
+   ```
+
+3. **`--disableExtensions` is not a `build` flag.** It exists only on `generateProject`.
+   For `build`, put `build --//Telegram:disableExtensions=True` in `.bazelrc` — that is what
+   `misc__build-config` does.
+
+4. **dav1d hardcodes `/Applications/Xcode.app` for device builds.**
+   `third-party/dav1d/build-dav1d-bazel.sh` substitutes `xcode-select -p` only for the
+   simulator and macOS crossfiles; the `arm64` path uses the upstream crossfile as-is, so
+   with a versioned Xcode (`Xcode-26.4.0.app`) the build fails with `'stdlib.h' file not
+   found`. Symlink it:
+
+   ```sh
+   ln -s /Applications/Xcode-26.4.0.app /Applications/Xcode.app
+   ```
+
+After that the first build is ~10 min cold (~2300 actions); everything after is incremental
+(a one-line change is ~20 actions). Only a configuration switch (sim ↔ device, debug ↔ opt),
+`pnpm rebase`, or deleting the output base / disk cache forces a cold rebuild again.
+`pnpm export` does not touch the worktree or the cache.
+
 ## Quick start (simulator, no signing)
 
 Get api id/hash at https://core.telegram.org/api/obtaining_api_id (free, needs a Telegram
@@ -109,10 +151,36 @@ registers unrelated group strings (never `group.<bundleId>`). Without patching t
 group in **both** places — the entitlement (`Telegram/BUILD`, `app_groups_fragment`) AND
 runtime (`AppDelegate.swift`) — `containerURL(...)` returns nil → black screen.
 
-Cleargram keeps these as `misc__branding` / `misc__build-config` in the stgit stack (on the
-remote: normal commits, not skip-worktree — keetgram hid them skip-worktree because its
-bundle id was a local device hack; for a patchset repo with a stable bundle id that's
-unnecessary).
+Cleargram keeps this in **`local__signing`**, a patch that is deliberately kept
+**popped** (`stg -C worktree series` shows it below the applied ones). `pnpm export` only
+writes applied patches, so it never reaches `patches/` or the remote — which matters,
+because the app group and `--//Telegram:disableExtensions=True` are specific to one ad-hoc
+certificate and would break a dev-signed build on another machine.
+
+```sh
+stg -C worktree push local__signing   # before building for the device
+stg -C worktree pop  local__signing   # before exporting / committing
+```
+
+Generic build settings (disk-cache GC limits) live in `misc__build-config`, which *is*
+exported. The display name is in `misc__branding`.
+
+**The build configuration file itself is NOT in the stack.**
+`build-system/template_minimal_development_configuration.json` holds api id/hash — personal
+credentials tied to a my.telegram.org account. Keep it as a local file only:
+
+```sh
+git -C worktree update-index --skip-worktree build-system/template_minimal_development_configuration.json
+# verify: `git ls-files -v <path>` prints "S"
+```
+
+Without this, `stg refresh` picks the file up and `pnpm export` bakes the credentials into a
+patch. The root `.gitignore` does not help: the file lives in
+`worktree/`, a separate clone. Upstream Telegram-iOS and Swiftgram both ship this file with
+placeholders only.
+
+The `skip-worktree` bit lives in `worktree/.git` — `pnpm setup --force` recreates the
+worktree and loses it. Re-apply after a fresh setup.
 
 ## Ad-hoc IPA — the working recipe
 
