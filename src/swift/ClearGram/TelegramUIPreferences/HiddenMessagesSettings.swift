@@ -48,6 +48,63 @@ public struct HiddenMessagesSettings: Codable, Equatable {
         self.presets = presets
     }
 
+    // Custom Codable, same reason as HiddenChatsSettings: a Dictionary cannot round-trip through
+    // shared-data. Swift's synthesized `[String: T]` decoding calls `allKeys` on the keyed
+    // container, and `AdaptedPostboxKeyedDecodingContainer.allKeys` is a `preconditionFailure()` —
+    // so reading these settings traps (EXC_BREAKPOINT) instead of returning. Presets are therefore
+    // packed into parallel arrays: names, plus [count, peerId, namespace, id, …] per preset.
+    private enum CodingKeys: String, CodingKey {
+        case enabled
+        case hidden
+        case presetNames
+        case presetMessageIds
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        self.hidden = try container.decodeIfPresent([HiddenMessageId].self, forKey: .hidden) ?? []
+        let names = try container.decodeIfPresent([String].self, forKey: .presetNames) ?? []
+        let packed = try container.decodeIfPresent([Int64].self, forKey: .presetMessageIds) ?? []
+        var p: [String: [HiddenMessageId]] = [:]
+        var idx = 0
+        for name in names {
+            guard idx < packed.count else { break }
+            let count = Int(packed[idx])
+            idx += 1
+            var ids: [HiddenMessageId] = []
+            for _ in 0 ..< max(0, count) {
+                guard idx + 2 < packed.count else { break }
+                ids.append(HiddenMessageId(
+                    peerId: packed[idx],
+                    namespace: Int32(truncatingIfNeeded: packed[idx + 1]),
+                    id: Int32(truncatingIfNeeded: packed[idx + 2])
+                ))
+                idx += 3
+            }
+            p[name] = ids
+        }
+        self.presets = p
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.enabled, forKey: .enabled)
+        try container.encode(self.hidden, forKey: .hidden)
+        let sorted = self.presets.sorted { $0.key < $1.key }
+        try container.encode(sorted.map(\.key), forKey: .presetNames)
+        var packed: [Int64] = []
+        for (_, ids) in sorted {
+            packed.append(Int64(ids.count))
+            for message in ids {
+                packed.append(message.peerId)
+                packed.append(Int64(message.namespace))
+                packed.append(Int64(message.id))
+            }
+        }
+        try container.encode(packed, forKey: .presetMessageIds)
+    }
+
     // Accessors used by the chat-history filter and the management UI.
     public var hiddenMessageIds: [EngineMessage.Id] {
         return self.hidden.map { $0.engineId }

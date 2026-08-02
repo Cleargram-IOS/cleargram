@@ -74,6 +74,8 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var videoQualityOriginalToggle: Bool
     public var sendVideoAsCircle: Bool
     public var hidePremiumStarsGifts: Bool
+    public var copyImageInGallery: Bool
+    public var videoMessageCameraSelection: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -139,7 +141,9 @@ public struct ClearConfigSettings: Codable, Equatable {
             videoCircleAudioSource: false,
             videoQualityOriginalToggle: false,
             sendVideoAsCircle: false,
-            hidePremiumStarsGifts: false
+            hidePremiumStarsGifts: false,
+            copyImageInGallery: false,
+            videoMessageCameraSelection: false
         )
     }
 
@@ -206,7 +210,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         videoCircleAudioSource: Bool = false,
         videoQualityOriginalToggle: Bool = false,
         sendVideoAsCircle: Bool = false,
-        hidePremiumStarsGifts: Bool = false
+        hidePremiumStarsGifts: Bool = false,
+        copyImageInGallery: Bool = false,
+        videoMessageCameraSelection: Bool = false
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -271,6 +277,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.videoQualityOriginalToggle = videoQualityOriginalToggle
         self.sendVideoAsCircle = sendVideoAsCircle
         self.hidePremiumStarsGifts = hidePremiumStarsGifts
+        self.copyImageInGallery = copyImageInGallery
+        self.videoMessageCameraSelection = videoMessageCameraSelection
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -290,6 +298,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case disableContactsTab, disableCallsButton, showAudioFormatBitrate, allChatsTitleLengthOverride, fontSizeOverride
         case searchByUserId, adminLogsImprovements, paranoiaMode, showChannelPostAuthor, hideChannelJoinRequests
         case fasterFileLoad, videoCircleAudioSource, videoQualityOriginalToggle, sendVideoAsCircle, hidePremiumStarsGifts
+        case copyImageInGallery, videoMessageCameraSelection
     }
 
     public init(from decoder: Decoder) throws {
@@ -357,6 +366,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.videoQualityOriginalToggle = try c.decodeIfPresent(Bool.self, forKey: .videoQualityOriginalToggle) ?? false
         self.sendVideoAsCircle = try c.decodeIfPresent(Bool.self, forKey: .sendVideoAsCircle) ?? false
         self.hidePremiumStarsGifts = try c.decodeIfPresent(Bool.self, forKey: .hidePremiumStarsGifts) ?? false
+        self.copyImageInGallery = try c.decodeIfPresent(Bool.self, forKey: .copyImageInGallery) ?? false
+        self.videoMessageCameraSelection = try c.decodeIfPresent(Bool.self, forKey: .videoMessageCameraSelection) ?? false
     }
 }
 

@@ -5,8 +5,8 @@ Subject: Show sticker pack owner
 
 ---
  submodules/StickerPackPreviewUI/BUILD         |  1 +
- .../Sources/StickerPackScreen.swift           | 32 +++++++++++++++++++
- 2 files changed, 33 insertions(+)
+ .../Sources/StickerPackScreen.swift           | 45 +++++++++++++++++++
+ 2 files changed, 46 insertions(+)
 
 diff --git a/submodules/StickerPackPreviewUI/BUILD b/submodules/StickerPackPreviewUI/BUILD
 index 0000000..0000000 100644
@@ -32,7 +32,7 @@ index 0000000..0000000 100644
  import SwiftSignalKit
  import AccountContext
  import TelegramPresentationData
-@@ -1145,6 +1146,37 @@ private final class StickerPackContainer: ASDisplayNode {
+@@ -1145,6 +1146,50 @@ private final class StickerPackContainer: ASDisplayNode {
              }
          })))
          
@@ -45,7 +45,9 @@ index 0000000..0000000 100644
 +            if (setId >> 24) & 0xff != 0 {
 +                ownerBareId += Int64(bitPattern: 0x100000000)
 +            }
-+            let ownerId = PeerId(ownerBareId)
++            // ownerBareId is a bare user id, not a packed PeerId — PeerId(Int64) would read
++            // its bits above 32 as the namespace, which breaks for every 64-bit user id.
++            let ownerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(ownerBareId))
 +            items.append(.separator)
 +            items.append(.action(ContextMenuActionItem(text: "Show Pack Owner", icon: { theme in
 +                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Info"), color: theme.contextMenu.primaryColor)
@@ -57,11 +59,22 @@ index 0000000..0000000 100644
 +                    guard let self else { return }
 +                    if let peer = peer {
 +                        if let infoController = self.context.sharedContext.makePeerInfoController(context: self.context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
-+                            controller.push(infoController)
++                            // The pack screen is a modal sheet with no navigation controller of its
++                            // own, so `controller.push` is a silent no-op. Route through the parent
++                            // stack and close the sheet first, like every other push in this file.
++                            let navigationController = controller.parentNavigationController
++                            controller.dismiss(animated: false, completion: nil)
++                            navigationController?.pushViewController(infoController)
 +                        }
 +                    } else {
-+                        let idUrl = "tg://user?id=\(ownerId.id._internalGetInt64Value())"
-+                        self.context.sharedContext.applicationBindings.openUrl(idUrl)
++                        // Telegram has no "resolve user by bare id" call — users.getUsers needs an
++                        // accessHash the server only hands out together with the peer itself. So an
++                        // owner never seen on this device cannot be opened, and tg://user?id= is no
++                        // way around it: its handler performs this very same local lookup. Copy the
++                        // id instead, like the upstream tdesktop implementation does.
++                        let ownerIdValue = ownerId.id._internalGetInt64Value()
++                        UIPasteboard.general.string = "\(ownerIdValue)"
++                        controller.present(UndoOverlayController(presentationData: self.presentationData, content: .copy(text: "Owner ID \(ownerIdValue) copied"), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .window(.root))
 +                    }
 +                })
 +            })))

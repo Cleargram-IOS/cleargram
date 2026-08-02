@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Sun, 2 Aug 2026 12:01:57 +0300
+Subject: Add copy image action to gallery menu
+
+---
+ .../Sources/Items/ChatImageGalleryItem.swift  | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/submodules/GalleryUI/Sources/Items/ChatImageGalleryItem.swift b/submodules/GalleryUI/Sources/Items/ChatImageGalleryItem.swift
+index 0000000..0000000 100644
+--- a/submodules/GalleryUI/Sources/Items/ChatImageGalleryItem.swift
++++ b/submodules/GalleryUI/Sources/Items/ChatImageGalleryItem.swift
+@@ -21,6 +21,7 @@ import UndoUI
+ import ContextUI
+ import SaveToCameraRoll
+ import Pasteboard
++import TelegramUIPreferences
+ import ChatRichTextEditorComposer
+ import AdUI
+ import AdsInfoScreen
+@@ -777,6 +778,24 @@ final class ChatImageGalleryItemNode: ZoomableContentGalleryItemNode {
+                             controller.present(UndoOverlayController(presentationData: strongSelf.presentationData, content: .mediaSaved(text: strongSelf.presentationData.strings.Gallery_ImageSaved), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .window(.root))
+                         })
+                     })))
++
++                    if ClearConfig.copyImageInGallery {
++                        items.append(.action(ContextMenuActionItem(text: self.presentationData.strings.Conversation_ContextMenuCopy, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Copy"), color: theme.actionSheet.primaryTextColor) }, action: { [weak self] _, f in
++                            f(.default)
++
++                            let _ = (fetchMediaData(context: context, userLocation: .peer(message.id.peerId), mediaReference: media)
++                            |> deliverOnMainQueue).start(next: { [weak self] (value, isImage) in
++                                guard let strongSelf = self, case let .data(data) = value, data.isComplete, isImage, let image = UIImage(contentsOfFile: data.path) else {
++                                    return
++                                }
++                                UIPasteboard.general.image = image
++                                guard let controller = strongSelf.galleryController() else {
++                                    return
++                                }
++                                controller.present(UndoOverlayController(presentationData: strongSelf.presentationData, content: .copy(text: strongSelf.presentationData.strings.Conversation_ImageCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .window(.root))
++                            })
++                        })))
++                    }
+                 }
+             }
+             

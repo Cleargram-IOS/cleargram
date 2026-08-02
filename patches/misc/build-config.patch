@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Sun, 2 Aug 2026 12:20:02 +0300
+Subject: Add ad-hoc signing build configuration
+
+---
+ .bazelrc | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/.bazelrc b/.bazelrc
+index 0000000..0000000 100644
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -39,3 +39,9 @@ common:index_build --noannounce_rc
+ common:index_build --noshow_timestamps
+ common:index_build --curses=no
+ common:index_build --color=no
++
++# >>> cleargram:build-config >>>
++# Bound the shared disk cache; bazel GCs it when the server is idle.
++build --experimental_disk_cache_gc_max_size=20G
++build --experimental_disk_cache_gc_max_age=30d
++# <<< cleargram:build-config <<<

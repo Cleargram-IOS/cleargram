@@ -6,22 +6,27 @@ import Foundation
 
 public enum ClearURLCleaner {
 
-    // Common tracking params (utm_*, fbclid, gclid, etc.)
+    // Common tracking params (utm_*, fbclid, gclid, etc.).
+    // Prefix entries must be unambiguous: "ref" is NOT a prefix — it would also eat
+    // `referrer`, `refresh`, `refid`, which are load-bearing on some sites. It is matched
+    // exactly instead, alongside the "ref_" prefix (ref_src, ref_url, …).
     private static let trackingParamPrefixes: Set<String> = [
         "utm_", "fbclid", "gclid", "dclid", "msclkid", "yclid", "twclid",
-        "mc_", "mkt_", "_hs", "hsCtaTracking", "igshid", "ref_", "ref",
+        "mc_", "mkt_", "_hs", "hsCtaTracking", "igshid", "ref_",
         "spm", "scm", "srsltid", "sms_ss", "at_campaign", "at_medium",
         "at_custom", "at_recipient", "hsa_", "vero_", "oly_", "sb_",
     ]
 
     private static let exactTrackingParams: Set<String> = [
         "gclid", "dclid", "msclkid", "yclid", "twclid", "igshid", "spm",
-        "scm", "srsltid", "sms_ss", "hsCtaTracking",
+        "scm", "srsltid", "sms_ss", "hsCtaTracking", "ref",
     ]
 
     public static func stripTrackingParams(url: String) -> String {
         guard let comp = URLComponents(string: url) else { return url }
-        guard let queryItems = comp.queryItems, !queryItems.isEmpty else { return url }
+        // percentEncoded* on both sides: round-tripping through `queryItems` would re-encode
+        // every surviving param, mangling values that were already escaped by the sender.
+        guard let queryItems = comp.percentEncodedQueryItems, !queryItems.isEmpty else { return url }
 
         let kept = queryItems.filter { item in
             let name = item.name.lowercased()
@@ -37,7 +42,7 @@ public enum ClearURLCleaner {
         if kept.isEmpty {
             stripped.query = nil
         } else {
-            stripped.queryItems = kept
+            stripped.percentEncodedQueryItems = kept
         }
         return stripped.url?.absoluteString ?? url
     }
@@ -49,13 +54,18 @@ public enum ClearURLCleaner {
         let replacement: String
     }
 
+    // Patterns MUST be anchored (^…$) and match the WHOLE host. Unanchored patterns match any
+    // host that merely *contains* them — `netflix.com`/`dropbox.com` contain `x.com`,
+    // `notinstagram.com` contains `instagram.com` — and since the match replaces the entire
+    // host below, such a URL would be silently rewritten to the frontend, handing its path
+    // (which can carry a secret token) to a third party the user never chose.
     private static let replacements: [Replacement] = [
-        Replacement(pattern: "(?:x|twitter)\\.com", host: "fixupx.com", replacement: "fixupx.com"),
-        Replacement(pattern: "(?:www\\.)?instagram\\.com", host: "kkclip.com", replacement: "kkclip.com"),
-        Replacement(pattern: "(?:vm|vt|www)\\.tiktok\\.com", host: "kktiktok.com", replacement: "$0.kktiktok.com"),
-        Replacement(pattern: "(?:www\\.)?reddit\\.com", host: "rxddit.com", replacement: "www.rxddit.com"),
-        Replacement(pattern: "bsky\\.app", host: "fxbsky.app", replacement: "fxbsky.app"),
-        Replacement(pattern: "www\\.pixiv\\.net", host: "phixiv.net", replacement: "www.phixiv.net"),
+        Replacement(pattern: "^(?:www\\.)?(?:x|twitter)\\.com$", host: "fixupx.com", replacement: "fixupx.com"),
+        Replacement(pattern: "^(?:www\\.)?instagram\\.com$", host: "kkclip.com", replacement: "kkclip.com"),
+        Replacement(pattern: "^(?:vm|vt|www)\\.tiktok\\.com$", host: "kktiktok.com", replacement: "$0.kktiktok.com"),
+        Replacement(pattern: "^(?:www\\.)?reddit\\.com$", host: "rxddit.com", replacement: "www.rxddit.com"),
+        Replacement(pattern: "^(?:www\\.)?bsky\\.app$", host: "fxbsky.app", replacement: "fxbsky.app"),
+        Replacement(pattern: "^(?:www\\.)?pixiv\\.net$", host: "phixiv.net", replacement: "www.phixiv.net"),
     ]
 
     public static func replacePreviewLink(url: String) -> String {

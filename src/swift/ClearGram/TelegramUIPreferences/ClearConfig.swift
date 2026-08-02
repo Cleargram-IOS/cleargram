@@ -101,5 +101,7 @@ public enum ClearConfig {
     public static var videoQualityOriginalToggle: Bool { current().videoQualityOriginalToggle }
     public static var sendVideoAsCircle: Bool { current().sendVideoAsCircle }
     public static var hidePremiumStarsGifts: Bool { current().hidePremiumStarsGifts }
+    public static var copyImageInGallery: Bool { current().copyImageInGallery }
+    public static var videoMessageCameraSelection: Bool { current().videoMessageCameraSelection }
 }
 

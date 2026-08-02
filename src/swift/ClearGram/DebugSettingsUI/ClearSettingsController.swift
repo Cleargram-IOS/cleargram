@@ -77,6 +77,8 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
     case disableStoryCameraSwipe(PresentationTheme, Bool)
     case flatStickerCorners(PresentationTheme, Bool)
     case saveStickerToPhotos(PresentationTheme, Bool)
+    case copyImageInGallery(PresentationTheme, Bool)
+    case videoMessageCameraSelection(PresentationTheme, Bool)
     case hideStories(PresentationTheme, Bool)
     case hideAiFeatures(PresentationTheme, Bool)
     case hideSponsoredMessages(PresentationTheme, Bool)
@@ -104,7 +106,7 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ClearSettingsSection.contextMenu.rawValue
         case .showProfileId, .showDC, .showPackOwner, .hidePhoneInSettings:
             return ClearSettingsSection.profile.rawValue
-        case .disableGalleryCamera, .disableStoryCameraSwipe, .flatStickerCorners, .saveStickerToPhotos, .showAudioFormatBitrate, .fasterFileLoad, .videoCircleAudioSource, .videoQualityOriginalToggle, .sendVideoAsCircle:
+        case .disableGalleryCamera, .disableStoryCameraSwipe, .flatStickerCorners, .saveStickerToPhotos, .copyImageInGallery, .videoMessageCameraSelection, .showAudioFormatBitrate, .fasterFileLoad, .videoCircleAudioSource, .videoQualityOriginalToggle, .sendVideoAsCircle:
             return ClearSettingsSection.media.rawValue
         case .hideStories, .hideAiFeatures, .hideSponsoredMessages, .hideSimilarChannels, .confirmCalls, .biometricConfirmDeleteChat, .biometricConfirmClearHistory, .biometricConfirmLogout, .defaultEmojisFirst, .fakeGlass, .forceClearGlass, .searchByUserId, .adminLogsImprovements, .paranoiaMode, .showChannelPostAuthor, .hideChannelJoinRequests, .hidePremiumStarsGifts:
             return ClearSettingsSection.privacy.rawValue
@@ -113,71 +115,77 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         }
     }
 
+    // MUST ascend in the exact order entries are appended below: `<` compares stableId, and stock
+    // `ItemListControllerNode` asserts the entries array is sorted (an unguarded assert, so a
+    // non-monotonic id traps in debug builds and corrupts the row merge in release). Ids step by 10
+    // so a new entry can be slotted in without renumbering the whole list.
     var stableId: Int {
         switch self {
-        case .compactChatList: return 1
-        case .compactFolderNames: return 2
-        case .allChatsHidden: return 3
-        case .hideTabBar: return 10
-        case .showTabNames: return 11
-        case .wideTabBar: return 12
-        case .tabBarSearchEnabled: return 13
-        case .wideChannelPosts: return 20
-        case .hideChannelBottomButton: return 21
-        case .disableScrollToNextChannel: return 22
-        // case .showInlineReactions: return 23
-        case .hideStarReactionButton: return 24
-        case .hideStarReactionCount: return 25
-        case .collapseLongMessages: return 26
-        case .showForwardedTime: return 27
-        case .timeOnServiceMessages: return 28
-        case .secondsInMessages: return 30
-        case .doubleTapToEdit: return 31
-        case .blockCloudDrafts: return 33
-        case .warnPollsRevote: return 34
-        case .stripTrackingParams: return 40
-        case .replacePreviewLinks: return 41
-        case .confirmInternalLinks: return 42
-        case .hideContextMenuReply: return 50
-        case .hideContextMenuPin: return 51
-        case .hideContextMenuForward: return 52
-        case .hideContextMenuReport: return 53
-        case .hideContextMenuSelect: return 54
-        case .showProfileId: return 60
-        case .showDC: return 61
-        case .showPackOwner: return 62
-        case .hidePhoneInSettings: return 63
-        case .disableGalleryCamera: return 70
-        case .disableStoryCameraSwipe: return 72
-        case .flatStickerCorners: return 73
-        case .saveStickerToPhotos: return 74
-        case .showAudioFormatBitrate: return 75
-        case .fasterFileLoad: return 76
-        case .videoCircleAudioSource: return 77
-        case .videoQualityOriginalToggle: return 78
-        case .sendVideoAsCircle: return 79
-        case .hideStories: return 80
-        case .hideAiFeatures: return 81
-        case .hideSponsoredMessages: return 82
-        case .hideSimilarChannels: return 83
-        case .confirmCalls: return 84
-        case .biometricConfirmDeleteChat: return 841
-        case .biometricConfirmClearHistory: return 842
-        case .biometricConfirmLogout: return 843
-        case .defaultEmojisFirst: return 86
-        case .fakeGlass: return 88
-        case .forceClearGlass: return 89
-        case .searchByUserId: return 90
-        case .adminLogsImprovements: return 91
-        case .paranoiaMode: return 92
-        case .showChannelPostAuthor: return 93
-        case .hideChannelJoinRequests: return 94
-        case .hidePremiumStarsGifts: return 95
-        case .allChatsTitleLengthOverride: return 96
-        case .fontSizeOverride: return 97
-        case .disableContactsTab: return 14
-        case .disableCallsButton: return 15
-        case .resetSettings: return 99
+        case .compactChatList: return 10
+        case .compactFolderNames: return 20
+        case .allChatsHidden: return 30
+        case .hideTabBar: return 40
+        case .showTabNames: return 50
+        case .wideTabBar: return 60
+        case .tabBarSearchEnabled: return 70
+        case .disableContactsTab: return 80
+        case .disableCallsButton: return 90
+        case .wideChannelPosts: return 100
+        case .hideChannelBottomButton: return 110
+        case .disableScrollToNextChannel: return 120
+        // case .showInlineReactions: return 130
+        case .hideStarReactionButton: return 140
+        case .hideStarReactionCount: return 150
+        case .collapseLongMessages: return 160
+        case .showForwardedTime: return 170
+        case .timeOnServiceMessages: return 180
+        case .secondsInMessages: return 190
+        case .doubleTapToEdit: return 200
+        case .blockCloudDrafts: return 210
+        case .warnPollsRevote: return 220
+        case .stripTrackingParams: return 230
+        case .replacePreviewLinks: return 240
+        case .confirmInternalLinks: return 250
+        case .hideContextMenuReply: return 260
+        case .hideContextMenuPin: return 270
+        case .hideContextMenuForward: return 280
+        case .hideContextMenuReport: return 290
+        case .hideContextMenuSelect: return 300
+        case .showProfileId: return 310
+        case .showDC: return 320
+        case .showPackOwner: return 330
+        case .hidePhoneInSettings: return 340
+        case .disableGalleryCamera: return 350
+        case .disableStoryCameraSwipe: return 360
+        case .flatStickerCorners: return 370
+        case .saveStickerToPhotos: return 380
+        case .copyImageInGallery: return 390
+        case .videoMessageCameraSelection: return 400
+        case .showAudioFormatBitrate: return 410
+        case .fasterFileLoad: return 420
+        case .videoCircleAudioSource: return 430
+        case .videoQualityOriginalToggle: return 440
+        case .sendVideoAsCircle: return 450
+        case .allChatsTitleLengthOverride: return 460
+        case .hideStories: return 470
+        case .hideAiFeatures: return 480
+        case .hideSponsoredMessages: return 490
+        case .hideSimilarChannels: return 500
+        case .confirmCalls: return 510
+        case .biometricConfirmDeleteChat: return 520
+        case .biometricConfirmClearHistory: return 530
+        case .biometricConfirmLogout: return 540
+        case .defaultEmojisFirst: return 550
+        case .fakeGlass: return 560
+        case .forceClearGlass: return 570
+        case .searchByUserId: return 580
+        case .adminLogsImprovements: return 590
+        case .paranoiaMode: return 600
+        case .showChannelPostAuthor: return 610
+        case .hideChannelJoinRequests: return 620
+        case .hidePremiumStarsGifts: return 630
+        case .fontSizeOverride: return 640
+        case .resetSettings: return 650
         }
     }
 
@@ -237,6 +245,8 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let (.disableStoryCameraSwipe(lt, lv), .disableStoryCameraSwipe(rt, rv)): return lt === rt && lv == rv
         case let (.flatStickerCorners(lt, lv), .flatStickerCorners(rt, rv)): return lt === rt && lv == rv
         case let (.saveStickerToPhotos(lt, lv), .saveStickerToPhotos(rt, rv)): return lt === rt && lv == rv
+        case let (.copyImageInGallery(lt, lv), .copyImageInGallery(rt, rv)): return lt === rt && lv == rv
+        case let (.videoMessageCameraSelection(lt, lv), .videoMessageCameraSelection(rt, rv)): return lt === rt && lv == rv
         case let (.hideStories(lt, lv), .hideStories(rt, rv)): return lt === rt && lv == rv
         case let (.hideAiFeatures(lt, lv), .hideAiFeatures(rt, rv)): return lt === rt && lv == rv
         case let (.hideSponsoredMessages(lt, lv), .hideSponsoredMessages(rt, rv)): return lt === rt && lv == rv
@@ -402,6 +412,14 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save Sticker to Photos", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateSaveStickerToPhotos(value)
             })
+        case let .copyImageInGallery(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Copy Image in Gallery", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateCopyImageInGallery(value)
+            })
+        case let .videoMessageCameraSelection(_, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Choose Camera for Video Messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                args.updateVideoMessageCameraSelection(value)
+            })
         case let .hideStories(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Stories", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 args.updateHideStories(value)
@@ -461,9 +479,7 @@ private enum ClearSettingsEntry: ItemListNodeEntry {
         case let .adminLogsImprovements(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Admin Logs Improvements (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .paranoiaMode(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Paranoia Mode", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateParanoiaMode(value)
-            })
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Paranoia Mode (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .showChannelPostAuthor(_, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Channel Post Author (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
         case let .hideChannelJoinRequests(_, value):
@@ -528,6 +544,8 @@ private struct ClearSettingsArguments {
     let updateDisableStoryCameraSwipe: (Bool) -> Void
     let updateFlatStickerCorners: (Bool) -> Void
     let updateSaveStickerToPhotos: (Bool) -> Void
+    let updateCopyImageInGallery: (Bool) -> Void
+    let updateVideoMessageCameraSelection: (Bool) -> Void
     let updateShowAudioFormatBitrate: (Bool) -> Void
     let updateHideStories: (Bool) -> Void
     let updateHideAiFeatures: (Bool) -> Void
@@ -545,7 +563,6 @@ private struct ClearSettingsArguments {
     let updateFakeGlass: (Bool) -> Void
     let updateForceClearGlass: (Bool) -> Void
     let updateFontSizeOverride: (Bool) -> Void
-    let updateParanoiaMode: (Bool) -> Void
     let resetSettings: () -> Void
 }
 
@@ -669,6 +686,12 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         updateSaveStickerToPhotos: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.saveStickerToPhotos = value; return s }.start()
         },
+        updateCopyImageInGallery: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.copyImageInGallery = value; return s }.start()
+        },
+        updateVideoMessageCameraSelection: { value in
+            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.videoMessageCameraSelection = value; return s }.start()
+        },
         updateShowAudioFormatBitrate: { value in
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showAudioFormatBitrate = value; return s }.start()
         },
@@ -734,10 +757,6 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
             let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.fontSizeOverride = value; return s }.start()
             askForRestartImpl?()
         },
-        updateParanoiaMode: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.paranoiaMode = value; return s }.start()
-            askForRestartImpl?()
-        },
         resetSettings: {
             let _ = ClearConfig.reset(accountManager: context.sharedContext.accountManager).start()
         }
@@ -791,6 +810,8 @@ public func clearSettingsController(context: AccountContext) -> ViewController {
         entries.append(.disableStoryCameraSwipe(presentationData.theme, settings.disableStoryCameraSwipe))
         entries.append(.flatStickerCorners(presentationData.theme, settings.flatStickerCorners))
         entries.append(.saveStickerToPhotos(presentationData.theme, settings.saveStickerToPhotos))
+        entries.append(.copyImageInGallery(presentationData.theme, settings.copyImageInGallery))
+        entries.append(.videoMessageCameraSelection(presentationData.theme, settings.videoMessageCameraSelection))
         entries.append(.showAudioFormatBitrate(presentationData.theme, settings.showAudioFormatBitrate))
         entries.append(.fasterFileLoad(presentationData.theme, settings.fasterFileLoad))
         entries.append(.videoCircleAudioSource(presentationData.theme, settings.videoCircleAudioSource))
