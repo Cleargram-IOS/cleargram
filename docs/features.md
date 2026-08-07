@@ -87,11 +87,41 @@
 - `misc__branding` expansion — Localizable.strings (user-visible "Telegram" strings),
   app icon, launch screen. See STATUS.md "Planned" for full scope.
 
+## Known bugs (regressions in existing patches)
+
+- `debloat__hide-channel-bottom-button` — тоггл не работает, нижняя кнопка в канале не скрывается. Сверить со Swiftgram.
+- `feature__show-audio-format-bitrate` — ALAC определяется как AAC. Нужно читать реальный кодек из media resource attributes вместо гадания по битрейту.
+- `feature__flat-sticker-corners` — не работает в меню создания стикера (только в чате/просмотре). Надо добавить гейт в `StickerPickerScreen` и `ImportStickerPackUI`.
+- `feature__show-pack-owner` — после нажатия ничего не происходит. Tap handler не привязан или краш-фикс неполный.
+- `feature__compact-chat-list` — в режиме компактных чатов аватарки съезжают вверх. Layout баг.
+- `feature__hide-stories` — истории всё ещё видны в профиле, на главной странице и около аватарок. Патч гейтит не все места.
+
+## New features (planned)
+
+- `feature__hide-folder-prompts` — скрыть оповещения «добавь день рождения» и прочие подсказки под папками чатов.
+- `feature__hide-birthday-notifications` — скрыть уведомления о днях рождения.
+- `feature__hide-birthday-premium-offers` — не предлагать купить прем/подарок на ДР, просто писать что сегодня ДР.
+- `feature__russian-localization` — перевод настроек Cleargram на русский язык.
+- `feature__square-video-messages` — записывать кружки как квадратное видео без вотермарки.
+- `feature__local-voice-transcription` — расшифровка голосовых локальной системной моделью (без премиума). Порт из Swiftgram.
+- `feature__chat-ids` — отображение ID групп, каналов и пользователей (расширение `feature__profile-id-dc`).
+- `feature__lastfm-scrobbler` — скробблинг прослушиваний треков в Last.fm из внутреннего плеера.
+- `feature__music-tab` — отдельная вкладка с музыкой, плейлистами и прочим.
+- `feature__force-seasonal-effects` — форсировать сезонные эффекты (снег и т.д.). Проверить есть ли в стоке на iOS.
+- `bugfix__notification-stacking` — стоковый баг: много in-app уведомлений стакаются друг на друга. Взять из Swiftgram если есть.
+- `bugfix__wallpaper-stretch-on-preview-enter` — стоковый баг: обои растягиваются при входе в чат через превью.
+
 ### Pending wire-up (UI placeholder, no behaviour yet)
 
 All have a disabled toggle in Cleargram Settings marked "(soon)". Wire-up in progress:
 
 - `noSelectionCap` — lift the 100-message selection cap + auto-chunk deletes. From inugram.
+- `hide-birthday-notifications` — toggle exists as `.soon`, no behaviour yet.
+- `hide-folder-prompts` — toggle exists as `.soon`, no behaviour yet.
+- `allChatsTitleLengthOverride` — toggle exists as `.soon`, no behaviour yet.
+- `show-channel-post-author` — toggle exists as `.soon`, no behaviour yet.
+- `admin-logs-improvements` — toggle exists as `.soon`, no behaviour yet.
+- `search-by-user-id` — toggle exists as `.soon`, no behaviour yet.
 
 ### Pending implementation (not yet in UI)
 
