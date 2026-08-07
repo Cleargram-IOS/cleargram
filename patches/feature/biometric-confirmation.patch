@@ -7,7 +7,8 @@ Subject: Add biometric confirmation for destructive actions
  .../ChatListUI/Sources/ChatListController.swift      |  6 ++++++
  .../SettingsUI/Sources/LogoutOptionsController.swift |  7 +++++--
  submodules/TelegramUI/Sources/ChatController.swift   | 12 ++++++++++++
- 3 files changed, 23 insertions(+), 2 deletions(-)
+ submodules/TelegramUIPreferences/BUILD               |  1 +
+ 4 files changed, 24 insertions(+), 2 deletions(-)
 
 diff --git a/submodules/ChatListUI/Sources/ChatListController.swift b/submodules/ChatListUI/Sources/ChatListController.swift
 index 0000000..0000000 100644
@@ -81,3 +82,15 @@ index 0000000..0000000 100644
          guard case let .peer(peerId) = self.chatLocation else {
              return
          }
+diff --git a/submodules/TelegramUIPreferences/BUILD b/submodules/TelegramUIPreferences/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUIPreferences/BUILD
++++ b/submodules/TelegramUIPreferences/BUILD
+@@ -13,6 +13,7 @@ swift_library(
+         "//submodules/TelegramCore:TelegramCore",
+         "//submodules/Postbox:Postbox",
+         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
++        "//submodules/LocalAuth:LocalAuth",
+     ],
+     visibility = [
+         "//visibility:public",

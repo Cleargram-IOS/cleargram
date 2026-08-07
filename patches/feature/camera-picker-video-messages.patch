@@ -6,11 +6,12 @@ Subject: Add front/back camera picker for video messages
 ---
  submodules/Camera/Sources/Camera.swift        |  2 +-
  submodules/Camera/Sources/CameraOutput.swift  |  6 +-
+ .../DataAndStorageSettingsController.swift    | 34 ++++++++--
  .../Sources/VideoMessageCameraScreen.swift    |  7 ++-
  .../Chat/ChatControllerLoadDisplayNode.swift  | 63 ++++++++++++-------
  .../Chat/ChatControllerMediaRecording.swift   | 38 ++++++++++-
- .../Sources/MediaInputSettings.swift          | 14 ++---
- 6 files changed, 94 insertions(+), 36 deletions(-)
+ .../Sources/MediaInputSettings.swift          | 32 ++++++----
+ 7 files changed, 135 insertions(+), 47 deletions(-)
 
 diff --git a/submodules/Camera/Sources/Camera.swift b/submodules/Camera/Sources/Camera.swift
 index 0000000..0000000 100644
@@ -44,6 +45,126 @@ index 0000000..0000000 100644
          if case .dualCamera = mode, let position {
              videoRecorder.markPositionChange(position: position, time: .zero)
          } else if case .roundVideo = mode {
+diff --git a/submodules/SettingsUI/Sources/Data and Storage/DataAndStorageSettingsController.swift b/submodules/SettingsUI/Sources/Data and Storage/DataAndStorageSettingsController.swift
+index 0000000..0000000 100644
+--- a/submodules/SettingsUI/Sources/Data and Storage/DataAndStorageSettingsController.swift	
++++ b/submodules/SettingsUI/Sources/Data and Storage/DataAndStorageSettingsController.swift	
+@@ -31,6 +31,7 @@ private final class DataAndStorageControllerArguments {
+     let toggleSaveEditedPhotos: (Bool) -> Void
+     let togglePauseMusicOnRecording: (Bool) -> Void
+     let toggleRaiseToListen: (Bool) -> Void
++    let toggleVideoMessageCameraSelection: (Bool) -> Void
+     let toggleDownloadInBackground: (Bool) -> Void
+     let openIntents: () -> Void
+     let toggleSensitiveContent: (Bool) -> Void
+@@ -46,6 +47,7 @@ private final class DataAndStorageControllerArguments {
+         toggleSaveEditedPhotos: @escaping (Bool) -> Void,
+         togglePauseMusicOnRecording: @escaping (Bool) -> Void,
+         toggleRaiseToListen: @escaping (Bool) -> Void,
++        toggleVideoMessageCameraSelection: @escaping (Bool) -> Void,
+         toggleDownloadInBackground: @escaping (Bool) -> Void,
+         openIntents: @escaping () -> Void,
+         toggleSensitiveContent: @escaping (Bool) -> Void
+@@ -60,6 +62,7 @@ private final class DataAndStorageControllerArguments {
+         self.toggleSaveEditedPhotos = toggleSaveEditedPhotos
+         self.togglePauseMusicOnRecording = togglePauseMusicOnRecording
+         self.toggleRaiseToListen = toggleRaiseToListen
++        self.toggleVideoMessageCameraSelection = toggleVideoMessageCameraSelection
+         self.toggleDownloadInBackground = toggleDownloadInBackground
+         self.openIntents = openIntents
+         self.toggleSensitiveContent = toggleSensitiveContent
+@@ -83,6 +86,7 @@ public enum DataAndStorageEntryTag: ItemListItemTag, Equatable {
+     case downloadInBackground
+     case pauseMusicOnRecording
+     case raiseToListen
++    case videoMessageCameraSelection
+     case autoSave(AutomaticSaveIncomingPeerType)
+     case sensitiveContent
+     case useLessVoiceData
+@@ -118,6 +122,7 @@ private enum DataAndStorageEntry: ItemListNodeEntry {
+     case saveEditedPhotos(PresentationTheme, String, Bool)
+     case pauseMusicOnRecording(PresentationTheme, String, Bool)
+     case raiseToListen(PresentationTheme, String, Bool)
++    case videoMessageCameraSelection(PresentationTheme, String, Bool)
+     case raiseToListenInfo(PresentationTheme, String)
+     
+     case sensitiveContent(String, Bool)
+@@ -138,7 +143,7 @@ private enum DataAndStorageEntry: ItemListNodeEntry {
+                 return DataAndStorageSection.backgroundDownload.rawValue
+             case .useLessVoiceData, .useLessVoiceDataInfo:
+                 return DataAndStorageSection.voiceCalls.rawValue
+-            case .otherHeader, .shareSheet, .saveEditedPhotos, .pauseMusicOnRecording, .raiseToListen, .raiseToListenInfo:
++            case .otherHeader, .shareSheet, .saveEditedPhotos, .pauseMusicOnRecording, .raiseToListen, .videoMessageCameraSelection, .raiseToListenInfo:
+                 return DataAndStorageSection.other.rawValue
+             case .sensitiveContent, .sensitiveContentInfo:
+                 return DataAndStorageSection.sensitiveContent.rawValue
+@@ -185,16 +190,18 @@ private enum DataAndStorageEntry: ItemListNodeEntry {
+                 return 33
+             case .raiseToListen:
+                 return 34
+-            case .raiseToListenInfo:
++            case .videoMessageCameraSelection:
+                 return 35
+-            case .sensitiveContent:
++            case .raiseToListenInfo:
+                 return 36
+-            case .sensitiveContentInfo:
++            case .sensitiveContent:
+                 return 37
+-            case .connectionHeader:
++            case .sensitiveContentInfo:
+                 return 38
+-            case .connectionProxy:
++            case .connectionHeader:
+                 return 39
++            case .connectionProxy:
++                return 40
+         }
+     }
+     
+@@ -296,6 +303,12 @@ private enum DataAndStorageEntry: ItemListNodeEntry {
+                 } else {
+                     return false
+                 }
++            case let .videoMessageCameraSelection(lhsTheme, lhsText, lhsValue):
++                if case let .videoMessageCameraSelection(rhsTheme, rhsText, rhsValue) = rhs, lhsTheme === rhsTheme, lhsText == rhsText, lhsValue == rhsValue {
++                    return true
++                } else {
++                    return false
++                }
+             case let .raiseToListenInfo(lhsTheme, lhsText):
+                 if case let .raiseToListenInfo(rhsTheme, rhsText) = rhs, lhsTheme === rhsTheme, lhsText == rhsText {
+                     return true
+@@ -417,6 +430,10 @@ private enum DataAndStorageEntry: ItemListNodeEntry {
+                 return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                     arguments.toggleRaiseToListen(value)
+                 }, tag: DataAndStorageEntryTag.raiseToListen)
++            case let .videoMessageCameraSelection(_, text, value):
++                return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
++                    arguments.toggleVideoMessageCameraSelection(value)
++                }, tag: DataAndStorageEntryTag.videoMessageCameraSelection)
+             case let .raiseToListenInfo(_, text):
+                 return ItemListTextItem(presentationData: presentationData, text: .markdown(text), sectionId: self.section)
+             case let .sensitiveContent(text, value):
+@@ -639,6 +656,7 @@ private func dataAndStorageControllerEntries(context: AccountContext, state: Dat
+     entries.append(.saveEditedPhotos(presentationData.theme, presentationData.strings.Settings_SaveEditedPhotos, data.generatedMediaStoreSettings.storeEditedPhotos))
+     entries.append(.pauseMusicOnRecording(presentationData.theme, presentationData.strings.Settings_PauseMusicOnRecording, data.mediaInputSettings.pauseMusicOnRecording))
+     entries.append(.raiseToListen(presentationData.theme, presentationData.strings.Settings_RaiseToListen, data.mediaInputSettings.enableRaiseToSpeak))
++    entries.append(.videoMessageCameraSelection(presentationData.theme, "Choose Camera for Video Messages", data.mediaInputSettings.videoMessageCameraSelection))
+     entries.append(.raiseToListenInfo(presentationData.theme, presentationData.strings.Settings_RaiseToListenInfo))
+ 
+     if let contentSettingsConfiguration = contentSettingsConfiguration, contentSettingsConfiguration.canAdjustSensitiveContent && (showSensitiveContentSetting || requireAgeVerification(context: context)) {
+@@ -874,6 +892,10 @@ public func dataAndStorageController(context: AccountContext, focusOnItemTag: Da
+         let _ = updateMediaInputSettingsInteractively(accountManager: context.sharedContext.accountManager, {
+             $0.withUpdatedEnableRaiseToSpeak(value)
+         }).start()
++    }, toggleVideoMessageCameraSelection: { value in
++        let _ = updateMediaInputSettingsInteractively(accountManager: context.sharedContext.accountManager, {
++            $0.withUpdatedVideoMessageCameraSelection(value)
++        }).start()
+     }, toggleDownloadInBackground: { value in
+         let _ = updateMediaDownloadSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
+             var settings = settings
 diff --git a/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift b/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
@@ -158,7 +279,7 @@ index 0000000..0000000 100644
 +                })
 +            }
 +
-+            if isVideo, ClearConfig.videoMessageCameraSelection, let micButton = strongSelf.chatDisplayNode.textInputPanelNode?.micButton {
++            if isVideo, strongSelf.context.sharedContext.currentMediaInputSettings.with({ $0.videoMessageCameraSelection }), let micButton = strongSelf.chatDisplayNode.textInputPanelNode?.micButton {
 +                strongSelf.presentVideoMessageCameraSelectionMenu(sourceView: micButton, completion: { [weak self] startWithFrontCamera in
 +                    guard let strongSelf = self else {
 +                        return
@@ -239,20 +360,24 @@ diff --git a/submodules/TelegramUIPreferences/Sources/MediaInputSettings.swift b
 index 0000000..0000000 100644
 --- a/submodules/TelegramUIPreferences/Sources/MediaInputSettings.swift
 +++ b/submodules/TelegramUIPreferences/Sources/MediaInputSettings.swift
-@@ -5,38 +5,38 @@ import SwiftSignalKit
+@@ -5,40 +5,48 @@ import SwiftSignalKit
  public struct MediaInputSettings: Codable, Equatable {
      public let enableRaiseToSpeak: Bool
      public let pauseMusicOnRecording: Bool
 -    
++    public let videoMessageCameraSelection: Bool
 +
      public static var defaultSettings: MediaInputSettings {
-         return MediaInputSettings(enableRaiseToSpeak: true, pauseMusicOnRecording: true)
+-        return MediaInputSettings(enableRaiseToSpeak: true, pauseMusicOnRecording: true)
++        return MediaInputSettings(enableRaiseToSpeak: true, pauseMusicOnRecording: true, videoMessageCameraSelection: true)
      }
 -    
+-    public init(enableRaiseToSpeak: Bool, pauseMusicOnRecording: Bool) {
 +
-     public init(enableRaiseToSpeak: Bool, pauseMusicOnRecording: Bool) {
++    public init(enableRaiseToSpeak: Bool, pauseMusicOnRecording: Bool, videoMessageCameraSelection: Bool) {
          self.enableRaiseToSpeak = enableRaiseToSpeak
          self.pauseMusicOnRecording = pauseMusicOnRecording
++        self.videoMessageCameraSelection = videoMessageCameraSelection
      }
 -    
 +
@@ -261,6 +386,7 @@ index 0000000..0000000 100644
  
          self.enableRaiseToSpeak = (try container.decode(Int32.self, forKey: "enableRaiseToSpeak")) != 0
          self.pauseMusicOnRecording = (try container.decodeIfPresent(Int32.self, forKey: "pauseMusicOnRecording_v2") ?? 1) != 0
++        self.videoMessageCameraSelection = (try container.decodeIfPresent(Int32.self, forKey: "videoMessageCameraSelection") ?? 1) != 0
      }
 -    
 +
@@ -269,19 +395,29 @@ index 0000000..0000000 100644
  
          try container.encode((self.enableRaiseToSpeak ? 1 : 0) as Int32, forKey: "enableRaiseToSpeak")
          try container.encode((self.pauseMusicOnRecording ? 1 : 0) as Int32, forKey: "pauseMusicOnRecording_v2")
++        try container.encode((self.videoMessageCameraSelection ? 1 : 0) as Int32, forKey: "videoMessageCameraSelection")
      }
 -    
 +
      public static func ==(lhs: MediaInputSettings, rhs: MediaInputSettings) -> Bool {
-         return lhs.enableRaiseToSpeak == rhs.enableRaiseToSpeak && lhs.pauseMusicOnRecording == rhs.pauseMusicOnRecording
+-        return lhs.enableRaiseToSpeak == rhs.enableRaiseToSpeak && lhs.pauseMusicOnRecording == rhs.pauseMusicOnRecording
++        return lhs.enableRaiseToSpeak == rhs.enableRaiseToSpeak && lhs.pauseMusicOnRecording == rhs.pauseMusicOnRecording && lhs.videoMessageCameraSelection == rhs.videoMessageCameraSelection
      }
 -    
 +
      public func withUpdatedEnableRaiseToSpeak(_ enableRaiseToSpeak: Bool) -> MediaInputSettings {
-         return MediaInputSettings(enableRaiseToSpeak: enableRaiseToSpeak, pauseMusicOnRecording: self.pauseMusicOnRecording)
+-        return MediaInputSettings(enableRaiseToSpeak: enableRaiseToSpeak, pauseMusicOnRecording: self.pauseMusicOnRecording)
++        return MediaInputSettings(enableRaiseToSpeak: enableRaiseToSpeak, pauseMusicOnRecording: self.pauseMusicOnRecording, videoMessageCameraSelection: self.videoMessageCameraSelection)
      }
 -    
 +
      public func withUpdatedPauseMusicOnRecording(_ pauseMusicOnRecording: Bool) -> MediaInputSettings {
-         return MediaInputSettings(enableRaiseToSpeak: self.enableRaiseToSpeak, pauseMusicOnRecording: pauseMusicOnRecording)
+-        return MediaInputSettings(enableRaiseToSpeak: self.enableRaiseToSpeak, pauseMusicOnRecording: pauseMusicOnRecording)
++        return MediaInputSettings(enableRaiseToSpeak: self.enableRaiseToSpeak, pauseMusicOnRecording: pauseMusicOnRecording, videoMessageCameraSelection: self.videoMessageCameraSelection)
++    }
++
++    public func withUpdatedVideoMessageCameraSelection(_ videoMessageCameraSelection: Bool) -> MediaInputSettings {
++        return MediaInputSettings(enableRaiseToSpeak: self.enableRaiseToSpeak, pauseMusicOnRecording: self.pauseMusicOnRecording, videoMessageCameraSelection: videoMessageCameraSelection)
      }
+ }
+ 
