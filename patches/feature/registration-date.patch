@@ -1,0 +1,80 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Fri, 7 Aug 2026 20:31:51 +0300
+Subject: Show registration date and phone country in profile
+
+---
+ .../Components/PeerInfo/PeerInfoScreen/BUILD  |  1 +
+ .../Sources/PeerInfoProfileItems.swift        | 33 ++++++++++++++++++-
+ 2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD
+@@ -37,6 +37,7 @@ swift_library(
+         "//submodules/Components/ComponentDisplayAdapters",
+         "//submodules/ComponentFlow",
+         "//submodules/ContextUI",
++        "//submodules/CountrySelectionUI",
+         "//submodules/PeerInfoUI/CreateExternalMediaStreamScreen",
+         "//submodules/DeviceAccess",
+         "//submodules/Display",
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
+@@ -19,6 +19,7 @@ import PeerNameColorItem
+ import BoostLevelIconComponent
+ import ContextUI
+ import UndoUI
++import CountrySelectionUI
+ 
+ private let enabledPublicBioEntities: EnabledEntityTypes = [.allUrl, .mention, .hashtag]
+ private let enabledPrivateBioEntities: EnabledEntityTypes = [.internalUrl, .mention, .hashtag]
+@@ -94,6 +95,8 @@ func infoItems(
+         let ItemAppFooter = 3005
+         let ItemClearId = 3006
+         let ItemClearDc = 3007
++        let ItemClearRegistration = 3008
++        let ItemClearPhoneCountry = 3009
+         let ItemAffiliate = 4000
+         let ItemAffiliateInfo = 4001
+         let ItemBusinessHours = 5000
+@@ -284,7 +287,35 @@ func infoItems(
+                 }))
+             }
+         }
+-        
++
++        // peerSettings carries registration_month / phone_country only for accounts the server
++        // considers unfamiliar (it's the anti-scam card above the chat history), so both rows
++        // are simply absent when the cached value is nil. Month precision, same as stock.
++        if ClearConfig.showRegistrationDate, let cachedUserData = data.cachedData as? CachedUserData, let registrationDate = cachedUserData.peerStatusSettings?.registrationDate {
++            let components = registrationDate.components(separatedBy: ".")
++            if components.count == 2, let month = Int32(components[0]), let year = Int32(components[1]) {
++                let registrationText = stringForMonth(strings: presentationData.strings, month: month - 1, ofYear: year - 1900)
++                items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemClearRegistration, label: presentationData.strings.Chat_NonContactUser_Registration, text: registrationText, textColor: .primary, action: nil, requestLayout: { animated in
++                    interaction.requestLayout(animated)
++                }))
++            }
++        }
++
++        if ClearConfig.showPhoneCountry, let cachedUserData = data.cachedData as? CachedUserData, let phoneCountry = cachedUserData.peerStatusSettings?.phoneCountry {
++            var countryName = ""
++            if phoneCountry == "FT" {
++                countryName = presentationData.strings.Chat_NonContactUser_AnonymousNumber
++            } else if let country = context.currentCountriesConfiguration.with({ $0 }).countries.first(where: { $0.id == phoneCountry }) {
++                countryName = country.localizedName ?? country.name
++            } else if phoneCountry == "TS" {
++                countryName = "Test"
++            }
++            let countryText = emojiFlagForISOCountryCode(phoneCountry) + " " + countryName
++            items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemClearPhoneCountry, label: presentationData.strings.Chat_NonContactUser_PhoneNumber, text: countryText, textColor: .primary, action: nil, requestLayout: { animated in
++                interaction.requestLayout(animated)
++            }))
++        }
++
+         if let cachedData = data.cachedData as? CachedUserData {
+             if let birthday = cachedData.birthday {
+                 let isBirthdayToday = hasBirthdayToday(birthday: birthday)

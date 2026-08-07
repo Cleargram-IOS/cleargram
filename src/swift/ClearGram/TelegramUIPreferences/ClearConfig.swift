@@ -44,6 +44,8 @@ public enum ClearConfig {
     public static var doubleTapToEdit: Bool { current().doubleTapToEdit }
     public static var showProfileId: Bool { current().showProfileId }
     public static var showDC: Bool { current().showDC }
+    public static var showRegistrationDate: Bool { current().showRegistrationDate }
+    public static var showPhoneCountry: Bool { current().showPhoneCountry }
     public static var hidePhoneInSettings: Bool { current().hidePhoneInSettings }
     public static var hideContextMenuReply: Bool { current().hideContextMenuReply }
     public static var hideContextMenuPin: Bool { current().hideContextMenuPin }

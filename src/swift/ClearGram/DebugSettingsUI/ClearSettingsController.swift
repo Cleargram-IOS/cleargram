@@ -11,852 +11,816 @@ import ItemListUI
 import PresentationDataUtils
 import UndoUI
 
-private enum ClearSettingsSection: ItemListSectionId {
-    case chatList = 0
-    case tabBar = 1
-    case chat = 2
-    case messages = 3
-    case links = 4
-    case contextMenu = 5
-    case profile = 6
-    case media = 7
-    case privacy = 8
-    case reset = 9
+// Cleargram settings, laid out like stock Telegram settings: a hub of icon rows, each opening
+// a screen of switches grouped into sections with a footer that says what the group does.
+//
+// The whole tree is data — the `ClearScreen` / `ClearSection` / `ClearToggle` values built in
+// `clearRootScreen(context:)` at the bottom of this file. Adding an option is one `ClearToggle`
+// line: the entry enum, stable ids, equality and the ItemList plumbing are generic and never
+// need to be touched.
+
+// MARK: - Model
+
+private struct ClearToggle {
+    enum Storage {
+        case config(WritableKeyPath<ClearConfigSettings, Bool>)
+        case experimental(WritableKeyPath<ExperimentalUISettings, Bool>)
+        // Shown disabled: the switch exists, the behaviour behind it doesn't yet.
+        case unimplemented
+    }
+
+    let title: String
+    let storage: Storage
+    // Second line under the title. A closure so it can mirror the current value — the settings
+    // signal re-emits on every change, so these read as a live preview of what the option does.
+    let subtitle: ((ClearConfigSettings) -> String?)?
+    let isEnabled: ((ClearConfigSettings) -> Bool)?
+    let requiresRestart: Bool
+
+    init(
+        _ title: String,
+        _ storage: Storage,
+        subtitle: ((ClearConfigSettings) -> String?)? = nil,
+        isEnabled: ((ClearConfigSettings) -> Bool)? = nil,
+        requiresRestart: Bool = false
+    ) {
+        self.title = title
+        self.storage = storage
+        self.subtitle = subtitle
+        self.isEnabled = isEnabled
+        self.requiresRestart = requiresRestart
+    }
+
+    static func soon(_ title: String, _ plan: String) -> ClearToggle {
+        return ClearToggle(title, .unimplemented, subtitle: { _ in plan })
+    }
+
+    func value(_ settings: ClearConfigSettings, _ experimental: ExperimentalUISettings) -> Bool {
+        switch self.storage {
+        case let .config(keyPath):
+            return settings[keyPath: keyPath]
+        case let .experimental(keyPath):
+            return experimental[keyPath: keyPath]
+        case .unimplemented:
+            return false
+        }
+    }
 }
 
-private enum ClearSettingsEntry: ItemListNodeEntry {
-    case compactChatList(PresentationTheme, Bool)
-    case compactFolderNames(PresentationTheme, Bool)
-    case allChatsHidden(PresentationTheme, Bool)
-    case hideTabBar(PresentationTheme, Bool)
-    case showTabNames(PresentationTheme, Bool, Bool)
-    case wideTabBar(PresentationTheme, Bool, Bool)
-    case tabBarSearchEnabled(PresentationTheme, Bool, Bool)
-    case wideChannelPosts(PresentationTheme, Bool)
-    case hideChannelBottomButton(PresentationTheme, Bool)
-    case disableScrollToNextChannel(PresentationTheme, Bool)
-    case hideStarReactionButton(PresentationTheme, Bool)
-    case hideStarReactionCount(PresentationTheme, Bool)
-    case collapseLongMessages(PresentationTheme, Bool)
-    case disableContactsTab(PresentationTheme, Bool)
-    case disableCallsButton(PresentationTheme, Bool)
-    case showAudioFormatBitrate(PresentationTheme, Bool)
-    case allChatsTitleLengthOverride(PresentationTheme, Bool)
-    case fontSizeOverride(PresentationTheme, Bool)
-    case searchByUserId(PresentationTheme, Bool)
-    case adminLogsImprovements(PresentationTheme, Bool)
-    case paranoiaMode(PresentationTheme, Bool)
-    case showChannelPostAuthor(PresentationTheme, Bool)
-    case hideChannelJoinRequests(PresentationTheme, Bool)
-    case fasterFileLoad(PresentationTheme, Bool)
-    case videoCircleAudioSource(PresentationTheme, Bool)
-    case videoQualityOriginalToggle(PresentationTheme, Bool)
-    case sendVideoAsCircle(PresentationTheme, Bool)
-    case hidePremiumStarsGifts(PresentationTheme, Bool)
-    case fakeGlass(PresentationTheme, Bool)
-    case forceClearGlass(PresentationTheme, Bool)
-    case showForwardedTime(PresentationTheme, Bool)
-    case timeOnServiceMessages(PresentationTheme, Bool)
-    case secondsInMessages(PresentationTheme, Bool)
-    case doubleTapToEdit(PresentationTheme, Bool)
-    case blockCloudDrafts(PresentationTheme, Bool)
-    case warnPollsRevote(PresentationTheme, Bool)
-    case stripTrackingParams(PresentationTheme, Bool)
-    case replacePreviewLinks(PresentationTheme, Bool)
-    case confirmInternalLinks(PresentationTheme, Bool)
-    case hideContextMenuReply(PresentationTheme, Bool)
-    case hideContextMenuPin(PresentationTheme, Bool)
-    case hideContextMenuForward(PresentationTheme, Bool)
-    case hideContextMenuReport(PresentationTheme, Bool)
-    case hideContextMenuSelect(PresentationTheme, Bool)
-    case showProfileId(PresentationTheme, Bool)
-    case showDC(PresentationTheme, Bool)
-    case showPackOwner(PresentationTheme, Bool)
-    case hidePhoneInSettings(PresentationTheme, Bool)
-    case disableGalleryCamera(PresentationTheme, Bool)
-    case disableStoryCameraSwipe(PresentationTheme, Bool)
-    case flatStickerCorners(PresentationTheme, Bool)
-    case saveStickerToPhotos(PresentationTheme, Bool)
-    case copyImageInGallery(PresentationTheme, Bool)
-    case videoMessageCameraSelection(PresentationTheme, Bool)
-    case hideStories(PresentationTheme, Bool)
-    case hideAiFeatures(PresentationTheme, Bool)
-    case hideSponsoredMessages(PresentationTheme, Bool)
-    case hideSimilarChannels(PresentationTheme, Bool)
-    case confirmCalls(PresentationTheme, Bool)
-    case biometricConfirmDeleteChat(PresentationTheme, Bool)
-    case biometricConfirmClearHistory(PresentationTheme, Bool)
-    case biometricConfirmLogout(PresentationTheme, Bool)
-    case defaultEmojisFirst(PresentationTheme, Bool)
-    case resetSettings(PresentationTheme)
+private enum ClearRow {
+    case toggle(ClearToggle)
+    case screen(ClearScreen)
+    case reset(title: String)
+}
+
+private final class ClearSection {
+    let header: String?
+    let footer: ((ClearConfigSettings) -> String?)?
+    let rows: [ClearRow]
+
+    init(header: String? = nil, footer: String? = nil, rows: [ClearRow]) {
+        self.header = header
+        if let footer {
+            self.footer = { _ in footer }
+        } else {
+            self.footer = nil
+        }
+        self.rows = rows
+    }
+
+    init(header: String? = nil, dynamicFooter: @escaping (ClearConfigSettings) -> String?, rows: [ClearRow]) {
+        self.header = header
+        self.footer = dynamicFooter
+        self.rows = rows
+    }
+
+    func toggle(at index: Int) -> ClearToggle? {
+        guard index < self.rows.count, case let .toggle(toggle) = self.rows[index] else {
+            return nil
+        }
+        return toggle
+    }
+}
+
+// Reference type: a screen contains rows which contain screens, and a struct can't nest itself.
+private final class ClearScreen {
+    let title: String
+    let icon: UIImage?
+    let sections: [ClearSection]
+
+    init(title: String, icon: UIImage? = nil, sections: [ClearSection]) {
+        self.title = title
+        self.icon = icon
+        self.sections = sections
+    }
+}
+
+// MARK: - Entries
+
+private enum ClearEntry: ItemListNodeEntry {
+    case header(section: Int, text: String)
+    case toggle(section: Int, index: Int, title: String, subtitle: String?, value: Bool, enabled: Bool)
+    case disclosure(section: Int, index: Int, title: String)
+    case reset(section: Int, index: Int, title: String)
+    case footer(section: Int, text: String)
 
     var section: ItemListSectionId {
         switch self {
-        case .compactChatList, .compactFolderNames, .allChatsHidden, .allChatsTitleLengthOverride:
-            return ClearSettingsSection.chatList.rawValue
-        case .hideTabBar, .showTabNames, .wideTabBar, .tabBarSearchEnabled, .disableContactsTab, .disableCallsButton:
-            return ClearSettingsSection.tabBar.rawValue
-        case .wideChannelPosts, .hideChannelBottomButton, .disableScrollToNextChannel, .hideStarReactionButton, .hideStarReactionCount, .collapseLongMessages, .showForwardedTime, .timeOnServiceMessages, .fontSizeOverride:
-            return ClearSettingsSection.chat.rawValue
-        case .secondsInMessages, .doubleTapToEdit, .blockCloudDrafts, .warnPollsRevote:
-            return ClearSettingsSection.messages.rawValue
-        case .stripTrackingParams, .replacePreviewLinks, .confirmInternalLinks:
-            return ClearSettingsSection.links.rawValue
-        case .hideContextMenuReply, .hideContextMenuPin, .hideContextMenuForward, .hideContextMenuReport, .hideContextMenuSelect:
-            return ClearSettingsSection.contextMenu.rawValue
-        case .showProfileId, .showDC, .showPackOwner, .hidePhoneInSettings:
-            return ClearSettingsSection.profile.rawValue
-        case .disableGalleryCamera, .disableStoryCameraSwipe, .flatStickerCorners, .saveStickerToPhotos, .copyImageInGallery, .videoMessageCameraSelection, .showAudioFormatBitrate, .fasterFileLoad, .videoCircleAudioSource, .videoQualityOriginalToggle, .sendVideoAsCircle:
-            return ClearSettingsSection.media.rawValue
-        case .hideStories, .hideAiFeatures, .hideSponsoredMessages, .hideSimilarChannels, .confirmCalls, .biometricConfirmDeleteChat, .biometricConfirmClearHistory, .biometricConfirmLogout, .defaultEmojisFirst, .fakeGlass, .forceClearGlass, .searchByUserId, .adminLogsImprovements, .paranoiaMode, .showChannelPostAuthor, .hideChannelJoinRequests, .hidePremiumStarsGifts:
-            return ClearSettingsSection.privacy.rawValue
-        case .resetSettings:
-            return ClearSettingsSection.reset.rawValue
+        case let .header(section, _),
+             let .toggle(section, _, _, _, _, _),
+             let .disclosure(section, _, _),
+             let .reset(section, _, _),
+             let .footer(section, _):
+            return ItemListSectionId(section)
         }
     }
 
-    // MUST ascend in the exact order entries are appended below: `<` compares stableId, and stock
-    // `ItemListControllerNode` asserts the entries array is sorted (an unguarded assert, so a
-    // non-monotonic id traps in debug builds and corrupts the row merge in release). Ids step by 10
-    // so a new entry can be slotted in without renumbering the whole list.
+    // Ids must ascend in append order — `ItemListControllerNode` asserts the array is sorted.
+    // Header first, then rows, then the footer, with room for ~880 rows per section.
     var stableId: Int {
         switch self {
-        case .compactChatList: return 10
-        case .compactFolderNames: return 20
-        case .allChatsHidden: return 30
-        case .hideTabBar: return 40
-        case .showTabNames: return 50
-        case .wideTabBar: return 60
-        case .tabBarSearchEnabled: return 70
-        case .disableContactsTab: return 80
-        case .disableCallsButton: return 90
-        case .wideChannelPosts: return 100
-        case .hideChannelBottomButton: return 110
-        case .disableScrollToNextChannel: return 120
-        // case .showInlineReactions: return 130
-        case .hideStarReactionButton: return 140
-        case .hideStarReactionCount: return 150
-        case .collapseLongMessages: return 160
-        case .showForwardedTime: return 170
-        case .timeOnServiceMessages: return 180
-        case .secondsInMessages: return 190
-        case .doubleTapToEdit: return 200
-        case .blockCloudDrafts: return 210
-        case .warnPollsRevote: return 220
-        case .stripTrackingParams: return 230
-        case .replacePreviewLinks: return 240
-        case .confirmInternalLinks: return 250
-        case .hideContextMenuReply: return 260
-        case .hideContextMenuPin: return 270
-        case .hideContextMenuForward: return 280
-        case .hideContextMenuReport: return 290
-        case .hideContextMenuSelect: return 300
-        case .showProfileId: return 310
-        case .showDC: return 320
-        case .showPackOwner: return 330
-        case .hidePhoneInSettings: return 340
-        case .disableGalleryCamera: return 350
-        case .disableStoryCameraSwipe: return 360
-        case .flatStickerCorners: return 370
-        case .saveStickerToPhotos: return 380
-        case .copyImageInGallery: return 390
-        case .videoMessageCameraSelection: return 400
-        case .showAudioFormatBitrate: return 410
-        case .fasterFileLoad: return 420
-        case .videoCircleAudioSource: return 430
-        case .videoQualityOriginalToggle: return 440
-        case .sendVideoAsCircle: return 450
-        case .allChatsTitleLengthOverride: return 460
-        case .hideStories: return 470
-        case .hideAiFeatures: return 480
-        case .hideSponsoredMessages: return 490
-        case .hideSimilarChannels: return 500
-        case .confirmCalls: return 510
-        case .biometricConfirmDeleteChat: return 520
-        case .biometricConfirmClearHistory: return 530
-        case .biometricConfirmLogout: return 540
-        case .defaultEmojisFirst: return 550
-        case .fakeGlass: return 560
-        case .forceClearGlass: return 570
-        case .searchByUserId: return 580
-        case .adminLogsImprovements: return 590
-        case .paranoiaMode: return 600
-        case .showChannelPostAuthor: return 610
-        case .hideChannelJoinRequests: return 620
-        case .hidePremiumStarsGifts: return 630
-        case .fontSizeOverride: return 640
-        case .resetSettings: return 650
+        case let .header(section, _):
+            return section * 1000
+        case let .toggle(section, index, _, _, _, _):
+            return section * 1000 + 10 + index
+        case let .disclosure(section, index, _):
+            return section * 1000 + 10 + index
+        case let .reset(section, index, _):
+            return section * 1000 + 10 + index
+        case let .footer(section, _):
+            return section * 1000 + 900
         }
     }
 
-    static func < (lhs: ClearSettingsEntry, rhs: ClearSettingsEntry) -> Bool { lhs.stableId < rhs.stableId }
+    static func < (lhs: ClearEntry, rhs: ClearEntry) -> Bool { lhs.stableId < rhs.stableId }
 
-    static func == (lhs: ClearSettingsEntry, rhs: ClearSettingsEntry) -> Bool {
+    static func == (lhs: ClearEntry, rhs: ClearEntry) -> Bool {
         switch (lhs, rhs) {
-        case let (.compactChatList(lt, lv), .compactChatList(rt, rv)): return lt === rt && lv == rv
-        case let (.compactFolderNames(lt, lv), .compactFolderNames(rt, rv)): return lt === rt && lv == rv
-        case let (.allChatsHidden(lt, lv), .allChatsHidden(rt, rv)): return lt === rt && lv == rv
-        case let (.hideTabBar(lt, lv), .hideTabBar(rt, rv)): return lt === rt && lv == rv
-        case let (.showTabNames(lt, lv, lh), .showTabNames(rt, rv, rh)): return lt === rt && lv == rv && lh == rh
-        case let (.wideTabBar(lt, lv, lh), .wideTabBar(rt, rv, rh)): return lt === rt && lv == rv && lh == rh
-        case let (.tabBarSearchEnabled(lt, lv, lh), .tabBarSearchEnabled(rt, rv, rh)): return lt === rt && lv == rv && lh == rh
-        case let (.wideChannelPosts(lt, lv), .wideChannelPosts(rt, rv)): return lt === rt && lv == rv
-        case let (.hideChannelBottomButton(lt, lv), .hideChannelBottomButton(rt, rv)): return lt === rt && lv == rv
-        case let (.disableScrollToNextChannel(lt, lv), .disableScrollToNextChannel(rt, rv)): return lt === rt && lv == rv
-        case let (.hideStarReactionButton(lt, lv), .hideStarReactionButton(rt, rv)): return lt === rt && lv == rv
-        case let (.hideStarReactionCount(lt, lv), .hideStarReactionCount(rt, rv)): return lt === rt && lv == rv
-        case let (.collapseLongMessages(lt, lv), .collapseLongMessages(rt, rv)): return lt === rt && lv == rv
-        case let (.disableContactsTab(lt, lv), .disableContactsTab(rt, rv)): return lt === rt && lv == rv
-        case let (.disableCallsButton(lt, lv), .disableCallsButton(rt, rv)): return lt === rt && lv == rv
-        case let (.showAudioFormatBitrate(lt, lv), .showAudioFormatBitrate(rt, rv)): return lt === rt && lv == rv
-        case let (.allChatsTitleLengthOverride(lt, lv), .allChatsTitleLengthOverride(rt, rv)): return lt === rt && lv == rv
-        case let (.fontSizeOverride(lt, lv), .fontSizeOverride(rt, rv)): return lt === rt && lv == rv
-        case let (.searchByUserId(lt, lv), .searchByUserId(rt, rv)): return lt === rt && lv == rv
-        case let (.adminLogsImprovements(lt, lv), .adminLogsImprovements(rt, rv)): return lt === rt && lv == rv
-        case let (.paranoiaMode(lt, lv), .paranoiaMode(rt, rv)): return lt === rt && lv == rv
-        case let (.showChannelPostAuthor(lt, lv), .showChannelPostAuthor(rt, rv)): return lt === rt && lv == rv
-        case let (.hideChannelJoinRequests(lt, lv), .hideChannelJoinRequests(rt, rv)): return lt === rt && lv == rv
-        case let (.fasterFileLoad(lt, lv), .fasterFileLoad(rt, rv)): return lt === rt && lv == rv
-        case let (.videoCircleAudioSource(lt, lv), .videoCircleAudioSource(rt, rv)): return lt === rt && lv == rv
-        case let (.videoQualityOriginalToggle(lt, lv), .videoQualityOriginalToggle(rt, rv)): return lt === rt && lv == rv
-        case let (.sendVideoAsCircle(lt, lv), .sendVideoAsCircle(rt, rv)): return lt === rt && lv == rv
-        case let (.hidePremiumStarsGifts(lt, lv), .hidePremiumStarsGifts(rt, rv)): return lt === rt && lv == rv
-        case let (.fakeGlass(lt, lv), .fakeGlass(rt, rv)): return lt === rt && lv == rv
-        case let (.forceClearGlass(lt, lv), .forceClearGlass(rt, rv)): return lt === rt && lv == rv
-        case let (.showForwardedTime(lt, lv), .showForwardedTime(rt, rv)): return lt === rt && lv == rv
-        case let (.timeOnServiceMessages(lt, lv), .timeOnServiceMessages(rt, rv)): return lt === rt && lv == rv
-        case let (.secondsInMessages(lt, lv), .secondsInMessages(rt, rv)): return lt === rt && lv == rv
-        case let (.doubleTapToEdit(lt, lv), .doubleTapToEdit(rt, rv)): return lt === rt && lv == rv
-        case let (.blockCloudDrafts(lt, lv), .blockCloudDrafts(rt, rv)): return lt === rt && lv == rv
-        case let (.warnPollsRevote(lt, lv), .warnPollsRevote(rt, rv)): return lt === rt && lv == rv
-        case let (.stripTrackingParams(lt, lv), .stripTrackingParams(rt, rv)): return lt === rt && lv == rv
-        case let (.replacePreviewLinks(lt, lv), .replacePreviewLinks(rt, rv)): return lt === rt && lv == rv
-        case let (.confirmInternalLinks(lt, lv), .confirmInternalLinks(rt, rv)): return lt === rt && lv == rv
-        case let (.hideContextMenuReply(lt, lv), .hideContextMenuReply(rt, rv)): return lt === rt && lv == rv
-        case let (.hideContextMenuPin(lt, lv), .hideContextMenuPin(rt, rv)): return lt === rt && lv == rv
-        case let (.hideContextMenuForward(lt, lv), .hideContextMenuForward(rt, rv)): return lt === rt && lv == rv
-        case let (.hideContextMenuReport(lt, lv), .hideContextMenuReport(rt, rv)): return lt === rt && lv == rv
-        case let (.hideContextMenuSelect(lt, lv), .hideContextMenuSelect(rt, rv)): return lt === rt && lv == rv
-        case let (.showProfileId(lt, lv), .showProfileId(rt, rv)): return lt === rt && lv == rv
-        case let (.showDC(lt, lv), .showDC(rt, rv)): return lt === rt && lv == rv
-        case let (.showPackOwner(lt, lv), .showPackOwner(rt, rv)): return lt === rt && lv == rv
-        case let (.hidePhoneInSettings(lt, lv), .hidePhoneInSettings(rt, rv)): return lt === rt && lv == rv
-        case let (.disableGalleryCamera(lt, lv), .disableGalleryCamera(rt, rv)): return lt === rt && lv == rv
-        case let (.disableStoryCameraSwipe(lt, lv), .disableStoryCameraSwipe(rt, rv)): return lt === rt && lv == rv
-        case let (.flatStickerCorners(lt, lv), .flatStickerCorners(rt, rv)): return lt === rt && lv == rv
-        case let (.saveStickerToPhotos(lt, lv), .saveStickerToPhotos(rt, rv)): return lt === rt && lv == rv
-        case let (.copyImageInGallery(lt, lv), .copyImageInGallery(rt, rv)): return lt === rt && lv == rv
-        case let (.videoMessageCameraSelection(lt, lv), .videoMessageCameraSelection(rt, rv)): return lt === rt && lv == rv
-        case let (.hideStories(lt, lv), .hideStories(rt, rv)): return lt === rt && lv == rv
-        case let (.hideAiFeatures(lt, lv), .hideAiFeatures(rt, rv)): return lt === rt && lv == rv
-        case let (.hideSponsoredMessages(lt, lv), .hideSponsoredMessages(rt, rv)): return lt === rt && lv == rv
-        case let (.hideSimilarChannels(lt, lv), .hideSimilarChannels(rt, rv)): return lt === rt && lv == rv
-        case let (.confirmCalls(lt, lv), .confirmCalls(rt, rv)): return lt === rt && lv == rv
-        case let (.biometricConfirmDeleteChat(lt, lv), .biometricConfirmDeleteChat(rt, rv)): return lt === rt && lv == rv
-        case let (.biometricConfirmClearHistory(lt, lv), .biometricConfirmClearHistory(rt, rv)): return lt === rt && lv == rv
-        case let (.biometricConfirmLogout(lt, lv), .biometricConfirmLogout(rt, rv)): return lt === rt && lv == rv
-        case let (.defaultEmojisFirst(lt, lv), .defaultEmojisFirst(rt, rv)): return lt === rt && lv == rv
-        case let (.resetSettings(lt), .resetSettings(rt)): return lt === rt
-        default: return false
+        case let (.header(ls, lt), .header(rs, rt)):
+            return ls == rs && lt == rt
+        case let (.toggle(ls, li, lt, lsub, lv, le), .toggle(rs, ri, rt, rsub, rv, re)):
+            return ls == rs && li == ri && lt == rt && lsub == rsub && lv == rv && le == re
+        case let (.disclosure(ls, li, lt), .disclosure(rs, ri, rt)):
+            return ls == rs && li == ri && lt == rt
+        case let (.reset(ls, li, lt), .reset(rs, ri, rt)):
+            return ls == rs && li == ri && lt == rt
+        case let (.footer(ls, lt), .footer(rs, rt)):
+            return ls == rs && lt == rt
+        default:
+            return false
         }
     }
 
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
-        let args = arguments as! ClearSettingsArguments
+        let args = arguments as! ClearArguments
         switch self {
-        case let .compactChatList(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Compact Chat List", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateCompactChatList(value)
-            })
-        case let .compactFolderNames(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Compact Folder Names", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateCompactFolderNames(value)
-            })
-        case let .allChatsHidden(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide All Chats Folder", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateAllChatsHidden(value)
-            })
-        case let .hideTabBar(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Tab Bar", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideTabBar(value)
-            })
-        case let .showTabNames(_, value, hideTabBar):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Tab Names", value: value, enabled: !hideTabBar, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateShowTabNames(value)
-            })
-        case let .wideTabBar(_, value, hideTabBar):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Wide Tab Bar", value: value, enabled: !hideTabBar, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateWideTabBar(value)
-            })
-        case let .tabBarSearchEnabled(_, value, hideTabBar):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Tab Bar Search", value: value, enabled: !hideTabBar, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateTabBarSearchEnabled(value)
-            })
-        case let .wideChannelPosts(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Wide Channel Posts", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateWideChannelPosts(value)
-            })
-        case let .hideChannelBottomButton(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Channel Bottom Button", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideChannelBottomButton(value)
-            })
-        case let .disableScrollToNextChannel(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Disable Scroll to Next Channel", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateDisableScrollToNextChannel(value)
-            })
-        case let .hideStarReactionButton(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Star Reaction Button", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideStarReactionButton(value)
-            })
-        case let .hideStarReactionCount(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Star Reaction Count", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideStarReactionCount(value)
-            })
-        case let .collapseLongMessages(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Collapse Long Messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateCollapseLongMessages(value)
-            })
-        case let .fakeGlass(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Fake Glass (Legacy UI)", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateFakeGlass(value)
-            })
-        case let .forceClearGlass(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Force Clear Glass", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateForceClearGlass(value)
-            })
-        case let .showForwardedTime(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Forwarded Time", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateShowForwardedTime(value)
-            })
-        case let .timeOnServiceMessages(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Time on Service Messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateTimeOnServiceMessages(value)
-            })
-        case let .secondsInMessages(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Seconds in Messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateSecondsInMessages(value)
-            })
-        case let .doubleTapToEdit(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Double Tap to Edit", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateDoubleTapToEdit(value)
-            })
-        case let .blockCloudDrafts(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Block Cloud Drafts", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateBlockCloudDrafts(value)
-            })
-        case let .warnPollsRevote(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Warn Polls Revote", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateWarnPollsRevote(value)
-            })
-        case let .stripTrackingParams(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Strip Tracking Params", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateStripTrackingParams(value)
-            })
-        case let .replacePreviewLinks(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Replace Preview Links", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateReplacePreviewLinks(value)
-            })
-        case let .confirmInternalLinks(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Confirm Internal Links", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateConfirmInternalLinks(value)
-            })
-        case let .hideContextMenuReply(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Reply", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideContextMenuReply(value)
-            })
-        case let .hideContextMenuPin(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Pin", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideContextMenuPin(value)
-            })
-        case let .hideContextMenuForward(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Forward", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideContextMenuForward(value)
-            })
-        case let .hideContextMenuReport(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Report", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideContextMenuReport(value)
-            })
-        case let .hideContextMenuSelect(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Select", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideContextMenuSelect(value)
-            })
-        case let .showProfileId(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Profile ID", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateShowProfileId(value)
-            })
-        case let .showDC(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Datacenter", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateShowDC(value)
-            })
-        case let .showPackOwner(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Pack Owner", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateShowPackOwner(value)
-            })
-        case let .hidePhoneInSettings(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Phone in My Profile", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHidePhoneInSettings(value)
-            })
-        case let .disableGalleryCamera(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Disable Gallery Camera", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateDisableGalleryCamera(value)
-            })
-        case let .disableStoryCameraSwipe(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Disable Story Camera Swipe", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateDisableStoryCameraSwipe(value)
-            })
-        case let .flatStickerCorners(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Flat Sticker Corners", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateFlatStickerCorners(value)
-            })
-        case let .saveStickerToPhotos(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Save Sticker to Photos", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateSaveStickerToPhotos(value)
-            })
-        case let .copyImageInGallery(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Copy Image in Gallery", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateCopyImageInGallery(value)
-            })
-        case let .videoMessageCameraSelection(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Choose Camera for Video Messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateVideoMessageCameraSelection(value)
-            })
-        case let .hideStories(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Stories", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideStories(value)
-            })
-        case let .hideAiFeatures(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide AI Features", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideAiFeatures(value)
-            })
-        case let .hideSponsoredMessages(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Sponsored Messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideSponsoredMessages(value)
-            })
-        case let .hideSimilarChannels(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Similar Channels", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideSimilarChannels(value)
-            })
-        case let .confirmCalls(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Confirm Calls", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateConfirmCalls(value)
-            })
-        case let .biometricConfirmDeleteChat(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Biometric Confirm: Delete Chat", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateBiometricConfirmDeleteChat(value)
-            })
-        case let .biometricConfirmClearHistory(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Biometric Confirm: Clear History", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateBiometricConfirmClearHistory(value)
-            })
-        case let .biometricConfirmLogout(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Biometric Confirm: Logout", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateBiometricConfirmLogout(value)
-            })
-        case let .defaultEmojisFirst(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Default Emojis First", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateDefaultEmojisFirst(value)
-            })
-        case let .disableContactsTab(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Contacts Tab", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateDisableContactsTab(value)
-            })
-        case let .disableCallsButton(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Call Button", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateDisableCallsButton(value)
-            })
-        case let .showAudioFormatBitrate(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Audio Format & Bitrate", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateShowAudioFormatBitrate(value)
-            })
-        case let .allChatsTitleLengthOverride(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "All Chats Title Length Override (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
-        case let .fontSizeOverride(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Font Size Override", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateFontSizeOverride(value)
-            })
-        case let .searchByUserId(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Search by User ID (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
-        case let .adminLogsImprovements(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Admin Logs Improvements (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
-        case let .paranoiaMode(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Paranoia Mode (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
-        case let .showChannelPostAuthor(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Show Channel Post Author (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
-        case let .hideChannelJoinRequests(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Channel Join Requests", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateHideChannelJoinRequests(value)
-            })
-        case let .fasterFileLoad(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Faster File Load", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                args.updateFasterFileLoad(value)
-            })
-        case let .videoCircleAudioSource(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Video Circle Audio Source (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
-        case let .videoQualityOriginalToggle(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Video Quality Original Toggle (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
-        case let .sendVideoAsCircle(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Send Video as Circle (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
-        case let .hidePremiumStarsGifts(_, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide Premium/Stars/Gifts (soon)", value: value, enabled: false, sectionId: self.section, style: .blocks, updated: { _ in })
-        case .resetSettings:
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: "Reset Settings", label: "", sectionId: self.section, style: .blocks, action: {
-                args.resetSettings()
-            })
+        case let .header(_, text):
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
+        case let .footer(_, text):
+            return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
+        case let .toggle(section, index, title, subtitle, value, enabled):
+            let toggle = args.screen.sections[section].toggle(at: index)
+            return ItemListSwitchItem(
+                presentationData: presentationData,
+                systemStyle: .glass,
+                title: title,
+                text: subtitle,
+                value: value,
+                enabled: enabled,
+                sectionId: self.section,
+                style: .blocks,
+                updated: { value in
+                    if let toggle {
+                        args.updateToggle(toggle, value)
+                    }
+                }
+            )
+        case let .disclosure(section, index, title):
+            var icon: UIImage?
+            if case let .screen(screen) = args.screen.sections[section].rows[index] {
+                icon = screen.icon
+            }
+            return ItemListDisclosureItem(
+                presentationData: presentationData,
+                systemStyle: .glass,
+                icon: icon,
+                title: title,
+                label: "",
+                sectionId: self.section,
+                style: .blocks,
+                action: {
+                    args.openRow(section, index)
+                }
+            )
+        case let .reset(_, _, title):
+            return ItemListActionItem(
+                presentationData: presentationData,
+                systemStyle: .glass,
+                title: title,
+                kind: .destructive,
+                alignment: .natural,
+                sectionId: self.section,
+                style: .blocks,
+                action: {
+                    args.reset()
+                }
+            )
         }
     }
 }
 
-private struct ClearSettingsArguments {
+private final class ClearArguments {
     let context: AccountContext
-    let updateCompactChatList: (Bool) -> Void
-    let updateCompactFolderNames: (Bool) -> Void
-    let updateAllChatsHidden: (Bool) -> Void
-    let updateHideTabBar: (Bool) -> Void
-    let updateShowTabNames: (Bool) -> Void
-    let updateWideTabBar: (Bool) -> Void
-    let updateTabBarSearchEnabled: (Bool) -> Void
-    let updateWideChannelPosts: (Bool) -> Void
-    let updateHideChannelBottomButton: (Bool) -> Void
-    let updateDisableScrollToNextChannel: (Bool) -> Void
-    // let updateShowInlineReactions: (Bool) -> Void
-    let updateHideStarReactionButton: (Bool) -> Void
-    let updateHideStarReactionCount: (Bool) -> Void
-    let updateCollapseLongMessages: (Bool) -> Void
-    let updateShowForwardedTime: (Bool) -> Void
-    let updateTimeOnServiceMessages: (Bool) -> Void
-    let updateSecondsInMessages: (Bool) -> Void
-    let updateDoubleTapToEdit: (Bool) -> Void
-    let updateBlockCloudDrafts: (Bool) -> Void
-    let updateWarnPollsRevote: (Bool) -> Void
-    let updateStripTrackingParams: (Bool) -> Void
-    let updateReplacePreviewLinks: (Bool) -> Void
-    let updateConfirmInternalLinks: (Bool) -> Void
-    let updateHideContextMenuReply: (Bool) -> Void
-    let updateHideContextMenuPin: (Bool) -> Void
-    let updateHideContextMenuForward: (Bool) -> Void
-    let updateHideContextMenuReport: (Bool) -> Void
-    let updateHideContextMenuSelect: (Bool) -> Void
-    let updateShowProfileId: (Bool) -> Void
-    let updateShowDC: (Bool) -> Void
-    let updateShowPackOwner: (Bool) -> Void
-    let updateHidePhoneInSettings: (Bool) -> Void
-    let updateDisableGalleryCamera: (Bool) -> Void
-    let updateDisableStoryCameraSwipe: (Bool) -> Void
-    let updateFlatStickerCorners: (Bool) -> Void
-    let updateSaveStickerToPhotos: (Bool) -> Void
-    let updateCopyImageInGallery: (Bool) -> Void
-    let updateVideoMessageCameraSelection: (Bool) -> Void
-    let updateShowAudioFormatBitrate: (Bool) -> Void
-    let updateHideStories: (Bool) -> Void
-    let updateHideAiFeatures: (Bool) -> Void
-    let updateHideSponsoredMessages: (Bool) -> Void
-    let updateHideSimilarChannels: (Bool) -> Void
-    let updateHideChannelJoinRequests: (Bool) -> Void
-    let updateFasterFileLoad: (Bool) -> Void
-    let updateConfirmCalls: (Bool) -> Void
-    let updateBiometricConfirmDeleteChat: (Bool) -> Void
-    let updateBiometricConfirmClearHistory: (Bool) -> Void
-    let updateBiometricConfirmLogout: (Bool) -> Void
-    let updateDefaultEmojisFirst: (Bool) -> Void
-    let updateDisableContactsTab: (Bool) -> Void
-    let updateDisableCallsButton: (Bool) -> Void
-    let updateFakeGlass: (Bool) -> Void
-    let updateForceClearGlass: (Bool) -> Void
-    let updateFontSizeOverride: (Bool) -> Void
-    let resetSettings: () -> Void
+    let screen: ClearScreen
+    let updateToggle: (ClearToggle, Bool) -> Void
+    let openRow: (Int, Int) -> Void
+    let reset: () -> Void
+
+    init(
+        context: AccountContext,
+        screen: ClearScreen,
+        updateToggle: @escaping (ClearToggle, Bool) -> Void,
+        openRow: @escaping (Int, Int) -> Void,
+        reset: @escaping () -> Void
+    ) {
+        self.context = context
+        self.screen = screen
+        self.updateToggle = updateToggle
+        self.openRow = openRow
+        self.reset = reset
+    }
 }
 
-public func clearSettingsController(context: AccountContext) -> ViewController {
+private func clearEntries(screen: ClearScreen, settings: ClearConfigSettings, experimental: ExperimentalUISettings) -> [ClearEntry] {
+    var entries: [ClearEntry] = []
+    for (sectionIndex, section) in screen.sections.enumerated() {
+        if let header = section.header {
+            entries.append(.header(section: sectionIndex, text: header))
+        }
+        for (rowIndex, row) in section.rows.enumerated() {
+            switch row {
+            case let .toggle(toggle):
+                let enabled: Bool
+                if case .unimplemented = toggle.storage {
+                    enabled = false
+                } else {
+                    enabled = toggle.isEnabled?(settings) ?? true
+                }
+                entries.append(.toggle(
+                    section: sectionIndex,
+                    index: rowIndex,
+                    title: toggle.title,
+                    subtitle: toggle.subtitle?(settings),
+                    value: toggle.value(settings, experimental),
+                    enabled: enabled
+                ))
+            case let .screen(child):
+                entries.append(.disclosure(section: sectionIndex, index: rowIndex, title: child.title))
+            case let .reset(title):
+                entries.append(.reset(section: sectionIndex, index: rowIndex, title: title))
+            }
+        }
+        if let footer = section.footer?(settings) {
+            entries.append(.footer(section: sectionIndex, text: footer))
+        }
+    }
+    return entries
+}
+
+// MARK: - Controller
+
+private func clearScreenController(context: AccountContext, screen: ClearScreen) -> ViewController {
+    var pushImpl: ((ViewController) -> Void)?
+    var presentImpl: ((ViewController) -> Void)?
     var askForRestartImpl: (() -> Void)?
 
-    let arguments = ClearSettingsArguments(
+    let accountManager = context.sharedContext.accountManager
+
+    let arguments = ClearArguments(
         context: context,
-        updateCompactChatList: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.compactChatList = value; return s }.start()
-            askForRestartImpl?()
+        screen: screen,
+        updateToggle: { toggle, value in
+            switch toggle.storage {
+            case let .config(keyPath):
+                let _ = ClearConfig.update(accountManager: accountManager) { current in
+                    var updated = current
+                    updated[keyPath: keyPath] = value
+                    return updated
+                }.start()
+            case let .experimental(keyPath):
+                let _ = accountManager.transaction { transaction in
+                    transaction.updateSharedData(ApplicationSpecificSharedDataKeys.experimentalUISettings) { entry in
+                        var settings = entry?.get(ExperimentalUISettings.self) ?? ExperimentalUISettings.defaultSettings
+                        settings[keyPath: keyPath] = value
+                        return EnginePreferencesEntry(settings)
+                    }
+                }.start()
+            case .unimplemented:
+                return
+            }
+            if toggle.requiresRestart {
+                askForRestartImpl?()
+            }
         },
-        updateCompactFolderNames: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.compactFolderNames = value; return s }.start()
-            askForRestartImpl?()
+        openRow: { sectionIndex, rowIndex in
+            if case let .screen(child) = screen.sections[sectionIndex].rows[rowIndex] {
+                pushImpl?(clearScreenController(context: context, screen: child))
+            }
         },
-        updateAllChatsHidden: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.allChatsHidden = value; return s }.start()
-            askForRestartImpl?()
-        },
-        updateHideTabBar: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideTabBar = value; return s }.start()
-            askForRestartImpl?()
-        },
-        updateShowTabNames: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showTabNames = value; return s }.start()
-            askForRestartImpl?()
-        },
-        updateWideTabBar: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.wideTabBar = value; return s }.start()
-            askForRestartImpl?()
-        },
-        updateTabBarSearchEnabled: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.tabBarSearchEnabled = value; return s }.start()
-        },
-        updateWideChannelPosts: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.wideChannelPosts = value; return s }.start()
-        },
-        updateHideChannelBottomButton: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideChannelBottomButton = value; return s }.start()
-        },
-        updateDisableScrollToNextChannel: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.disableScrollToNextChannel = value; return s }.start()
-        },
-        // updateShowInlineReactions: { value in
-        //     let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showInlineReactions = value; return s }.start()
-        // },
-        updateHideStarReactionButton: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideStarReactionButton = value; return s }.start()
-        },
-        updateHideStarReactionCount: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideStarReactionCount = value; return s }.start()
-        },
-        updateCollapseLongMessages: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.collapseLongMessages = value; return s }.start()
-        },
-        updateShowForwardedTime: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showForwardedTime = value; return s }.start()
-        },
-        updateTimeOnServiceMessages: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.timeOnServiceMessages = value; return s }.start()
-        },
-        updateSecondsInMessages: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.secondsInMessages = value; return s }.start()
-        },
-        updateDoubleTapToEdit: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.doubleTapToEdit = value; return s }.start()
-        },
-        updateBlockCloudDrafts: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.blockCloudDrafts = value; return s }.start()
-        },
-        updateWarnPollsRevote: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.warnPollsRevote = value; return s }.start()
-        },
-        updateStripTrackingParams: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.stripTrackingParams = value; return s }.start()
-        },
-        updateReplacePreviewLinks: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.replacePreviewLinks = value; return s }.start()
-        },
-        updateConfirmInternalLinks: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.confirmInternalLinks = value; return s }.start()
-        },
-        updateHideContextMenuReply: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideContextMenuReply = value; return s }.start()
-        },
-        updateHideContextMenuPin: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideContextMenuPin = value; return s }.start()
-        },
-        updateHideContextMenuForward: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideContextMenuForward = value; return s }.start()
-        },
-        updateHideContextMenuReport: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideContextMenuReport = value; return s }.start()
-        },
-        updateHideContextMenuSelect: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideContextMenuSelect = value; return s }.start()
-        },
-        updateShowProfileId: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showProfileId = value; return s }.start()
-        },
-        updateShowDC: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showDC = value; return s }.start()
-        },
-        updateShowPackOwner: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showPackOwner = value; return s }.start()
-        },
-        updateHidePhoneInSettings: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hidePhoneInSettings = value; return s }.start()
-            askForRestartImpl?()
-        },
-        updateDisableGalleryCamera: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.disableGalleryCamera = value; return s }.start()
-        },
-        updateDisableStoryCameraSwipe: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.disableStoryCameraSwipe = value; return s }.start()
-        },
-        updateFlatStickerCorners: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.flatStickerCorners = value; return s }.start()
-        },
-        updateSaveStickerToPhotos: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.saveStickerToPhotos = value; return s }.start()
-        },
-        updateCopyImageInGallery: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.copyImageInGallery = value; return s }.start()
-        },
-        updateVideoMessageCameraSelection: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.videoMessageCameraSelection = value; return s }.start()
-        },
-        updateShowAudioFormatBitrate: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.showAudioFormatBitrate = value; return s }.start()
-        },
-        updateHideStories: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideStories = value; return s }.start()
-        },
-        updateHideAiFeatures: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideAiFeatures = value; return s }.start()
-        },
-        updateHideSponsoredMessages: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideSponsoredMessages = value; return s }.start()
-        },
-        updateHideSimilarChannels: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideSimilarChannels = value; return s }.start()
-        },
-        updateHideChannelJoinRequests: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.hideChannelJoinRequests = value; return s }.start()
-        },
-        updateFasterFileLoad: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.fasterFileLoad = value; return s }.start()
-        },
-        updateConfirmCalls: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.confirmCalls = value; return s }.start()
-        },
-        updateBiometricConfirmDeleteChat: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.biometricConfirmDeleteChat = value; return s }.start()
-        },
-        updateBiometricConfirmClearHistory: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.biometricConfirmClearHistory = value; return s }.start()
-        },
-        updateBiometricConfirmLogout: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.biometricConfirmLogout = value; return s }.start()
-        },
-        updateDefaultEmojisFirst: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.defaultEmojisFirst = value; return s }.start()
-        },
-        updateDisableContactsTab: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.disableContactsTab = value; return s }.start()
-            askForRestartImpl?()
-        },
-        updateDisableCallsButton: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.disableCallsButton = value; return s }.start()
-        },
-        updateFakeGlass: { value in
-            let _ = context.sharedContext.accountManager.transaction { transaction in
-                transaction.updateSharedData(ApplicationSpecificSharedDataKeys.experimentalUISettings) { settings in
-                    var s = settings?.get(ExperimentalUISettings.self) ?? ExperimentalUISettings.defaultSettings
-                    s.fakeGlass = value
-                    return EnginePreferencesEntry(s)
-                }
-            }.start()
-        },
-        updateForceClearGlass: { value in
-            let _ = context.sharedContext.accountManager.transaction { transaction in
-                transaction.updateSharedData(ApplicationSpecificSharedDataKeys.experimentalUISettings) { settings in
-                    var s = settings?.get(ExperimentalUISettings.self) ?? ExperimentalUISettings.defaultSettings
-                    s.forceClearGlass = value
-                    return EnginePreferencesEntry(s)
-                }
-            }.start()
-        },
-        updateFontSizeOverride: { value in
-            let _ = ClearConfig.update(accountManager: context.sharedContext.accountManager) { var s = $0; s.fontSizeOverride = value; return s }.start()
-            askForRestartImpl?()
-        },
-        resetSettings: {
-            let _ = ClearConfig.reset(accountManager: context.sharedContext.accountManager).start()
+        reset: {
+            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+            presentImpl?(textAlertController(
+                context: context,
+                title: "Reset Cleargram Settings",
+                text: "Every Cleargram option goes back to its default. Your chats, accounts and Telegram's own settings are not affected.",
+                actions: [
+                    TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {}),
+                    TextAlertAction(type: .destructiveAction, title: "Reset", action: {
+                        let _ = ClearConfig.reset(accountManager: accountManager).start()
+                        askForRestartImpl?()
+                    })
+                ]
+            ))
         }
     )
 
-    let settingsSignal = clearConfigEntry(accountManager: context.sharedContext.accountManager)
-    let experimentalSignal = context.sharedContext.accountManager.sharedData(keys: Set([ApplicationSpecificSharedDataKeys.experimentalUISettings]))
+    let experimentalSignal = accountManager.sharedData(keys: Set([ApplicationSpecificSharedDataKeys.experimentalUISettings]))
     |> map { sharedData -> ExperimentalUISettings in
         sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? ExperimentalUISettings.defaultSettings
     }
 
-    let signal = combineLatest(context.sharedContext.presentationData, settingsSignal, experimentalSignal)
-    |> map { presentationData, settings, experimentalSettings -> (ItemListControllerState, (ItemListNodeState, Any)) in
-        let pd = ItemListPresentationData(presentationData)
-        var entries: [ClearSettingsEntry] = []
-        entries.append(.compactChatList(presentationData.theme, settings.compactChatList))
-        entries.append(.compactFolderNames(presentationData.theme, settings.compactFolderNames))
-        entries.append(.allChatsHidden(presentationData.theme, settings.allChatsHidden))
-        entries.append(.hideTabBar(presentationData.theme, settings.hideTabBar))
-        entries.append(.showTabNames(presentationData.theme, settings.showTabNames, settings.hideTabBar))
-        entries.append(.wideTabBar(presentationData.theme, settings.wideTabBar, settings.hideTabBar))
-        entries.append(.tabBarSearchEnabled(presentationData.theme, settings.tabBarSearchEnabled, settings.hideTabBar))
-        entries.append(.disableContactsTab(presentationData.theme, settings.disableContactsTab))
-        entries.append(.disableCallsButton(presentationData.theme, settings.disableCallsButton))
-        entries.append(.wideChannelPosts(presentationData.theme, settings.wideChannelPosts))
-        entries.append(.hideChannelBottomButton(presentationData.theme, settings.hideChannelBottomButton))
-        entries.append(.disableScrollToNextChannel(presentationData.theme, settings.disableScrollToNextChannel))
-        // entries.append(.showInlineReactions(presentationData.theme, settings.showInlineReactions))
-        entries.append(.hideStarReactionButton(presentationData.theme, settings.hideStarReactionButton))
-        entries.append(.hideStarReactionCount(presentationData.theme, settings.hideStarReactionCount))
-        entries.append(.collapseLongMessages(presentationData.theme, settings.collapseLongMessages))
-        entries.append(.showForwardedTime(presentationData.theme, settings.showForwardedTime))
-        entries.append(.timeOnServiceMessages(presentationData.theme, settings.timeOnServiceMessages))
-        entries.append(.secondsInMessages(presentationData.theme, settings.secondsInMessages))
-        entries.append(.doubleTapToEdit(presentationData.theme, settings.doubleTapToEdit))
-        entries.append(.blockCloudDrafts(presentationData.theme, settings.blockCloudDrafts))
-        entries.append(.warnPollsRevote(presentationData.theme, settings.warnPollsRevote))
-        entries.append(.stripTrackingParams(presentationData.theme, settings.stripTrackingParams))
-        entries.append(.replacePreviewLinks(presentationData.theme, settings.replacePreviewLinks))
-        entries.append(.confirmInternalLinks(presentationData.theme, settings.confirmInternalLinks))
-        entries.append(.hideContextMenuReply(presentationData.theme, settings.hideContextMenuReply))
-        entries.append(.hideContextMenuPin(presentationData.theme, settings.hideContextMenuPin))
-        entries.append(.hideContextMenuForward(presentationData.theme, settings.hideContextMenuForward))
-        entries.append(.hideContextMenuReport(presentationData.theme, settings.hideContextMenuReport))
-        entries.append(.hideContextMenuSelect(presentationData.theme, settings.hideContextMenuSelect))
-        entries.append(.showProfileId(presentationData.theme, settings.showProfileId))
-        entries.append(.showDC(presentationData.theme, settings.showDC))
-        entries.append(.showPackOwner(presentationData.theme, settings.showPackOwner))
-        entries.append(.hidePhoneInSettings(presentationData.theme, settings.hidePhoneInSettings))
-        entries.append(.disableGalleryCamera(presentationData.theme, settings.disableGalleryCamera))
-        entries.append(.disableStoryCameraSwipe(presentationData.theme, settings.disableStoryCameraSwipe))
-        entries.append(.flatStickerCorners(presentationData.theme, settings.flatStickerCorners))
-        entries.append(.saveStickerToPhotos(presentationData.theme, settings.saveStickerToPhotos))
-        entries.append(.copyImageInGallery(presentationData.theme, settings.copyImageInGallery))
-        entries.append(.videoMessageCameraSelection(presentationData.theme, settings.videoMessageCameraSelection))
-        entries.append(.showAudioFormatBitrate(presentationData.theme, settings.showAudioFormatBitrate))
-        entries.append(.fasterFileLoad(presentationData.theme, settings.fasterFileLoad))
-        entries.append(.videoCircleAudioSource(presentationData.theme, settings.videoCircleAudioSource))
-        entries.append(.videoQualityOriginalToggle(presentationData.theme, settings.videoQualityOriginalToggle))
-        entries.append(.sendVideoAsCircle(presentationData.theme, settings.sendVideoAsCircle))
-        entries.append(.allChatsTitleLengthOverride(presentationData.theme, settings.allChatsTitleLengthOverride != 0))
-        entries.append(.hideStories(presentationData.theme, settings.hideStories))
-        entries.append(.hideAiFeatures(presentationData.theme, settings.hideAiFeatures))
-        entries.append(.hideSponsoredMessages(presentationData.theme, settings.hideSponsoredMessages))
-        entries.append(.hideSimilarChannels(presentationData.theme, settings.hideSimilarChannels))
-        entries.append(.confirmCalls(presentationData.theme, settings.confirmCalls))
-        entries.append(.biometricConfirmDeleteChat(presentationData.theme, settings.biometricConfirmDeleteChat))
-        entries.append(.biometricConfirmClearHistory(presentationData.theme, settings.biometricConfirmClearHistory))
-        entries.append(.biometricConfirmLogout(presentationData.theme, settings.biometricConfirmLogout))
-        entries.append(.defaultEmojisFirst(presentationData.theme, settings.defaultEmojisFirst))
-        entries.append(.fakeGlass(presentationData.theme, experimentalSettings.fakeGlass))
-        entries.append(.forceClearGlass(presentationData.theme, experimentalSettings.forceClearGlass))
-        entries.append(.searchByUserId(presentationData.theme, settings.searchByUserId))
-        entries.append(.adminLogsImprovements(presentationData.theme, settings.adminLogsImprovements))
-        entries.append(.paranoiaMode(presentationData.theme, settings.paranoiaMode))
-        entries.append(.showChannelPostAuthor(presentationData.theme, settings.showChannelPostAuthor))
-        entries.append(.hideChannelJoinRequests(presentationData.theme, settings.hideChannelJoinRequests))
-        entries.append(.hidePremiumStarsGifts(presentationData.theme, settings.hidePremiumStarsGifts))
-        entries.append(.fontSizeOverride(presentationData.theme, settings.fontSizeOverride))
-        entries.append(.resetSettings(presentationData.theme))
-        let state = ItemListControllerState(presentationData: pd, title: .text("Cleargram Settings"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
-        return (state, (ItemListNodeState(presentationData: pd, entries: entries, style: .blocks, animateChanges: true), arguments))
+    let signal = combineLatest(
+        context.sharedContext.presentationData,
+        clearConfigEntry(accountManager: accountManager),
+        experimentalSignal
+    )
+    |> map { presentationData, settings, experimental -> (ItemListControllerState, (ItemListNodeState, Any)) in
+        let itemListPresentationData = ItemListPresentationData(presentationData)
+        let state = ItemListControllerState(
+            presentationData: itemListPresentationData,
+            title: .text(screen.title),
+            leftNavigationButton: nil,
+            rightNavigationButton: nil,
+            backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back)
+        )
+        let nodeState = ItemListNodeState(
+            presentationData: itemListPresentationData,
+            entries: clearEntries(screen: screen, settings: settings, experimental: experimental),
+            style: .blocks,
+            animateChanges: true
+        )
+        return (state, (nodeState, arguments))
     }
 
     let controller = ItemListController(context: context, state: signal)
 
+    pushImpl = { [weak controller] child in
+        (controller?.navigationController as? NavigationController)?.pushViewController(child)
+    }
+    presentImpl = { [weak controller] alert in
+        controller?.present(alert, in: .window(.root))
+    }
     askForRestartImpl = { [weak controller] in
-        guard let controller else { return }
+        guard let controller else {
+            return
+        }
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-        let undoController = UndoOverlayController(
+        controller.present(UndoOverlayController(
             presentationData: presentationData,
             content: .info(title: nil, text: "Restart required to apply changes", timeout: nil, customUndoText: "Restart Now"),
             elevatedLayout: false,
             action: { action in
-                if action == .undo { exit(0) }
+                if action == .undo {
+                    exit(0)
+                }
                 return true
             }
-        )
-        controller.present(undoController, in: .current)
+        ), in: .current)
     }
 
     return controller
+}
+
+public func clearSettingsController(context: AccountContext) -> ViewController {
+    return clearScreenController(context: context, screen: clearRootScreen())
+}
+
+// MARK: - Icons
+
+// Same renderer stock settings rows use — a tinted glyph on a rounded gradient tile.
+private enum ClearIcon {
+    static let appearance = renderSettingsIcon(name: "Item List/Icons/Brush", backgroundColors: [UIColor(rgb: 0x32ADE6)])
+    static let chatList = renderSettingsIcon(name: "Item List/Icons/Folder", backgroundColors: [UIColor(rgb: 0x0079FF)])
+    static let tabBar = renderSettingsIcon(name: "Item List/Icons/Topics", backgroundColors: [UIColor(rgb: 0x00C7BE)])
+    static let chats = renderSettingsIcon(name: "Item List/Icons/Chat", backgroundColors: [UIColor(rgb: 0x5E5CE6)])
+    static let channels = renderSettingsIcon(name: "Item List/Icons/Channel", backgroundColors: [UIColor(rgb: 0xFF9F0A)])
+    static let media = renderSettingsIcon(name: "Item List/Icons/Photo", backgroundColors: [UIColor(rgb: 0xFF2D55)])
+    static let links = renderSettingsIcon(name: "Item List/Icons/Link", backgroundColors: [UIColor(rgb: 0x34C759)])
+    static let messageMenu = renderSettingsIcon(name: "Item List/Icons/Hand", backgroundColors: [UIColor(rgb: 0xAF52DE)])
+    static let profile = renderSettingsIcon(name: "Item List/Icons/Profile", backgroundColors: [UIColor(rgb: 0xFF453A)])
+    static let privacy = renderSettingsIcon(name: "Item List/Icons/Privacy", backgroundColors: [UIColor(rgb: 0x8E8E93)])
+    static let debloat = renderSettingsIcon(name: "Item List/Icons/NoAds", backgroundColors: [UIColor(rgb: 0xFFCC02)])
+}
+
+// MARK: - The settings tree
+
+private func clearRootScreen() -> ClearScreen {
+    return ClearScreen(title: "Cleargram", sections: [
+        ClearSection(
+            footer: "Every option is off by default — with nothing enabled Cleargram behaves exactly like stock Telegram.",
+            rows: [
+                .screen(clearAppearanceScreen()),
+                .screen(clearChatListScreen()),
+                .screen(clearTabBarScreen()),
+                .screen(clearChatsScreen()),
+                .screen(clearChannelsScreen()),
+                .screen(clearMediaScreen()),
+                .screen(clearLinksScreen())
+            ]
+        ),
+        ClearSection(
+            rows: [
+                .screen(clearMessageMenuScreen()),
+                .screen(clearProfileScreen()),
+                .screen(clearPrivacyScreen()),
+                .screen(clearDebloatScreen())
+            ]
+        ),
+        ClearSection(
+            footer: "Asks for confirmation first.",
+            rows: [
+                .reset(title: "Reset All Settings")
+            ]
+        )
+    ])
+}
+
+private func clearAppearanceScreen() -> ClearScreen {
+    return ClearScreen(title: "Appearance", icon: ClearIcon.appearance, sections: [
+        ClearSection(
+            header: "GLASS",
+            footer: "Two of Telegram's own experimental options, surfaced here. Fake Glass draws the iOS 26 glass look on devices that don't support the real thing; Force Clear Glass drops the tint from glass surfaces so they stay fully transparent.",
+            rows: [
+                .toggle(ClearToggle("Fake Glass", .experimental(\.fakeGlass))),
+                .toggle(ClearToggle("Force Clear Glass", .experimental(\.forceClearGlass)))
+            ]
+        ),
+        ClearSection(
+            header: "TEXT",
+            footer: "Uses the largest message font (19 pt) in chats, leaving the chat list and Settings at their normal size. Requires a restart.",
+            rows: [
+                .toggle(ClearToggle("Larger Text in Chats", .config(\.fontSizeOverride), requiresRestart: true))
+            ]
+        )
+    ])
+}
+
+private func clearChatListScreen() -> ClearScreen {
+    return ClearScreen(title: "Chat List", icon: ClearIcon.chatList, sections: [
+        ClearSection(
+            header: "ROWS",
+            footer: "Compact rows use a smaller avatar and tighter spacing, so more chats fit on screen. Requires a restart.",
+            rows: [
+                .toggle(ClearToggle("Compact Rows", .config(\.compactChatList), requiresRestart: true))
+            ]
+        ),
+        ClearSection(
+            header: "FOLDER TABS",
+            footer: "Shrinks the folder tabs above the chat list and lets you drop the “All Chats” tab — swiping right from the first folder still gets you there. Requires a restart.",
+            rows: [
+                .toggle(ClearToggle("Compact Folder Names", .config(\.compactFolderNames), requiresRestart: true)),
+                .toggle(ClearToggle("Hide “All Chats” Tab", .config(\.allChatsHidden), requiresRestart: true)),
+                .toggle(ClearToggle.soon("Shorten “All Chats” Title", "Planned: cut the tab title down to a fixed length."))
+            ]
+        ),
+        ClearSection(
+            header: "STORIES",
+            footer: "Removes the stories strip above the chat list, and the pull-down gesture that opens the story camera.",
+            rows: [
+                .toggle(ClearToggle("Hide Stories", .config(\.hideStories))),
+                .toggle(ClearToggle("Disable Swipe to Story Camera", .config(\.disableStoryCameraSwipe)))
+            ]
+        )
+    ])
+}
+
+private func clearTabBarScreen() -> ClearScreen {
+    return ClearScreen(title: "Tab Bar", icon: ClearIcon.tabBar, sections: [
+        ClearSection(
+            header: "TAB BAR",
+            dynamicFooter: { settings in
+                if settings.hideTabBar {
+                    return "The bar at the bottom of the screen is gone; Settings and Contacts stay reachable from the chat list. The options below apply only while the bar is visible. Requires a restart."
+                } else {
+                    return "Hiding the bar frees the bottom of the screen — Settings and Contacts stay reachable from the chat list. Full width keeps the bar stretched across the screen; with it off the bar narrows when you have fewer than four tabs. Requires a restart."
+                }
+            },
+            rows: [
+                .toggle(ClearToggle("Hide Tab Bar", .config(\.hideTabBar), requiresRestart: true)),
+                .toggle(ClearToggle("Show Tab Names", .config(\.showTabNames), isEnabled: { !$0.hideTabBar }, requiresRestart: true)),
+                .toggle(ClearToggle("Full-Width Tab Bar", .config(\.wideTabBar), isEnabled: { !$0.hideTabBar }, requiresRestart: true))
+            ]
+        ),
+        ClearSection(
+            header: "TABS",
+            footer: "Turning the Search tab off removes search from the tab bar entirely — there is no other entry point for it yet. Hiding the Contacts tab requires a restart.",
+            rows: [
+                .toggle(ClearToggle("Search Tab", .config(\.tabBarSearchEnabled), isEnabled: { !$0.hideTabBar })),
+                .toggle(ClearToggle("Hide Contacts Tab", .config(\.disableContactsTab), requiresRestart: true))
+            ]
+        )
+    ])
+}
+
+private func clearChatsScreen() -> ClearScreen {
+    return ClearScreen(title: "Chats", icon: ClearIcon.chats, sections: [
+        ClearSection(
+            header: "MESSAGES",
+            footer: "Very long messages get a “Show more” button instead of filling the whole screen. Forwarded messages can show when the original was sent, next to who sent it.",
+            rows: [
+                .toggle(ClearToggle("Collapse Long Messages", .config(\.collapseLongMessages))),
+                .toggle(ClearToggle("Original Time on Forwards", .config(\.showForwardedTime)))
+            ]
+        ),
+        ClearSection(
+            header: "TIMESTAMPS",
+            dynamicFooter: { settings in
+                let sample = settings.secondsInMessages ? "12:30:45" : "12:30"
+                return "Timestamps under messages look like \(sample). Service messages (“X added Y”) normally carry no time at all."
+            },
+            rows: [
+                .toggle(ClearToggle("Show Seconds", .config(\.secondsInMessages))),
+                .toggle(ClearToggle("Time on Service Messages", .config(\.timeOnServiceMessages)))
+            ]
+        ),
+        ClearSection(
+            header: "REACTIONS",
+            footer: "Removes the paid Star reaction from the reaction bar, and its counter from messages that already have one.",
+            rows: [
+                .toggle(ClearToggle("Hide Star Reaction", .config(\.hideStarReactionButton))),
+                .toggle(ClearToggle("Hide Star Reaction Count", .config(\.hideStarReactionCount)))
+            ]
+        ),
+        ClearSection(
+            header: "EDITING & DRAFTS",
+            footer: "Double-tap your own message to open the editor, instead of holding it and picking Edit. With cloud drafts off, text you started typing stays on this device and is never uploaded — it won't follow you to another device either.",
+            rows: [
+                .toggle(ClearToggle("Double-Tap to Edit", .config(\.doubleTapToEdit))),
+                .toggle(ClearToggle("Keep Drafts on This Device", .config(\.blockCloudDrafts)))
+            ]
+        ),
+        ClearSection(
+            header: "POLLS",
+            footer: "Asks before changing a vote you already cast — the retract is easy to trigger by accident and is visible to the poll's author.",
+            rows: [
+                .toggle(ClearToggle("Confirm Vote Change", .config(\.warnPollsRevote)))
+            ]
+        ),
+        ClearSection(
+            header: "EMOJI KEYBOARD",
+            footer: "Opens the emoji keyboard on the standard emoji tab instead of recent or custom sets.",
+            rows: [
+                .toggle(ClearToggle("Standard Emoji First", .config(\.defaultEmojisFirst)))
+            ]
+        ),
+        ClearSection(
+            header: "SEARCH",
+            rows: [
+                .toggle(ClearToggle.soon("Search by User ID", "Planned: find a member's messages by numeric id in groups that hide their member list, where searching by @username fails."))
+            ]
+        )
+    ])
+}
+
+private func clearChannelsScreen() -> ClearScreen {
+    return ClearScreen(title: "Channels", icon: ClearIcon.channels, sections: [
+        ClearSection(
+            header: "POSTS",
+            footer: "Full-width posts drop the bubble and stretch channel messages across the screen.",
+            rows: [
+                .toggle(ClearToggle("Full-Width Posts", .config(\.wideChannelPosts))),
+                .toggle(ClearToggle.soon("Show Real Author", "Planned: reveal the account behind a message sent under a channel's identity."))
+            ]
+        ),
+        ClearSection(
+            header: "NAVIGATION",
+            footer: "Scrolling past the last post no longer pulls you into the next channel.",
+            rows: [
+                .toggle(ClearToggle("Disable Scroll to Next Channel", .config(\.disableScrollToNextChannel)))
+            ]
+        ),
+        ClearSection(
+            header: "PREVIEW",
+            footer: "Hides the Join / Mute bar at the bottom of a channel you haven't joined, leaving the posts alone.",
+            rows: [
+                .toggle(ClearToggle("Hide Bottom Action Bar", .config(\.hideChannelBottomButton)))
+            ]
+        ),
+        ClearSection(
+            header: "ADMIN",
+            rows: [
+                .toggle(ClearToggle.soon("Better Recent Actions", "Planned: show edited messages as a diff in the admin log, instead of truncating the original."))
+            ]
+        )
+    ])
+}
+
+private func clearMediaScreen() -> ClearScreen {
+    return ClearScreen(title: "Media & Stickers", icon: ClearIcon.media, sections: [
+        ClearSection(
+            header: "PHOTOS",
+            footer: "Adds Copy to the “⋯” menu of the fullscreen viewer. Stock Telegram only copies from the message menu, and only when the message holds a single photo without a caption.",
+            rows: [
+                .toggle(ClearToggle("Copy Image in Gallery", .config(\.copyImageInGallery)))
+            ]
+        ),
+        ClearSection(
+            header: "CAMERA",
+            footer: "Removes the live camera tile from the attachment picker, and lets you pick the front or back camera before recording a video message.",
+            rows: [
+                .toggle(ClearToggle("Hide Camera in Picker", .config(\.disableGalleryCamera))),
+                .toggle(ClearToggle("Choose Camera for Video Messages", .config(\.videoMessageCameraSelection)))
+            ]
+        ),
+        ClearSection(
+            header: "VIDEO",
+            rows: [
+                .toggle(ClearToggle.soon("Audio Source for Video Messages", "Planned: record a video message through a Bluetooth or external mic instead of the built-in one.")),
+                .toggle(ClearToggle.soon("Original Video Quality", "Planned: send a video as-is, skipping re-encoding.")),
+                .toggle(ClearToggle.soon("Send Video as Video Message", "Planned: turn a video from the gallery into a round video message."))
+            ]
+        ),
+        ClearSection(
+            header: "AUDIO",
+            dynamicFooter: { settings in
+                if settings.showAudioFormatBitrate {
+                    return "The music player subtitle reads like “Artist · MP3 320 kbps”."
+                } else {
+                    return "Shows the codec and bitrate of a track next to the artist in the music player."
+                }
+            },
+            rows: [
+                .toggle(ClearToggle("Show Codec & Bitrate", .config(\.showAudioFormatBitrate)))
+            ]
+        ),
+        ClearSection(
+            header: "TRANSFERS",
+            footer: "Downloads and uploads in larger chunks (1 MB down, 512 KB up instead of 512/256 KB). Faster on a stable connection; on a flaky one a failed chunk costs more to retry.",
+            rows: [
+                .toggle(ClearToggle("Faster File Transfer", .config(\.fasterFileLoad)))
+            ]
+        ),
+        ClearSection(
+            header: "STICKERS",
+            footer: "Save to Photos appears in the context menu of static stickers. Square corners apply when you create a sticker from a photo. Show Pack Owner adds an entry to a sticker pack's “⋯” menu that opens the profile of whoever uploaded it.",
+            rows: [
+                .toggle(ClearToggle("Save Sticker to Photos", .config(\.saveStickerToPhotos))),
+                .toggle(ClearToggle("Square Sticker Corners", .config(\.flatStickerCorners))),
+                .toggle(ClearToggle("Show Pack Owner", .config(\.showPackOwner)))
+            ]
+        )
+    ])
+}
+
+private func clearLinksScreen() -> ClearScreen {
+    return ClearScreen(title: "Links", icon: ClearIcon.links, sections: [
+        ClearSection(
+            header: "TRACKING",
+            dynamicFooter: { settings in
+                if settings.stripTrackingParams {
+                    return "example.com/article?utm_source=telegram&fbclid=… becomes example.com/article.\n\nApplies to the link preview while you compose, and to Copy on a link. The text you actually send is left as you typed it."
+                } else {
+                    return "Removes utm_*, fbclid, igshid, ref and similar parameters from links.\n\nApplies to the link preview while you compose, and to Copy on a link. The text you actually send is left as you typed it."
+                }
+            },
+            rows: [
+                .toggle(ClearToggle("Strip Tracking Parameters", .config(\.stripTrackingParams)))
+            ]
+        ),
+        ClearSection(
+            header: "PREVIEWS",
+            footer: "Some sites block Telegram from building a preview. This swaps the host for a mirror that doesn't: x/twitter → fixupx, instagram → kkclip, tiktok → kktiktok, reddit → rxddit, bsky → fxbsky, pixiv → phixiv.",
+            rows: [
+                .toggle(ClearToggle("Rewrite Links for Previews", .config(\.replacePreviewLinks)))
+            ]
+        ),
+        ClearSection(
+            header: "TELEGRAM LINKS",
+            footer: "Asks before opening a t.me or tg:// link — those can join a channel or open a bot with one tap.",
+            rows: [
+                .toggle(ClearToggle("Confirm Telegram Links", .config(\.confirmInternalLinks)))
+            ]
+        )
+    ])
+}
+
+private func clearMessageMenuScreen() -> ClearScreen {
+    return ClearScreen(title: "Message Menu", icon: ClearIcon.messageMenu, sections: [
+        ClearSection(
+            header: "HIDE ACTIONS",
+            footer: "Removes entries from the menu that appears when you hold a message. What you hide here stays reachable elsewhere — swipe still replies, and selection still starts from the chat's own menu.",
+            rows: [
+                .toggle(ClearToggle("Reply", .config(\.hideContextMenuReply))),
+                .toggle(ClearToggle("Pin", .config(\.hideContextMenuPin))),
+                .toggle(ClearToggle("Forward", .config(\.hideContextMenuForward))),
+                .toggle(ClearToggle("Report", .config(\.hideContextMenuReport))),
+                .toggle(ClearToggle("Select", .config(\.hideContextMenuSelect)))
+            ]
+        )
+    ])
+}
+
+private func clearProfileScreen() -> ClearScreen {
+    return ClearScreen(title: "Profile", icon: ClearIcon.profile, sections: [
+        ClearSection(
+            header: "OTHER PROFILES",
+            footer: "Adds the numeric id and the datacenter of the account you're looking at under the profile header. The datacenter roughly tells you which region the account was registered in.",
+            rows: [
+                .toggle(ClearToggle("Show User ID", .config(\.showProfileId))),
+                .toggle(ClearToggle("Show Datacenter", .config(\.showDC)))
+            ]
+        ),
+        ClearSection(
+            header: "ACCOUNT ORIGIN",
+            footer: "Registration month and the country the account's phone number belongs to. Telegram sends this only with the first message from someone who isn't your contact, so it's available when the client cached it back then — for everyone else the rows simply don't appear. Month precision; there is no exact date in the API.",
+            rows: [
+                .toggle(ClearToggle("Show Registration Date", .config(\.showRegistrationDate))),
+                .toggle(ClearToggle("Show Phone Country", .config(\.showPhoneCountry)))
+            ]
+        ),
+        ClearSection(
+            header: "YOUR PROFILE",
+            footer: "Hides your phone number in Settings, so it isn't exposed when someone glances at your screen. It stays visible to whoever you already share it with. Requires a restart.",
+            rows: [
+                .toggle(ClearToggle("Hide My Phone Number", .config(\.hidePhoneInSettings), requiresRestart: true))
+            ]
+        ),
+        ClearSection(
+            header: "ACTIONS",
+            footer: "Removes the call button from profiles, so you can't ring someone by mistake.",
+            rows: [
+                .toggle(ClearToggle("Hide Call Button", .config(\.disableCallsButton)))
+            ]
+        )
+    ])
+}
+
+private func clearPrivacyScreen() -> ClearScreen {
+    return ClearScreen(title: "Privacy", icon: ClearIcon.privacy, sections: [
+        ClearSection(
+            header: "CONFIRMATIONS",
+            footer: "Asks before placing a call, so a misplaced tap doesn't ring someone.",
+            rows: [
+                .toggle(ClearToggle("Confirm Calls", .config(\.confirmCalls)))
+            ]
+        ),
+        ClearSection(
+            header: "FACE ID / TOUCH ID",
+            footer: "These actions run only after a successful check. If biometry is unavailable — locked out, denied or not enrolled — the device passcode is asked for instead; on a device with no passcode at all the action is blocked.",
+            rows: [
+                .toggle(ClearToggle("Confirm Delete Chat", .config(\.biometricConfirmDeleteChat))),
+                .toggle(ClearToggle("Confirm Clear History", .config(\.biometricConfirmClearHistory))),
+                .toggle(ClearToggle("Confirm Log Out", .config(\.biometricConfirmLogout)))
+            ]
+        ),
+        ClearSection(
+            header: "PARANOIA",
+            rows: [
+                .toggle(ClearToggle.soon("Paranoia Mode", "Planned: keep hidden chats out of contacts, recent calls, search and the share sheet too — not just the chat list."))
+            ]
+        )
+    ])
+}
+
+private func clearDebloatScreen() -> ClearScreen {
+    return ClearScreen(title: "Debloat", icon: ClearIcon.debloat, sections: [
+        ClearSection(
+            header: "ADS & PROMOTION",
+            footer: "Sponsored posts are injected by Telegram into public channels; the similar-channels block appears right after you join one.",
+            rows: [
+                .toggle(ClearToggle("Hide Sponsored Messages", .config(\.hideSponsoredMessages))),
+                .toggle(ClearToggle("Hide Similar Channels", .config(\.hideSimilarChannels)))
+            ]
+        ),
+        ClearSection(
+            header: "AI",
+            footer: "Removes the summarize button on messages, the AI compose buttons in the input panels and the AI entry in the attachment menu.",
+            rows: [
+                .toggle(ClearToggle("Hide AI Features", .config(\.hideAiFeatures)))
+            ]
+        ),
+        ClearSection(
+            header: "MONETIZATION",
+            rows: [
+                .toggle(ClearToggle.soon("Hide Premium, Stars & Gifts", "Planned: strip the Premium upsell, Stars balance, gifts, boosts and collectibles out of the interface."))
+            ]
+        ),
+        ClearSection(
+            header: "ADMIN",
+            footer: "Hides the “N people want to join” banner admins see at the top of a channel. The requests themselves are untouched.",
+            rows: [
+                .toggle(ClearToggle("Hide Join Requests Banner", .config(\.hideChannelJoinRequests)))
+            ]
+        )
+    ])
 }

@@ -18,6 +18,8 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var doubleTapToEdit: Bool
     public var showProfileId: Bool
     public var showDC: Bool
+    public var showRegistrationDate: Bool
+    public var showPhoneCountry: Bool
     public var hidePhoneInSettings: Bool
     public var hideContextMenuReply: Bool
     public var hideContextMenuPin: Bool
@@ -86,6 +88,8 @@ public struct ClearConfigSettings: Codable, Equatable {
             doubleTapToEdit: false,
             showProfileId: false,
             showDC: false,
+            showRegistrationDate: false,
+            showPhoneCountry: false,
             hidePhoneInSettings: false,
             hideContextMenuReply: false,
             hideContextMenuPin: false,
@@ -155,6 +159,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         doubleTapToEdit: Bool = false,
         showProfileId: Bool = false,
         showDC: Bool = false,
+        showRegistrationDate: Bool = false,
+        showPhoneCountry: Bool = false,
         hidePhoneInSettings: Bool = false,
         hideContextMenuReply: Bool = false,
         hideContextMenuPin: Bool = false,
@@ -221,6 +227,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.doubleTapToEdit = doubleTapToEdit
         self.showProfileId = showProfileId
         self.showDC = showDC
+        self.showRegistrationDate = showRegistrationDate
+        self.showPhoneCountry = showPhoneCountry
         self.hidePhoneInSettings = hidePhoneInSettings
         self.hideContextMenuReply = hideContextMenuReply
         self.hideContextMenuPin = hideContextMenuPin
@@ -285,7 +293,7 @@ public struct ClearConfigSettings: Codable, Equatable {
     // newly-added keys decodes to defaults instead of failing (which would wipe all settings).
     private enum CodingKeys: String, CodingKey {
         case hideStories, hideAiFeatures, secondsInMessages, confirmCalls, doubleTapToEdit
-        case showProfileId, showDC, hidePhoneInSettings
+        case showProfileId, showDC, showRegistrationDate, showPhoneCountry, hidePhoneInSettings
         case hideContextMenuReply, hideContextMenuPin, hideContextMenuForward, hideContextMenuReport, hideContextMenuSelect
         case doubleTapDelay, defaultEmojisFirst, disableScrollToNextChannel, showInlineReactions
         case blockCloudDrafts, showForwardedTime, stripTrackingParams, replacePreviewLinks, confirmInternalLinks, biometricConfirmDeleteChat, biometricConfirmClearHistory, biometricConfirmLogout
@@ -310,6 +318,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.doubleTapToEdit = try c.decodeIfPresent(Bool.self, forKey: .doubleTapToEdit) ?? false
         self.showProfileId = try c.decodeIfPresent(Bool.self, forKey: .showProfileId) ?? false
         self.showDC = try c.decodeIfPresent(Bool.self, forKey: .showDC) ?? false
+        self.showRegistrationDate = try c.decodeIfPresent(Bool.self, forKey: .showRegistrationDate) ?? false
+        self.showPhoneCountry = try c.decodeIfPresent(Bool.self, forKey: .showPhoneCountry) ?? false
         self.hidePhoneInSettings = try c.decodeIfPresent(Bool.self, forKey: .hidePhoneInSettings) ?? false
         self.hideContextMenuReply = try c.decodeIfPresent(Bool.self, forKey: .hideContextMenuReply) ?? false
         self.hideContextMenuPin = try c.decodeIfPresent(Bool.self, forKey: .hideContextMenuPin) ?? false
