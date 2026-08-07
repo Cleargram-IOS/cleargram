@@ -177,6 +177,5 @@ Most of this group shipped in `feature__visual-swiftgram` / `feature__compact-ch
 ## From TODO.md — planned but not yet researched
 
 - `misc__branding expansion` — replace "Telegram" strings in Localizable.strings, app icon, launch screen.
-- `bottomTabStyle` — bottom tab style variant. Not yet researched.
 - `crypto-bullshit debloat` — TBD, discuss scope separately.
-- `more from inugram` — hide-pinned-panel, compact-forward-header, "repeat" message action, go-to-message-by-id, recent actions shortcut, disable-chat-themes, disable-chat-wallpaper, "Save to Downloads" for stickers, show-deleted-replies, per-message statistics, message details.
+- `more from inugram` — hide-pinned-panel, compact-forward-header, "repeat" message action, go-to-message-by-id, recent actions shortcut, disable-chat-themes, disable-chat-wallpaper, "Save to Downloads" for stickers, show-deleted-replies, per-message statistics, message details. **NEEDS AUDIT:** проверить каждую фичу вручную — что уже есть в стоке на iOS, что уже реализовано в наших патчах, насколько вообще полезно. Не копировать слепо.
