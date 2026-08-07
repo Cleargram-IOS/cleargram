@@ -119,7 +119,7 @@ All have a disabled toggle in Cleargram Settings marked "(soon)". Wire-up in pro
 - `hide-birthday-notifications` — toggle exists as `.soon`, no behaviour yet.
 - `hide-folder-prompts` — toggle exists as `.soon`, no behaviour yet.
 - `allChatsTitleLengthOverride` — toggle exists as `.soon`, no behaviour yet.
-- `show-channel-post-author` — toggle exists as `.soon`, no behaviour yet.
+- `show-channel-post-author` — toggle exists as `.soon`, no behaviour yet. **NOT FEASIBLE per TODO.md: API returns `from_id = channel` for send-as-channel posts; real user not exposed.**
 - `admin-logs-improvements` — toggle exists as `.soon`, no behaviour yet.
 - `search-by-user-id` — toggle exists as `.soon`, no behaviour yet.
 
@@ -173,3 +173,10 @@ Most of this group shipped in `feature__visual-swiftgram` / `feature__compact-ch
 **Visual / UI:**
 - `liquidGlassStyle` — option to choose between native iOS Liquid Glass (on supported devices), a fake/emulated glass effect (for older devices), or disabled (legacy solid). Native Liquid Glass is iOS 26+ only (`UINavigationBar`/`UITabBar` glass API); needs detection of OS version + device capability. Touches `TabBarComponent`, `NavigationBarComponent`, possibly `GlassBackgroundComponent`. RESEARCH NEEDED: which iOS 26 APIs expose the native glass effect, whether `GlassBackgroundComponent` already wraps them, and how to fall back gracefully on older iOS.
 - `fontSizeOverride` — user-adjustable font size / DPI scale in Cleargram Settings (independent of system Dynamic Type). Apply via a multiplier on `itemListBaseFontSize` / `baseDisplaySize` consumed throughout chat list + chat bubbles. Must not break layout — clamp to safe range (e.g. 0.85–1.3) and test forum rows, tab bar, context menus, settings rows. RESEARCH: stock already reads `presentationData.fontSize` everywhere — can we just override the value at the source (`PresentationData.fontSize`) rather than patching every call site?
+
+## From TODO.md — planned but not yet researched
+
+- `misc__branding expansion` — replace "Telegram" strings in Localizable.strings, app icon, launch screen.
+- `bottomTabStyle` — bottom tab style variant. Not yet researched.
+- `crypto-bullshit debloat` — TBD, discuss scope separately.
+- `more from inugram` — hide-pinned-panel, compact-forward-header, "repeat" message action, go-to-message-by-id, recent actions shortcut, disable-chat-themes, disable-chat-wallpaper, "Save to Downloads" for stickers, show-deleted-replies, per-message statistics, message details.
