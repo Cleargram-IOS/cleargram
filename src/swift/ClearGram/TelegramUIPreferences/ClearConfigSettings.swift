@@ -51,11 +51,12 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var compactFolderNames: Bool
     public var allChatsHidden: Bool
     public var hideTabBar: Bool
-    public var wideTabBar: Bool
+    public var narrowTabBar: Bool
     public var tabBarSearchEnabled: Bool
     public var wideChannelPosts: Bool
     public var hideChannelBottomButton: Bool
     public var disableGalleryCamera: Bool
+    public var compactGalleryCamera: Bool
     public var disableStoryCameraSwipe: Bool
     public var enableMultiColumnLayout: Bool
     public var flatStickerCorners: Bool
@@ -69,7 +70,6 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var searchByUserId: Bool
     public var adminLogsImprovements: Bool
     public var paranoiaMode: Bool
-    public var showChannelPostAuthor: Bool
     public var hideChannelJoinRequests: Bool
     public var fasterFileLoad: Bool
     public var videoCircleAudioSource: Bool
@@ -78,6 +78,18 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var hidePremiumStarsGifts: Bool
     public var copyImageInGallery: Bool
     public var videoMessageCameraSelection: Bool
+    public var copyBotButtonUrl: Bool
+    public var hideChatListPromoNotices: Bool
+    public var hideChatListBirthdayNotices: Bool
+    public var recentStickersLimit: Int32
+    public var swipeActionPin: Bool
+    public var swipeActionMute: Bool
+    public var swipeActionRead: Bool
+    public var swipeActionDelete: Bool
+    public var swipeActionArchive: Bool
+    public var swipeActionsLeft: [String]
+    public var swipeActionsRight: [String]
+    public var importSettingsFromChats: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -121,11 +133,12 @@ public struct ClearConfigSettings: Codable, Equatable {
             compactFolderNames: false,
             allChatsHidden: false,
             hideTabBar: false,
-            wideTabBar: false,
+            narrowTabBar: false,
             tabBarSearchEnabled: true,
             wideChannelPosts: false,
             hideChannelBottomButton: false,
             disableGalleryCamera: false,
+            compactGalleryCamera: false,
             disableStoryCameraSwipe: false,
             enableMultiColumnLayout: false,
             flatStickerCorners: false,
@@ -139,7 +152,6 @@ public struct ClearConfigSettings: Codable, Equatable {
             searchByUserId: false,
             adminLogsImprovements: false,
             paranoiaMode: false,
-            showChannelPostAuthor: false,
             hideChannelJoinRequests: false,
             fasterFileLoad: false,
             videoCircleAudioSource: false,
@@ -147,7 +159,19 @@ public struct ClearConfigSettings: Codable, Equatable {
             sendVideoAsCircle: false,
             hidePremiumStarsGifts: false,
             copyImageInGallery: false,
-            videoMessageCameraSelection: false
+            videoMessageCameraSelection: false,
+            copyBotButtonUrl: false,
+            hideChatListPromoNotices: false,
+            hideChatListBirthdayNotices: false,
+            recentStickersLimit: 0,
+            swipeActionPin: true,
+            swipeActionMute: true,
+            swipeActionRead: true,
+            swipeActionDelete: true,
+            swipeActionArchive: true,
+            swipeActionsLeft: [],
+            swipeActionsRight: [],
+            importSettingsFromChats: true
         )
     }
 
@@ -192,11 +216,12 @@ public struct ClearConfigSettings: Codable, Equatable {
         compactFolderNames: Bool = false,
         allChatsHidden: Bool = false,
         hideTabBar: Bool = false,
-        wideTabBar: Bool = false,
+        narrowTabBar: Bool = false,
         tabBarSearchEnabled: Bool = true,
         wideChannelPosts: Bool = false,
         hideChannelBottomButton: Bool = false,
         disableGalleryCamera: Bool = false,
+        compactGalleryCamera: Bool = false,
         disableStoryCameraSwipe: Bool = false,
         enableMultiColumnLayout: Bool = false,
         flatStickerCorners: Bool = false,
@@ -210,7 +235,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         searchByUserId: Bool = false,
         adminLogsImprovements: Bool = false,
         paranoiaMode: Bool = false,
-        showChannelPostAuthor: Bool = false,
         hideChannelJoinRequests: Bool = false,
         fasterFileLoad: Bool = false,
         videoCircleAudioSource: Bool = false,
@@ -218,7 +242,19 @@ public struct ClearConfigSettings: Codable, Equatable {
         sendVideoAsCircle: Bool = false,
         hidePremiumStarsGifts: Bool = false,
         copyImageInGallery: Bool = false,
-        videoMessageCameraSelection: Bool = false
+        videoMessageCameraSelection: Bool = false,
+        copyBotButtonUrl: Bool = false,
+        hideChatListPromoNotices: Bool = false,
+        hideChatListBirthdayNotices: Bool = false,
+        recentStickersLimit: Int32 = 0,
+        swipeActionPin: Bool = true,
+        swipeActionMute: Bool = true,
+        swipeActionRead: Bool = true,
+        swipeActionDelete: Bool = true,
+        swipeActionArchive: Bool = true,
+        swipeActionsLeft: [String] = [],
+        swipeActionsRight: [String] = [],
+        importSettingsFromChats: Bool = true
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -260,11 +296,12 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.compactFolderNames = compactFolderNames
         self.allChatsHidden = allChatsHidden
         self.hideTabBar = hideTabBar
-        self.wideTabBar = wideTabBar
+        self.narrowTabBar = narrowTabBar
         self.tabBarSearchEnabled = tabBarSearchEnabled
         self.wideChannelPosts = wideChannelPosts
         self.hideChannelBottomButton = hideChannelBottomButton
         self.disableGalleryCamera = disableGalleryCamera
+        self.compactGalleryCamera = compactGalleryCamera
         self.disableStoryCameraSwipe = disableStoryCameraSwipe
         self.enableMultiColumnLayout = enableMultiColumnLayout
         self.flatStickerCorners = flatStickerCorners
@@ -278,7 +315,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.searchByUserId = searchByUserId
         self.adminLogsImprovements = adminLogsImprovements
         self.paranoiaMode = paranoiaMode
-        self.showChannelPostAuthor = showChannelPostAuthor
         self.hideChannelJoinRequests = hideChannelJoinRequests
         self.fasterFileLoad = fasterFileLoad
         self.videoCircleAudioSource = videoCircleAudioSource
@@ -287,6 +323,18 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.hidePremiumStarsGifts = hidePremiumStarsGifts
         self.copyImageInGallery = copyImageInGallery
         self.videoMessageCameraSelection = videoMessageCameraSelection
+        self.copyBotButtonUrl = copyBotButtonUrl
+        self.hideChatListPromoNotices = hideChatListPromoNotices
+        self.hideChatListBirthdayNotices = hideChatListBirthdayNotices
+        self.recentStickersLimit = recentStickersLimit
+        self.swipeActionPin = swipeActionPin
+        self.swipeActionMute = swipeActionMute
+        self.swipeActionRead = swipeActionRead
+        self.swipeActionDelete = swipeActionDelete
+        self.swipeActionArchive = swipeActionArchive
+        self.swipeActionsLeft = swipeActionsLeft
+        self.swipeActionsRight = swipeActionsRight
+        self.importSettingsFromChats = importSettingsFromChats
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -298,15 +346,19 @@ public struct ClearConfigSettings: Codable, Equatable {
         case doubleTapDelay, defaultEmojisFirst, disableScrollToNextChannel, showInlineReactions
         case blockCloudDrafts, showForwardedTime, stripTrackingParams, replacePreviewLinks, confirmInternalLinks, biometricConfirmDeleteChat, biometricConfirmClearHistory, biometricConfirmLogout
         case hideSponsoredMessages, hideStarReactionButton, hideStarReactionCount, hideSimilarChannels, warnPollsRevote, showPackOwner, timeOnServiceMessages
-        case showTabNames, compactChatList, chatListLines, compactFolderNames, allChatsHidden, hideTabBar, wideTabBar, tabBarSearchEnabled, wideChannelPosts, hideChannelBottomButton
-        case disableGalleryCamera, disableStoryCameraSwipe, enableMultiColumnLayout
+        case showTabNames, compactChatList, chatListLines, compactFolderNames, allChatsHidden, hideTabBar, narrowTabBar, tabBarSearchEnabled, wideChannelPosts, hideChannelBottomButton
+        case disableGalleryCamera, compactGalleryCamera, disableStoryCameraSwipe, enableMultiColumnLayout
         case flatStickerCorners
         case saveStickerToPhotos
         case collapseLongMessages
         case disableContactsTab, disableCallsButton, showAudioFormatBitrate, allChatsTitleLengthOverride, fontSizeOverride
-        case searchByUserId, adminLogsImprovements, paranoiaMode, showChannelPostAuthor, hideChannelJoinRequests
+        case searchByUserId, adminLogsImprovements, paranoiaMode, hideChannelJoinRequests
         case fasterFileLoad, videoCircleAudioSource, videoQualityOriginalToggle, sendVideoAsCircle, hidePremiumStarsGifts
-        case copyImageInGallery, videoMessageCameraSelection
+        case copyImageInGallery, videoMessageCameraSelection, copyBotButtonUrl
+        case hideChatListPromoNotices, hideChatListBirthdayNotices
+        case recentStickersLimit
+        case swipeActionPin, swipeActionMute, swipeActionRead, swipeActionDelete, swipeActionArchive, swipeActionsLeft, swipeActionsRight
+        case importSettingsFromChats
     }
 
     public init(from decoder: Decoder) throws {
@@ -351,11 +403,12 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.compactFolderNames = try c.decodeIfPresent(Bool.self, forKey: .compactFolderNames) ?? false
         self.allChatsHidden = try c.decodeIfPresent(Bool.self, forKey: .allChatsHidden) ?? false
         self.hideTabBar = try c.decodeIfPresent(Bool.self, forKey: .hideTabBar) ?? false
-        self.wideTabBar = try c.decodeIfPresent(Bool.self, forKey: .wideTabBar) ?? false
+        self.narrowTabBar = try c.decodeIfPresent(Bool.self, forKey: .narrowTabBar) ?? false
         self.tabBarSearchEnabled = try c.decodeIfPresent(Bool.self, forKey: .tabBarSearchEnabled) ?? true
         self.wideChannelPosts = try c.decodeIfPresent(Bool.self, forKey: .wideChannelPosts) ?? false
         self.hideChannelBottomButton = try c.decodeIfPresent(Bool.self, forKey: .hideChannelBottomButton) ?? false
         self.disableGalleryCamera = try c.decodeIfPresent(Bool.self, forKey: .disableGalleryCamera) ?? false
+        self.compactGalleryCamera = try c.decodeIfPresent(Bool.self, forKey: .compactGalleryCamera) ?? false
         self.disableStoryCameraSwipe = try c.decodeIfPresent(Bool.self, forKey: .disableStoryCameraSwipe) ?? false
         self.enableMultiColumnLayout = try c.decodeIfPresent(Bool.self, forKey: .enableMultiColumnLayout) ?? false
         self.flatStickerCorners = try c.decodeIfPresent(Bool.self, forKey: .flatStickerCorners) ?? false
@@ -369,7 +422,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.searchByUserId = try c.decodeIfPresent(Bool.self, forKey: .searchByUserId) ?? false
         self.adminLogsImprovements = try c.decodeIfPresent(Bool.self, forKey: .adminLogsImprovements) ?? false
         self.paranoiaMode = try c.decodeIfPresent(Bool.self, forKey: .paranoiaMode) ?? false
-        self.showChannelPostAuthor = try c.decodeIfPresent(Bool.self, forKey: .showChannelPostAuthor) ?? false
         self.hideChannelJoinRequests = try c.decodeIfPresent(Bool.self, forKey: .hideChannelJoinRequests) ?? false
         self.fasterFileLoad = try c.decodeIfPresent(Bool.self, forKey: .fasterFileLoad) ?? false
         self.videoCircleAudioSource = try c.decodeIfPresent(Bool.self, forKey: .videoCircleAudioSource) ?? false
@@ -378,6 +430,21 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.hidePremiumStarsGifts = try c.decodeIfPresent(Bool.self, forKey: .hidePremiumStarsGifts) ?? false
         self.copyImageInGallery = try c.decodeIfPresent(Bool.self, forKey: .copyImageInGallery) ?? false
         self.videoMessageCameraSelection = try c.decodeIfPresent(Bool.self, forKey: .videoMessageCameraSelection) ?? false
+        self.copyBotButtonUrl = try c.decodeIfPresent(Bool.self, forKey: .copyBotButtonUrl) ?? false
+        self.hideChatListPromoNotices = try c.decodeIfPresent(Bool.self, forKey: .hideChatListPromoNotices) ?? false
+        self.hideChatListBirthdayNotices = try c.decodeIfPresent(Bool.self, forKey: .hideChatListBirthdayNotices) ?? false
+        self.recentStickersLimit = try c.decodeIfPresent(Int32.self, forKey: .recentStickersLimit) ?? 0
+        self.swipeActionPin = try c.decodeIfPresent(Bool.self, forKey: .swipeActionPin) ?? true
+        self.swipeActionMute = try c.decodeIfPresent(Bool.self, forKey: .swipeActionMute) ?? true
+        self.swipeActionRead = try c.decodeIfPresent(Bool.self, forKey: .swipeActionRead) ?? true
+        self.swipeActionDelete = try c.decodeIfPresent(Bool.self, forKey: .swipeActionDelete) ?? true
+        self.swipeActionArchive = try c.decodeIfPresent(Bool.self, forKey: .swipeActionArchive) ?? true
+        self.swipeActionsLeft = try c.decodeIfPresent([String].self, forKey: .swipeActionsLeft) ?? []
+        self.swipeActionsRight = try c.decodeIfPresent([String].self, forKey: .swipeActionsRight) ?? []
+        // Deliberately the one default-ON toggle: the intercept only ever fires on the
+        // `.cleargram` extension, which does not exist in stock, so no real file type changes
+        // behaviour. Import still always asks before applying anything.
+        self.importSettingsFromChats = try c.decodeIfPresent(Bool.self, forKey: .importSettingsFromChats) ?? true
     }
 }
 

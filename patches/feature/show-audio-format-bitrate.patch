@@ -7,11 +7,11 @@ Subject: Show audio format and bitrate in music player
  .../Sources/SharedMediaPlayer.swift           |  6 ++---
  .../Sources/InstantPageMediaPlaylist.swift    |  4 +--
  .../MediaNavigationAccessoryHeaderNode.swift  |  2 +-
- .../Sources/PeerMessagesMediaPlaylist.swift   |  5 ++--
+ .../Sources/PeerMessagesMediaPlaylist.swift   | 25 ++++++++++++-----
  .../MediaNavigationAccessoryHeaderNode.swift  |  2 +-
  .../TelegramUI/Sources/MediaManager.swift     |  2 +-
  .../OverlayAudioPlayerControlsNode.swift      | 27 +++++++++++++------
- 7 files changed, 30 insertions(+), 18 deletions(-)
+ 7 files changed, 46 insertions(+), 22 deletions(-)
 
 diff --git a/submodules/AccountContext/Sources/SharedMediaPlayer.swift b/submodules/AccountContext/Sources/SharedMediaPlayer.swift
 index 0000000..0000000 100644
@@ -74,25 +74,66 @@ diff --git a/submodules/TelegramUI/Components/MediaManager/PeerMessagesMediaPlay
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Components/MediaManager/PeerMessagesMediaPlaylist/Sources/PeerMessagesMediaPlaylist.swift
 +++ b/submodules/TelegramUI/Components/MediaManager/PeerMessagesMediaPlaylist/Sources/PeerMessagesMediaPlaylist.swift
-@@ -135,7 +135,8 @@ public final class MessageMediaPlaylistItem: SharedMediaPlaylistItem {
+@@ -53,11 +53,23 @@ public final class MessageMediaPlaylistItem: SharedMediaPlaylistItem {
+     public let id: SharedMediaPlaylistItemId
+     public let message: EngineRawMessage
+     public let isSavedMusic: Bool
++    private let clearContext: AccountContext?
+ 
+-    public init(message: EngineRawMessage, isSavedMusic: Bool) {
++    public init(message: EngineRawMessage, isSavedMusic: Bool, clearContext: AccountContext? = nil) {
+         self.id = PeerMessagesMediaPlaylistItemId(messageId: message.id, messageIndex: message.index)
+         self.message = message
+         self.isSavedMusic = isSavedMusic
++        self.clearContext = clearContext
++    }
++
++    // The codec is only resolvable from the file's own bytes (ALAC and AAC share the mime type),
++    // and only once the resource is fully downloaded. nil while it is still streaming — the helper
++    // falls back to a bitrate heuristic then. Off = no disk touch at all.
++    private func clearLocalAudioPath(_ file: TelegramMediaFile) -> String? {
++        guard ClearConfig.showAudioFormatBitrate else {
++            return nil
++        }
++        return self.clearContext?.engine.resources.completedResourcePath(id: EngineMediaResource(file.resource).id)
+     }
+     
+     public var stableId: AnyHashable {
+@@ -135,7 +147,8 @@ public final class MessageMediaPlaylistItem: SharedMediaPlaylistItem {
                              albumArt = SharedMediaPlaybackAlbumArt(thumbnailResource: ExternalMusicAlbumArtResource(file: .message(message: MessageReference(self.message), media: file), title: updatedTitle ?? "", performer: updatedPerformer ?? "", isThumbnail: true), fullSizeResource: ExternalMusicAlbumArtResource(file: .message(message: MessageReference(self.message), media: file), title: updatedTitle ?? "", performer: updatedPerformer ?? "", isThumbnail: false))
                          }
                          
 -                        displayData = SharedMediaPlaybackDisplayData.music(title: updatedTitle, performer: updatedPerformer, albumArt: albumArt, long: CGFloat(duration) > 10.0 * 60.0, caption: caption)
-+                        let clearFormatInfo = clearAudioFormatInfo(mimeType: file.mimeType, size: file.size, duration: TimeInterval(duration))
++                        let clearFormatInfo = clearAudioFormatInfo(mimeType: file.mimeType, fileName: file.fileName, size: file.size, duration: TimeInterval(duration), localPath: self.clearLocalAudioPath(file))
 +                        displayData = SharedMediaPlaybackDisplayData.music(title: updatedTitle, performer: updatedPerformer, albumArt: albumArt, long: CGFloat(duration) > 10.0 * 60.0, caption: caption, formatInfo: clearFormatInfo)
                      }
                      return displayData
                  case let .Video(_, _, flags, _, _, _):
-@@ -149,7 +150,7 @@ public final class MessageMediaPlaylistItem: SharedMediaPlaylistItem {
+@@ -149,7 +162,7 @@ public final class MessageMediaPlaylistItem: SharedMediaPlaylistItem {
                  }
              }
              
 -            return SharedMediaPlaybackDisplayData.music(title: file.fileName ?? "", performer: self.message.effectiveAuthor?.debugDisplayTitle ?? "", albumArt: nil, long: false, caption: caption)
-+            return SharedMediaPlaybackDisplayData.music(title: file.fileName ?? "", performer: self.message.effectiveAuthor?.debugDisplayTitle ?? "", albumArt: nil, long: false, caption: caption, formatInfo: clearAudioFormatInfo(mimeType: file.mimeType, size: file.size, duration: file.duration))
++            return SharedMediaPlaybackDisplayData.music(title: file.fileName ?? "", performer: self.message.effectiveAuthor?.debugDisplayTitle ?? "", albumArt: nil, long: false, caption: caption, formatInfo: clearAudioFormatInfo(mimeType: file.mimeType, fileName: file.fileName, size: file.size, duration: file.duration, localPath: self.clearLocalAudioPath(file)))
          }
          return nil
      }()
+@@ -527,12 +540,12 @@ public final class PeerMessagesMediaPlaylist: SharedMediaPlaylist {
+         var nextItem: MessageMediaPlaylistItem?
+         var previousItem: MessageMediaPlaylistItem?
+         if let (message, aroundMessages) = self.currentItem {
+-            item = MessageMediaPlaylistItem(message: message, isSavedMusic: isSavedMusic)
++            item = MessageMediaPlaylistItem(message: message, isSavedMusic: isSavedMusic, clearContext: self.context)
+             for around in aroundMessages {
+                 if around.index < message.index {
+-                    previousItem = MessageMediaPlaylistItem(message: around, isSavedMusic: isSavedMusic)
++                    previousItem = MessageMediaPlaylistItem(message: around, isSavedMusic: isSavedMusic, clearContext: self.context)
+                 } else {
+-                    nextItem = MessageMediaPlaylistItem(message: around, isSavedMusic: isSavedMusic)
++                    nextItem = MessageMediaPlaylistItem(message: around, isSavedMusic: isSavedMusic, clearContext: self.context)
+                 }
+             }
+         }
 diff --git a/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift b/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift

@@ -16,6 +16,8 @@ public enum ClearConfig {
             _ = cache.swap(value)
             _ = ClearHooks.blockCloudDrafts.swap(value.blockCloudDrafts)
             _ = ClearHooks.fasterFileLoad.swap(value.fasterFileLoad)
+            _ = ClearHooks.hideStories.swap(value.hideStories)
+            _ = ClearHooks.recentStickersLimit.swap(value.recentStickersLimit)
         })
     }
 
@@ -78,11 +80,12 @@ public enum ClearConfig {
     public static var compactFolderNames: Bool { current().compactFolderNames }
     public static var allChatsHidden: Bool { current().allChatsHidden }
     public static var hideTabBar: Bool { current().hideTabBar }
-    public static var wideTabBar: Bool { current().wideTabBar }
+    public static var narrowTabBar: Bool { current().narrowTabBar }
     public static var tabBarSearchEnabled: Bool { current().tabBarSearchEnabled }
     public static var wideChannelPosts: Bool { current().wideChannelPosts }
     public static var hideChannelBottomButton: Bool { current().hideChannelBottomButton }
     public static var disableGalleryCamera: Bool { current().disableGalleryCamera }
+    public static var compactGalleryCamera: Bool { current().compactGalleryCamera }
     public static var disableStoryCameraSwipe: Bool { current().disableStoryCameraSwipe }
     public static var enableMultiColumnLayout: Bool { current().enableMultiColumnLayout }
     public static var flatStickerCorners: Bool { current().flatStickerCorners }
@@ -96,7 +99,6 @@ public enum ClearConfig {
     public static var searchByUserId: Bool { current().searchByUserId }
     public static var adminLogsImprovements: Bool { current().adminLogsImprovements }
     public static var paranoiaMode: Bool { current().paranoiaMode }
-    public static var showChannelPostAuthor: Bool { current().showChannelPostAuthor }
     public static var hideChannelJoinRequests: Bool { current().hideChannelJoinRequests }
     public static var fasterFileLoad: Bool { current().fasterFileLoad }
     public static var videoCircleAudioSource: Bool { current().videoCircleAudioSource }
@@ -105,5 +107,17 @@ public enum ClearConfig {
     public static var hidePremiumStarsGifts: Bool { current().hidePremiumStarsGifts }
     public static var copyImageInGallery: Bool { current().copyImageInGallery }
     public static var videoMessageCameraSelection: Bool { current().videoMessageCameraSelection }
+    public static var copyBotButtonUrl: Bool { current().copyBotButtonUrl }
+    public static var hideChatListPromoNotices: Bool { current().hideChatListPromoNotices }
+    public static var hideChatListBirthdayNotices: Bool { current().hideChatListBirthdayNotices }
+    public static var recentStickersLimit: Int32 { current().recentStickersLimit }
+    public static var swipeActionPin: Bool { current().swipeActionPin }
+    public static var swipeActionMute: Bool { current().swipeActionMute }
+    public static var swipeActionRead: Bool { current().swipeActionRead }
+    public static var swipeActionDelete: Bool { current().swipeActionDelete }
+    public static var swipeActionArchive: Bool { current().swipeActionArchive }
+    public static var swipeActionsLeft: [String] { current().swipeActionsLeft }
+    public static var swipeActionsRight: [String] { current().swipeActionsRight }
+    public static var importSettingsFromChats: Bool { current().importSettingsFromChats }
 }
 

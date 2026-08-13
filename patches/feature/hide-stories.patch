@@ -4,23 +4,96 @@ Date: Tue, 28 Jul 2026 01:25:41 +0700
 Subject: Add hideStories toggle
 
 ---
- submodules/ChatListUI/Sources/ChatListControllerNode.swift | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ submodules/AvatarNode/Sources/AvatarNode.swift        |  6 ++++++
+ .../ChatListUI/Sources/ChatListController.swift       | 10 ++++++++--
+ .../ChatListUI/Sources/ChatListControllerNode.swift   | 11 ++++++++++-
+ submodules/ChatListUI/Sources/Node/ChatListItem.swift |  5 ++++-
+ .../State/SynchronizeChatInputStateOperation.swift    |  1 +
+ .../PeerInfoScreen/Sources/PeerInfoData.swift         |  6 +++++-
+ .../PeerInfoScreen/Sources/PeerInfoScreen.swift       |  6 +++---
+ 7 files changed, 37 insertions(+), 8 deletions(-)
 
+diff --git a/submodules/AvatarNode/Sources/AvatarNode.swift b/submodules/AvatarNode/Sources/AvatarNode.swift
+index 0000000..0000000 100644
+--- a/submodules/AvatarNode/Sources/AvatarNode.swift
++++ b/submodules/AvatarNode/Sources/AvatarNode.swift
+@@ -1374,6 +1374,12 @@ public final class AvatarNode: ASDisplayNode {
+     }
+     
+     public func setStoryStats(storyStats: StoryStats?, presentationParams: StoryPresentationParams, transition: ComponentTransition) {
++        // Master gate for the story ring: every avatar in the app funnels through here.
++        // ClearHooks rather than ClearConfig — AvatarNode can't reach TelegramUIPreferences.
++        var storyStats = storyStats
++        if ClearHooks.hideStories.with({ $0 }) {
++            storyStats = nil
++        }
+         if self.storyStats != storyStats || self.storyPresentationParams != presentationParams {
+             self.storyStats = storyStats
+             self.storyPresentationParams = presentationParams
+diff --git a/submodules/ChatListUI/Sources/ChatListController.swift b/submodules/ChatListUI/Sources/ChatListController.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/ChatListController.swift
++++ b/submodules/ChatListUI/Sources/ChatListController.swift
+@@ -763,6 +763,9 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController
+         }
+         |> distinctUntilChanged
+         |> map { appConfiguration -> StoriesConfiguration.PostingAvailability in
++            if ClearConfig.hideStories {
++                return .disabled
++            }
+             let storiesConfiguration = StoriesConfiguration.with(appConfiguration: appConfiguration)
+             return storiesConfiguration.posting
+         }
+@@ -2236,7 +2239,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController
+                         self.rawStoryArchiveSubscriptions = rawStoryArchiveSubscriptions
+                         
+                         let archiveStoryState: ChatListNodeState.StoryState?
+-                        if rawStoryArchiveSubscriptions.items.isEmpty {
++                        if rawStoryArchiveSubscriptions.items.isEmpty || ClearConfig.hideStories {
+                             archiveStoryState = nil
+                         } else {
+                             var unseenCount = 0
+@@ -2297,7 +2300,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController
+             return
+         }
+         
+-        if case .chatList(groupId: .root) = self.location, let orderedStorySubscriptions = self.orderedStorySubscriptions, !orderedStorySubscriptions.items.isEmpty {
++        if case .chatList(groupId: .root) = self.location, !ClearConfig.hideStories, let orderedStorySubscriptions = self.orderedStorySubscriptions, !orderedStorySubscriptions.items.isEmpty {
+             let _ = (ApplicationSpecificNotice.displayChatListStoriesTooltip(accountManager: self.context.sharedContext.accountManager)
+             |> deliverOnMainQueue).startStandalone(next: { [weak self] didDisplay in
+                 guard let self else {
+@@ -6667,6 +6670,9 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController
+     }
+     
+     var isStoryPostingAvailable: Bool {
++        if ClearConfig.hideStories {
++            return false
++        }
+         guard !self.context.isFrozen else {
+             return false
+         }
 diff --git a/submodules/ChatListUI/Sources/ChatListControllerNode.swift b/submodules/ChatListUI/Sources/ChatListControllerNode.swift
 index 0000000..0000000 100644
 --- a/submodules/ChatListUI/Sources/ChatListControllerNode.swift
 +++ b/submodules/ChatListUI/Sources/ChatListControllerNode.swift
-@@ -660,7 +660,7 @@ public final class ChatListContainerNode: ASDisplayNode, ASGestureRecognizerDele
+@@ -668,9 +668,15 @@ public final class ChatListContainerNode: ASDisplayNode, ASGestureRecognizerDele
                      }
                      
                      let cameraIsAlreadyOpened = self.controller?.hasStoryCameraTransition ?? false
 -                    if selectedIndex <= 0 && translation.x > 0.0 {
-+                    if selectedIndex <= 0 && translation.x > 0.0, !ClearConfig.disableStoryCameraSwipe {
++                    let clearStoryCameraSwipeDisabled = ClearConfig.disableStoryCameraSwipe || ClearConfig.hideStories
++                    if selectedIndex <= 0 && translation.x > 0.0, !clearStoryCameraSwipeDisabled {
                          transitionFraction = 0.0
                          self.controller?.storyCameraPanGestureChanged(transitionFraction: translation.x / layout.size.width)
++                    } else if selectedIndex <= 0 && translation.x > 0.0 {
++                        // No camera to pull in, so don't leave the list free-dragging into nothing —
++                        // rubber-band exactly like the no-story-camera branch below does.
++                        let overscroll = translation.x
++                        transitionFraction = rubberBandingOffset(offset: overscroll, bandingStart: 0.0) / layout.size.width
                      } else if translation.x <= 0.0 && cameraIsAlreadyOpened {
-@@ -2459,6 +2459,9 @@ final class ChatListControllerNode: ASDisplayNode, ASGestureRecognizerDelegate {
+                         self.controller?.storyCameraPanGestureChanged(transitionFraction: 0.0)
+                     }
+@@ -2467,6 +2473,9 @@ final class ChatListControllerNode: ASDisplayNode, ASGestureRecognizerDelegate {
  }
  
  func shouldDisplayStoriesInChatListHeader(storySubscriptions: EngineStorySubscriptions, isHidden: Bool) -> Bool {
@@ -30,3 +103,73 @@ index 0000000..0000000 100644
      if !storySubscriptions.items.isEmpty {
          return true
      }
+diff --git a/submodules/ChatListUI/Sources/Node/ChatListItem.swift b/submodules/ChatListUI/Sources/Node/ChatListItem.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/Node/ChatListItem.swift
++++ b/submodules/ChatListUI/Sources/Node/ChatListItem.swift
+@@ -1846,7 +1846,10 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+         } else if case let .groupReference(groupReference) = item.content {
+             storyState = groupReference.storyState
+         }
+-        
++        if ClearConfig.hideStories {
++            storyState = nil
++        }
++
+         var peer: EnginePeer?
+         var displayAsMessage = false
+         var enablePreview = true
+diff --git a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
++++ b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+@@ -6,6 +6,7 @@ public enum ClearHooks {
+     public static let blockCloudDrafts = Atomic<Bool>(value: false)
+     public static let expandedMessageIds = Atomic<Set<MessageId>>(value: Set())
+     public static let fasterFileLoad = Atomic<Bool>(value: false)
++    public static let hideStories = Atomic<Bool>(value: false)
+ }
+ 
+ func addSynchronizeChatInputStateOperation(transaction: Transaction, peerId: PeerId, threadId: Int64?) {
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoData.swift
+@@ -517,7 +517,11 @@ final class PeerInfoScreenData {
+         self.threadNotificationSettings = threadNotificationSettings
+         self.globalNotificationSettings = globalNotificationSettings
+         self._isContact = isContact
+-        self.availablePanes = availablePanes
++        if ClearConfig.hideStories {
++            self.availablePanes = availablePanes.filter { $0 != .stories && $0 != .storyArchive }
++        } else {
++            self.availablePanes = availablePanes
++        }
+         self.groupsInCommon = groupsInCommon
+         self.linkedDiscussionPeer = linkedDiscussionPeer
+         self.linkedMonoforumPeer = linkedMonoforumPeer
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+@@ -2649,7 +2649,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+                     return
+                 }
+                 self.expiringStoryListState = state
+-                if state.items.isEmpty {
++                if state.items.isEmpty || ClearConfig.hideStories {
+                     self.headerNode.avatarListNode.avatarContainerNode.storyData = nil
+                     self.headerNode.avatarListNode.listContainerNode.storyParams = nil
+                 } else {
+@@ -5957,9 +5957,9 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+                 } else if peerInfoCanEdit(peer: self.data?.peer, chatLocation: self.chatLocation, threadData: self.data?.threadData, cachedData: self.data?.cachedData, isContact: self.data?.isContact) {
+                     rightNavigationButtons.append(PeerInfoHeaderNavigationButtonSpec(key: .edit, isForExpandedView: false))
+                 }
+-                if let data = self.data, !data.isPremiumRequiredForStoryPosting || data.accountIsPremium, case let .channel(channel) = data.peer, channel.hasPermission(.postStories) {
++                if !ClearConfig.hideStories, let data = self.data, !data.isPremiumRequiredForStoryPosting || data.accountIsPremium, case let .channel(channel) = data.peer, channel.hasPermission(.postStories) {
+                     rightNavigationButtons.insert(PeerInfoHeaderNavigationButtonSpec(key: .postStory, isForExpandedView: false), at: 0)
+-                } else if self.isMyProfile {
++                } else if !ClearConfig.hideStories, self.isMyProfile {
+                     rightNavigationButtons.insert(PeerInfoHeaderNavigationButtonSpec(key: .postStory, isForExpandedView: false), at: 0)
+                 }
+                 

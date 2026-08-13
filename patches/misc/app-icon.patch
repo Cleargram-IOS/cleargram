@@ -417,36 +417,3 @@ index 0000000..0000000 100644
        }
      }
    ],
-diff --git a/build-system/template_minimal_development_configuration.json b/build-system/template_minimal_development_configuration.json
-index 0000000..0000000 100755
---- a/build-system/template_minimal_development_configuration.json
-+++ b/build-system/template_minimal_development_configuration.json
-@@ -1,14 +1,14 @@
- {
--	"bundle_id": "org.{! a random string !}.Telegram",
--	"api_id": "{! get one at https://my.telegram.org/apps !}",
--	"api_hash": "{! get one at https://my.telegram.org/apps !}",
--	"team_id": "{! check README.md !}",
--	"app_center_id": "0",
--	"is_internal_build": "true",
--	"is_appstore_build": "false",
--	"appstore_id": "0",
--	"app_specific_url_scheme": "tg",
--	"premium_iap_product_id": "",
--	"enable_siri": false,
--	"enable_icloud": false
--}
-\ No newline at end of file
-+  "bundle_id": "org.687424f7234e49f9.Telegram",
-+  "api_id": "30799113",
-+  "api_hash": "bbe51024a1d15f13eb65a0e52bfd6aac",
-+  "team_id": "6YY3N82K8R",
-+  "app_center_id": "0",
-+  "is_internal_build": "false",
-+  "is_appstore_build": "false",
-+  "appstore_id": "0",
-+  "app_specific_url_scheme": "tg",
-+  "premium_iap_product_id": "",
-+  "enable_siri": false,
-+  "enable_icloud": false
-+}

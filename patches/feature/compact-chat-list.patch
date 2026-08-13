@@ -4,14 +4,14 @@ Date: Tue, 28 Jul 2026 13:52:29 +0700
 Subject: Port compact chat list from Swiftgram (avatar scale, hideAuthor, maxTitleLines, itemHeight, badges, action button, text offsets, tag list, reveal options)
 
 ---
- .../Sources/Node/ChatListItem.swift           | 75 ++++++++++++-------
- 1 file changed, 49 insertions(+), 26 deletions(-)
+ .../Sources/Node/ChatListItem.swift           | 78 ++++++++++++-------
+ 1 file changed, 51 insertions(+), 27 deletions(-)
 
 diff --git a/submodules/ChatListUI/Sources/Node/ChatListItem.swift b/submodules/ChatListUI/Sources/Node/ChatListItem.swift
 index 0000000..0000000 100644
 --- a/submodules/ChatListUI/Sources/Node/ChatListItem.swift
 +++ b/submodules/ChatListUI/Sources/Node/ChatListItem.swift
-@@ -2023,11 +2023,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -2026,11 +2026,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                  }
              }
              
@@ -24,7 +24,7 @@ index 0000000..0000000 100644
              
              if case let .peer(peerData) = item.content, let customMessageListData = peerData.customMessageListData, customMessageListData.commandPrefix != nil {
                  avatarDiameter = 40.0
-@@ -2566,11 +2562,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -2569,11 +2565,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
              let enableChatListPhotos = true
              
              // if changed, adjust setupItem accordingly
@@ -37,7 +37,7 @@ index 0000000..0000000 100644
              let avatarLeftEdgeInset: CGFloat = item.useCommunityViewLayout ? 10.0 : 16.0
              let avatarLeftInset: CGFloat
              
-@@ -2643,6 +2635,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -2646,6 +2638,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                      contentData = .group(peers: groupPeers)
                      hideAuthor = true
              }
@@ -46,7 +46,7 @@ index 0000000..0000000 100644
              
              var attributedText: NSAttributedString
              var hasDraft = false
-@@ -2671,6 +2665,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -2674,6 +2668,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                      }
                  }
              }
@@ -54,7 +54,7 @@ index 0000000..0000000 100644
              
              if useInlineAuthorPrefix {
                  if case let .user(author) = messages.last?.author {
-@@ -3820,10 +3815,16 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -3823,10 +3818,16 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
              }
              
              let textLineSpacing: CGFloat = min(0.2, item.presentationData.fontSize.itemListBaseFontSize * 0.2 / 17.0)
@@ -72,7 +72,7 @@ index 0000000..0000000 100644
                  truncationType: .end,
                  constrainedSize: CGSize(width: textMaxWidth, height: .greatestFiniteMagnitude),
                  alignment: .natural,
-@@ -3835,7 +3836,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -3838,7 +3839,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
              let maxTitleLines: Int
              switch item.index {
              case .forum:
@@ -82,7 +82,7 @@ index 0000000..0000000 100644
              case .chatList:
                  maxTitleLines = 1
              }
-@@ -4031,6 +4034,14 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4034,6 +4037,14 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                  peerRevealOptions = []
                  peerLeftRevealOptions = []
              }
@@ -97,7 +97,7 @@ index 0000000..0000000 100644
              
              let (onlineLayout, onlineApply) = onlineLayout(online, onlineIsVoiceChat)
              var animateContent = false
-@@ -4053,10 +4064,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4056,10 +4067,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                  itemHeight += titleSpacing
                  itemHeight += authorSpacing
              }
@@ -109,7 +109,13 @@ index 0000000..0000000 100644
              let rawContentRect = CGRect(origin: CGPoint(x: 2.0, y: layoutOffset + floor(item.presentationData.fontSize.itemListBaseFontSize * 8.0 / 17.0)), size: CGSize(width: rawContentWidth, height: itemHeight - 12.0 - 9.0))
              
              let insets = ChatListItemNode.insets(first: first, last: last, firstWithHeader: firstWithHeader)
-@@ -4215,7 +4223,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4214,11 +4222,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                     
+                     let contentRect = rawContentRect.offsetBy(dx: editingOffset + leftInset + revealOffset, dy: 0.0)
+                     
+-                    let avatarFrame = CGRect(origin: CGPoint(x: leftInset - avatarLeftInset + editingOffset + avatarLeftEdgeInset + revealOffset, y: floor((itemHeight - avatarDiameter) / 2.0)), size: CGSize(width: avatarDiameter, height: avatarDiameter))
++                    let clearAvatarVerticalOffset = ClearCompactLayout.avatarVerticalOffset(itemHeight: itemHeight, avatarDiameter: avatarDiameter, contentTopInset: contentRect.origin.y, titleHeight: titleLayout.size.height, authorHeight: authorLayout.height, textHeight: textLayout.size.height)
++                    let avatarFrame = CGRect(origin: CGPoint(x: leftInset - avatarLeftInset + editingOffset + avatarLeftEdgeInset + revealOffset, y: floor((itemHeight - avatarDiameter) / 2.0) + clearAvatarVerticalOffset), size: CGSize(width: avatarDiameter, height: avatarDiameter))
                      var avatarScaleOffset: CGFloat = 0.0
                      var avatarScale: CGFloat = 1.0
                      if let inlineNavigationLocation = item.interaction.inlineNavigationLocation {
@@ -118,7 +124,7 @@ index 0000000..0000000 100644
                          avatarScale = targetAvatarScale * inlineNavigationLocation.progress + 1.0 * (1.0 - inlineNavigationLocation.progress)
                          
                          let targetAvatarScaleOffset: CGFloat = -(avatarFrame.width - avatarFrame.width * avatarScale) * 0.5
-@@ -4623,10 +4631,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4626,10 +4635,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                      strongSelf.statusNode.fontSize = item.presentationData.fontSize.itemListBaseFontSize
                      let _ = strongSelf.statusNode.transitionToState(statusState, animated: animateContent)
                      
@@ -132,7 +138,7 @@ index 0000000..0000000 100644
                          
                          transition.updateFrame(node: strongSelf.badgeNode, frame: badgeFrame)
                          nextBadgeX -= badgeLayout.width + 6.0
-@@ -4638,7 +4648,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4641,7 +4652,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                      }
                      
                      if currentMentionBadgeImage != nil || currentBadgeBackgroundImage != nil {
@@ -141,7 +147,7 @@ index 0000000..0000000 100644
                          
                          transition.updateFrame(node: strongSelf.mentionBadgeNode, frame: badgeFrame)
                          nextBadgeX -= mentionBadgeLayout.width + 6.0
-@@ -4654,7 +4664,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4657,7 +4668,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                          strongSelf.pinnedIconNode.isHidden = false
                          
                          let pinnedIconSize = currentPinnedIconImage.size
@@ -150,7 +156,7 @@ index 0000000..0000000 100644
                          
                          strongSelf.pinnedIconNode.frame = pinnedIconFrame
                          nextBadgeX -= pinnedIconSize.width + 6.0
-@@ -4668,7 +4678,15 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4671,7 +4682,15 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                          let actionButtonTopInset = floor(item.presentationData.fontSize.itemListBaseFontSize * 5.0 / 17.0)
                          let actionButtonBottomInset = floor(item.presentationData.fontSize.itemListBaseFontSize * 4.0 / 17.0)
                          
@@ -167,7 +173,7 @@ index 0000000..0000000 100644
                          var actionButtonFrame = CGRect(x: nextBadgeX - actionButtonSize.width, y: contentRect.minY + floor((contentRect.height - actionButtonSize.height) * 0.5), width: actionButtonSize.width, height: actionButtonSize.height)
                          actionButtonFrame.origin.y = max(actionButtonFrame.origin.y, dateFrame.maxY + floor(item.presentationData.fontSize.itemListBaseFontSize * 4.0 / 17.0))
                          actionButtonFrame.origin.y += 4.0
-@@ -4710,7 +4728,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4713,7 +4732,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                          actionButtonNode.isUserInteractionEnabled = true
                          actionButtonNode.frame = actionButtonFrame
                          actionButtonBackgroundView.frame = CGRect(origin: CGPoint(), size: actionButtonFrame.size)
@@ -177,7 +183,7 @@ index 0000000..0000000 100644
                          if animateActionButtonIn {
                              actionButtonNode.alpha = 0.0
                          }
-@@ -4744,6 +4763,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4747,6 +4767,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                          }
                      }
                      
@@ -187,7 +193,7 @@ index 0000000..0000000 100644
                      var titleOffset: CGFloat = titleLeftOffset
                      if let currentSecretIconImage = currentSecretIconImage {
                          let iconNode: ASImageNode
-@@ -4758,7 +4780,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4761,7 +4784,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                              strongSelf.secretIconNode = iconNode
                          }
                          iconNode.image = currentSecretIconImage
@@ -196,7 +202,7 @@ index 0000000..0000000 100644
                          titleOffset += currentSecretIconImage.size.width + 3.0
                      } else if let secretIconNode = strongSelf.secretIconNode {
                          strongSelf.secretIconNode = nil
-@@ -4766,12 +4788,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4769,12 +4792,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                      }
                      
                      let contentDelta = CGPoint(x: contentRect.origin.x - (strongSelf.titleNode.frame.minX - titleOffset), y: contentRect.origin.y - (strongSelf.titleNode.frame.minY - UIScreenPixel))
@@ -212,7 +218,7 @@ index 0000000..0000000 100644
                      
                      if let topForumTopicRect, !isSearching {
                          let compoundHighlightingNode: LinkHighlightingNode
-@@ -4954,7 +4976,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+@@ -4957,7 +4980,8 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                      if !itemTags.isEmpty {
                          let sizeFactor = item.presentationData.fontSize.itemListBaseFontSize / 17.0
                          

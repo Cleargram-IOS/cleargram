@@ -67,8 +67,30 @@ private struct ClearToggle {
     }
 }
 
+// A row that picks one of a fixed set of Int32 values, shown as a disclosure row with the current
+// value as its label and an action sheet with the options.
+private struct ClearSelect {
+    let title: String
+    let keyPath: WritableKeyPath<ClearConfigSettings, Int32>
+    // (value, row title). The first entry should be the stock default.
+    let options: [(Int32, String)]
+
+    func label(_ settings: ClearConfigSettings) -> String {
+        let current = settings[keyPath: self.keyPath]
+        return self.options.first(where: { $0.0 == current })?.1 ?? "\(current)"
+    }
+}
+
+// A plain tappable row that runs code (export / import), rather than storing a value.
+private struct ClearAction {
+    let title: String
+    let perform: (AccountContext, _ present: @escaping (ViewController, Any?) -> Void, _ push: @escaping (ViewController) -> Void) -> Void
+}
+
 private enum ClearRow {
     case toggle(ClearToggle)
+    case select(ClearSelect)
+    case action(ClearAction)
     case screen(ClearScreen)
     case reset(title: String)
 }
@@ -100,6 +122,13 @@ private final class ClearSection {
         }
         return toggle
     }
+
+    func select(at index: Int) -> ClearSelect? {
+        guard index < self.rows.count, case let .select(select) = self.rows[index] else {
+            return nil
+        }
+        return select
+    }
 }
 
 // Reference type: a screen contains rows which contain screens, and a struct can't nest itself.
@@ -120,6 +149,8 @@ private final class ClearScreen {
 private enum ClearEntry: ItemListNodeEntry {
     case header(section: Int, text: String)
     case toggle(section: Int, index: Int, title: String, subtitle: String?, value: Bool, enabled: Bool)
+    case select(section: Int, index: Int, title: String, label: String)
+    case action(section: Int, index: Int, title: String)
     case disclosure(section: Int, index: Int, title: String)
     case reset(section: Int, index: Int, title: String)
     case footer(section: Int, text: String)
@@ -128,6 +159,8 @@ private enum ClearEntry: ItemListNodeEntry {
         switch self {
         case let .header(section, _),
              let .toggle(section, _, _, _, _, _),
+             let .select(section, _, _, _),
+             let .action(section, _, _),
              let .disclosure(section, _, _),
              let .reset(section, _, _),
              let .footer(section, _):
@@ -142,6 +175,10 @@ private enum ClearEntry: ItemListNodeEntry {
         case let .header(section, _):
             return section * 1000
         case let .toggle(section, index, _, _, _, _):
+            return section * 1000 + 10 + index
+        case let .select(section, index, _, _):
+            return section * 1000 + 10 + index
+        case let .action(section, index, _):
             return section * 1000 + 10 + index
         case let .disclosure(section, index, _):
             return section * 1000 + 10 + index
@@ -160,6 +197,10 @@ private enum ClearEntry: ItemListNodeEntry {
             return ls == rs && lt == rt
         case let (.toggle(ls, li, lt, lsub, lv, le), .toggle(rs, ri, rt, rsub, rv, re)):
             return ls == rs && li == ri && lt == rt && lsub == rsub && lv == rv && le == re
+        case let (.select(ls, li, lt, ll), .select(rs, ri, rt, rl)):
+            return ls == rs && li == ri && lt == rt && ll == rl
+        case let (.action(ls, li, lt), .action(rs, ri, rt)):
+            return ls == rs && li == ri && lt == rt
         case let (.disclosure(ls, li, lt), .disclosure(rs, ri, rt)):
             return ls == rs && li == ri && lt == rt
         case let (.reset(ls, li, lt), .reset(rs, ri, rt)):
@@ -193,6 +234,32 @@ private enum ClearEntry: ItemListNodeEntry {
                     if let toggle {
                         args.updateToggle(toggle, value)
                     }
+                }
+            )
+        case let .select(section, index, title, label):
+            return ItemListDisclosureItem(
+                presentationData: presentationData,
+                systemStyle: .glass,
+                icon: nil,
+                title: title,
+                label: label,
+                sectionId: self.section,
+                style: .blocks,
+                action: {
+                    args.openRow(section, index)
+                }
+            )
+        case let .action(section, index, title):
+            return ItemListActionItem(
+                presentationData: presentationData,
+                systemStyle: .glass,
+                title: title,
+                kind: .generic,
+                alignment: .natural,
+                sectionId: self.section,
+                style: .blocks,
+                action: {
+                    args.openRow(section, index)
                 }
             )
         case let .disclosure(section, index, title):
@@ -274,6 +341,10 @@ private func clearEntries(screen: ClearScreen, settings: ClearConfigSettings, ex
                     value: toggle.value(settings, experimental),
                     enabled: enabled
                 ))
+            case let .select(select):
+                entries.append(.select(section: sectionIndex, index: rowIndex, title: select.title, label: select.label(settings)))
+            case let .action(action):
+                entries.append(.action(section: sectionIndex, index: rowIndex, title: action.title))
             case let .screen(child):
                 entries.append(.disclosure(section: sectionIndex, index: rowIndex, title: child.title))
             case let .reset(title):
@@ -323,8 +394,40 @@ private func clearScreenController(context: AccountContext, screen: ClearScreen)
             }
         },
         openRow: { sectionIndex, rowIndex in
-            if case let .screen(child) = screen.sections[sectionIndex].rows[rowIndex] {
+            switch screen.sections[sectionIndex].rows[rowIndex] {
+            case let .screen(child):
                 pushImpl?(clearScreenController(context: context, screen: child))
+            case let .select(select):
+                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                let actionSheet = ActionSheetController(presentationData: presentationData)
+                var items: [ActionSheetButtonItem] = []
+                for (value, optionTitle) in select.options {
+                    items.append(ActionSheetButtonItem(title: optionTitle, color: .accent, action: { [weak actionSheet] in
+                        actionSheet?.dismissAnimated()
+                        let _ = ClearConfig.update(accountManager: accountManager) { current in
+                            var updated = current
+                            updated[keyPath: select.keyPath] = value
+                            return updated
+                        }.start()
+                    }))
+                }
+                actionSheet.setItemGroups([
+                    ActionSheetItemGroup(items: items),
+                    ActionSheetItemGroup(items: [
+                        ActionSheetButtonItem(title: presentationData.strings.Common_Cancel, color: .accent, font: .bold, action: { [weak actionSheet] in
+                            actionSheet?.dismissAnimated()
+                        })
+                    ])
+                ])
+                presentImpl?(actionSheet)
+            case let .action(action):
+                action.perform(context, { controller, _ in
+                    presentImpl?(controller)
+                }, { controller in
+                    pushImpl?(controller)
+                })
+            case .toggle, .reset:
+                break
             }
         },
         reset: {
@@ -447,6 +550,23 @@ private func clearRootScreen() -> ClearScreen {
             ]
         ),
         ClearSection(
+            header: "BACKUP",
+            footer: "Exports every Cleargram option you've changed into a small .cleargram file you can keep or send to someone. Opening one — from Files or from a chat — shows exactly what it would change before anything is applied. Hidden chats, hidden messages and Telegram's own settings are never included.",
+            rows: [
+                .action(ClearAction(title: "Export Settings", perform: { context, present, push in
+                    ClearSettingsTransfer.presentExport(context: context, present: present, push: push, presentNative: { controller in
+                        context.sharedContext.mainWindow?.presentNative(controller)
+                    })
+                })),
+                .action(ClearAction(title: "Import Settings", perform: { context, present, push in
+                    ClearSettingsTransfer.presentImportPicker(context: context, present: present, presentNative: { controller in
+                        context.sharedContext.mainWindow?.presentNative(controller)
+                    }, push: push)
+                })),
+                .toggle(ClearToggle("Import from Chats", .config(\.importSettingsFromChats), subtitle: { _ in "Tap a .cleargram file in a chat to import it" }))
+            ]
+        ),
+        ClearSection(
             footer: "Asks for confirmation first.",
             rows: [
                 .reset(title: "Reset All Settings")
@@ -495,10 +615,46 @@ private func clearChatListScreen() -> ClearScreen {
         ),
         ClearSection(
             header: "STORIES",
-            footer: "Removes the stories strip above the chat list, and the pull-down gesture that opens the story camera.",
+            footer: "Removes stories everywhere: the strip above the chat list, the coloured ring around avatars, the Stories tab in profiles and the story camera buttons. Requires a restart.",
             rows: [
-                .toggle(ClearToggle("Hide Stories", .config(\.hideStories))),
+                .toggle(ClearToggle("Hide Stories", .config(\.hideStories), requiresRestart: true)),
                 .toggle(ClearToggle("Disable Swipe to Story Camera", .config(\.disableStoryCameraSwipe)))
+            ]
+        ),
+        ClearSection(
+            header: "SWIPE",
+            rows: [
+                .screen(clearSwipeActionsScreen())
+            ]
+        ),
+        ClearSection(
+            header: "NOTICES",
+            footer: "The banner above the chat list. Promotional notices are Premium offers, gift and profile-photo prompts and whatever link Telegram decides to push there; birthday notices are your contacts' birthdays. New-login reviews, account freeze, password setup and a low Stars balance are always shown — those are the ones you can't afford to miss.",
+            rows: [
+                .toggle(ClearToggle("Hide Promotional Notices", .config(\.hideChatListPromoNotices))),
+                .toggle(ClearToggle("Hide Birthday Notices", .config(\.hideChatListBirthdayNotices)))
+            ]
+        )
+    ])
+}
+
+private func clearSwipeActionsScreen() -> ClearScreen {
+    return ClearScreen(title: "Swipe Actions", sections: [
+        ClearSection(
+            header: "SWIPE LEFT",
+            footer: "Actions revealed when you drag a chat to the left. A full swipe fires the last one — with Archive on that is Archive, exactly like stock. An action only ever appears where Telegram already offered it; turning one off never moves it somewhere else.",
+            rows: [
+                .toggle(ClearToggle("Mute", .config(\.swipeActionMute), requiresRestart: true)),
+                .toggle(ClearToggle("Delete", .config(\.swipeActionDelete), requiresRestart: true)),
+                .toggle(ClearToggle("Archive", .config(\.swipeActionArchive), requiresRestart: true))
+            ]
+        ),
+        ClearSection(
+            header: "SWIPE RIGHT",
+            footer: "Actions revealed when you drag a chat to the right. A full swipe fires the first one. Turning both off disables that swipe direction entirely.",
+            rows: [
+                .toggle(ClearToggle("Mark as Read / Unread", .config(\.swipeActionRead), requiresRestart: true)),
+                .toggle(ClearToggle("Pin", .config(\.swipeActionPin), requiresRestart: true))
             ]
         )
     ])
@@ -512,13 +668,13 @@ private func clearTabBarScreen() -> ClearScreen {
                 if settings.hideTabBar {
                     return "The bar at the bottom of the screen is gone; Settings and Contacts stay reachable from the chat list. The options below apply only while the bar is visible. Requires a restart."
                 } else {
-                    return "Hiding the bar frees the bottom of the screen — Settings and Contacts stay reachable from the chat list. Full width keeps the bar stretched across the screen; with it off the bar narrows when you have fewer than four tabs. Requires a restart."
+                    return "Hiding the bar frees the bottom of the screen — Settings and Contacts stay reachable from the chat list. Narrow shrinks the bar when you have fewer than four tabs, so it hugs the icons instead of stretching across the screen. Requires a restart."
                 }
             },
             rows: [
                 .toggle(ClearToggle("Hide Tab Bar", .config(\.hideTabBar), requiresRestart: true)),
                 .toggle(ClearToggle("Show Tab Names", .config(\.showTabNames), isEnabled: { !$0.hideTabBar }, requiresRestart: true)),
-                .toggle(ClearToggle("Full-Width Tab Bar", .config(\.wideTabBar), isEnabled: { !$0.hideTabBar }, requiresRestart: true))
+                .toggle(ClearToggle("Narrow Tab Bar", .config(\.narrowTabBar), isEnabled: { !$0.hideTabBar }, requiresRestart: true))
             ]
         ),
         ClearSection(
@@ -577,6 +733,13 @@ private func clearChatsScreen() -> ClearScreen {
             ]
         ),
         ClearSection(
+            header: "BOT KEYBOARDS",
+            footer: "Hold a bot keyboard button that opens a link to copy its URL. Login buttons carry a fallback URL that stock Telegram never shows; web-app buttons carry the mini-app URL. Plain link buttons already offer Copy on hold and are left alone.",
+            rows: [
+                .toggle(ClearToggle("Copy Button URL on Hold", .config(\.copyBotButtonUrl)))
+            ]
+        ),
+        ClearSection(
             header: "EMOJI KEYBOARD",
             footer: "Opens the emoji keyboard on the standard emoji tab instead of recent or custom sets.",
             rows: [
@@ -598,8 +761,7 @@ private func clearChannelsScreen() -> ClearScreen {
             header: "POSTS",
             footer: "Full-width posts drop the bubble and stretch channel messages across the screen.",
             rows: [
-                .toggle(ClearToggle("Full-Width Posts", .config(\.wideChannelPosts))),
-                .toggle(ClearToggle.soon("Show Real Author", "Planned: reveal the account behind a message sent under a channel's identity."))
+                .toggle(ClearToggle("Full-Width Posts", .config(\.wideChannelPosts)))
             ]
         ),
         ClearSection(
@@ -610,8 +772,8 @@ private func clearChannelsScreen() -> ClearScreen {
             ]
         ),
         ClearSection(
-            header: "PREVIEW",
-            footer: "Hides the Join / Mute bar at the bottom of a channel you haven't joined, leaving the posts alone.",
+            header: "BOTTOM BAR",
+            footer: "Removes the bar under a channel's posts — Mute / Unmute once you've joined, Join before that. Selecting messages and in-chat search still get their panels. Joining a channel then needs an invite link or the search result.",
             rows: [
                 .toggle(ClearToggle("Hide Bottom Action Bar", .config(\.hideChannelBottomButton)))
             ]
@@ -636,27 +798,37 @@ private func clearMediaScreen() -> ClearScreen {
         ),
         ClearSection(
             header: "CAMERA",
-            footer: "Removes the live camera tile from the attachment picker, and lets you pick the front or back camera before recording a video message.",
+            dynamicFooter: { settings in
+                if settings.disableGalleryCamera {
+                    return "The camera tile is gone from the attachment picker; the grid starts with your photos. Also lets you pick the front or back camera before recording a video message."
+                } else if settings.compactGalleryCamera {
+                    return "The camera tile in the attachment picker is one square cell with a plain icon instead of two cells of live preview — no capture session runs while you browse, so no battery drain and no camera-in-use indicator. Tapping it still opens the camera. Also lets you pick the front or back camera before recording a video message."
+                } else {
+                    return "The attachment picker normally runs a live camera preview two cells tall. Hide it entirely, or shrink it to a single cell with a static icon and no capture session. Also lets you pick the front or back camera before recording a video message."
+                }
+            },
             rows: [
                 .toggle(ClearToggle("Hide Camera in Picker", .config(\.disableGalleryCamera))),
-                .toggle(ClearToggle("Choose Camera for Video Messages", .config(\.videoMessageCameraSelection)))
+                .toggle(ClearToggle("Compact Camera Tile", .config(\.compactGalleryCamera), isEnabled: { !$0.disableGalleryCamera })),
+                .toggle(ClearToggle("Camera for Video Messages", .config(\.videoMessageCameraSelection)))
             ]
         ),
         ClearSection(
             header: "VIDEO",
+            footer: "“Send as Video Message” appears in the ⋯ menu of the media picker when a single video is selected. The video is cropped to a centred square, re-encoded to 400×400 h.264 and trimmed to the first 60 seconds — the same conversion the round-video camera uses.",
             rows: [
+                .toggle(ClearToggle("Send Video as Video Message", .config(\.sendVideoAsCircle))),
                 .toggle(ClearToggle.soon("Audio Source for Video Messages", "Planned: record a video message through a Bluetooth or external mic instead of the built-in one.")),
-                .toggle(ClearToggle.soon("Original Video Quality", "Planned: send a video as-is, skipping re-encoding.")),
-                .toggle(ClearToggle.soon("Send Video as Video Message", "Planned: turn a video from the gallery into a round video message."))
+                .toggle(ClearToggle.soon("Original Video Quality", "Planned: send a video as-is, skipping re-encoding."))
             ]
         ),
         ClearSection(
             header: "AUDIO",
             dynamicFooter: { settings in
                 if settings.showAudioFormatBitrate {
-                    return "The music player subtitle reads like “Artist · MP3 320 kbps”."
+                    return "The music player subtitle reads like “Artist · ALAC 24-bit/96 kHz · 2304 kbps”."
                 } else {
-                    return "Shows the codec and bitrate of a track next to the artist in the music player."
+                    return "Shows the codec and bitrate of a track next to the artist in the music player. ALAC is told apart from AAC by reading the container once the file has finished downloading — while it is still streaming, anything above 500 kbps is taken as lossless."
                 }
             },
             rows: [
@@ -672,11 +844,22 @@ private func clearMediaScreen() -> ClearScreen {
         ),
         ClearSection(
             header: "STICKERS",
-            footer: "Save to Photos appears in the context menu of static stickers. Square corners apply when you create a sticker from a photo. Show Pack Owner adds an entry to a sticker pack's “⋯” menu that opens the profile of whoever uploaded it.",
+            footer: "Save to Photos appears in the context menu of static stickers. Square Sticker Corners drops the 12.5% rounding from the sticker editor's frame, from a photo you insert into it and from the exported file — a cut-out subject has no corners to square, so it looks the same either way. Show Pack Owner adds an entry to a sticker pack's “⋯” menu that opens the profile of whoever uploaded it.",
             rows: [
                 .toggle(ClearToggle("Save Sticker to Photos", .config(\.saveStickerToPhotos))),
                 .toggle(ClearToggle("Square Sticker Corners", .config(\.flatStickerCorners))),
                 .toggle(ClearToggle("Show Pack Owner", .config(\.showPackOwner)))
+            ]
+        ),
+        ClearSection(
+            header: "RECENT STICKERS",
+            footer: "Telegram keeps the last 20 stickers you used, and the cloud copy gets trimmed back to that on every sync. Cleargram keeps the ones the server drops, so the Recent row can grow past it. The list fills up as you use stickers — nothing is restored retroactively, the extras live on this device only, and clearing recent stickers still clears everything.",
+            rows: [
+                .select(ClearSelect(
+                    title: "Keep",
+                    keyPath: \.recentStickersLimit,
+                    options: [(0, "Default (20)"), (30, "30"), (50, "50"), (100, "100"), (200, "200")]
+                ))
             ]
         )
     ])
@@ -733,10 +916,10 @@ private func clearMessageMenuScreen() -> ClearScreen {
 private func clearProfileScreen() -> ClearScreen {
     return ClearScreen(title: "Profile", icon: ClearIcon.profile, sections: [
         ClearSection(
-            header: "OTHER PROFILES",
-            footer: "Adds the numeric id and the datacenter of the account you're looking at under the profile header. The datacenter roughly tells you which region the account was registered in.",
+            header: "PROFILES",
+            footer: "Adds the numeric id and the datacenter under the profile header — for users, bots, groups, supergroups and channels alike. Tap the row to copy it; hold a group or channel id to copy the bot-API form (-100…) instead. The datacenter roughly tells you which region the account was registered in.",
             rows: [
-                .toggle(ClearToggle("Show User ID", .config(\.showProfileId))),
+                .toggle(ClearToggle("Show ID", .config(\.showProfileId))),
                 .toggle(ClearToggle("Show Datacenter", .config(\.showDC)))
             ]
         ),

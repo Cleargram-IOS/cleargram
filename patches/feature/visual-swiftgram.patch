@@ -369,7 +369,7 @@ index 0000000..0000000 100644
              let innerInset: CGFloat = 4.0
 -            let availableSize = CGSize(width: min(500.0, availableSize.width), height: availableSize.height)
 +            var availableSize = CGSize(width: min(500.0, availableSize.width), height: availableSize.height)
-+            if !(ClearConfig.wideTabBar || component.search?.isActive ?? false) {
++            if ClearConfig.narrowTabBar && !(component.search?.isActive ?? false) {
 +                let widthReducer: CGFloat
 +
 +                switch component.items.count {

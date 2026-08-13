@@ -1,0 +1,122 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Thu, 13 Aug 2026 23:13:11 +0800
+Subject: Raise the recent stickers limit
+
+---
+ .../State/AccountStateManagementUtils.swift   |  2 +-
+ .../Sources/State/ApplyUpdateMessage.swift    |  4 +-
+ .../Sources/State/ManagedRecentStickers.swift |  1 +
+ .../SynchronizeChatInputStateOperation.swift  | 38 +++++++++++++++++++
+ ...nchronizeRecentlyUsedMediaOperations.swift |  2 +-
+ 5 files changed, 43 insertions(+), 4 deletions(-)
+
+diff --git a/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift b/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift
++++ b/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift
+@@ -5868,7 +5868,7 @@ func replayFinalState(
+         }).map({ $0.1 })
+         for file in stickerFiles {
+             if let entry = CodableEntry(RecentMediaItem(file)) {
+-                transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentStickers, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: entry), removeTailIfCountExceeds: 20)
++                transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentStickers, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: entry), removeTailIfCountExceeds: clearRecentStickersCap(20))
+             }
+         }
+     }
+diff --git a/submodules/TelegramCore/Sources/State/ApplyUpdateMessage.swift b/submodules/TelegramCore/Sources/State/ApplyUpdateMessage.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/ApplyUpdateMessage.swift
++++ b/submodules/TelegramCore/Sources/State/ApplyUpdateMessage.swift
+@@ -456,7 +456,7 @@ func applyUpdateMessage(postbox: Postbox, stateManager: AccountStateManager, mes
+         }
+         for file in sentStickers {
+             if let entry = CodableEntry(RecentMediaItem(file)) {
+-                transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentStickers, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: entry), removeTailIfCountExceeds: 20)
++                transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentStickers, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: entry), removeTailIfCountExceeds: clearRecentStickersCap(20))
+             }
+         }
+         for file in sentGifs {
+@@ -655,7 +655,7 @@ func applyUpdateGroupMessages(postbox: Postbox, stateManager: AccountStateManage
+         
+         for file in sentStickers {
+             if let entry = CodableEntry(RecentMediaItem(file)) {
+-                transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentStickers, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: entry), removeTailIfCountExceeds: 20)
++                transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentStickers, item: OrderedItemListEntry(id: RecentMediaItemId(file.fileId).rawValue, contents: entry), removeTailIfCountExceeds: clearRecentStickersCap(20))
+             }
+         }
+         for file in sentGifs {
+diff --git a/submodules/TelegramCore/Sources/State/ManagedRecentStickers.swift b/submodules/TelegramCore/Sources/State/ManagedRecentStickers.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/ManagedRecentStickers.swift
++++ b/submodules/TelegramCore/Sources/State/ManagedRecentStickers.swift
+@@ -33,6 +33,7 @@ private func managedRecentMedia(postbox: Postbox, network: Network, collectionId
+                     }
+ 
+                     return postbox.transaction { transaction -> Void in
++                        clearMergeLocalRecentStickers(transaction: transaction, collectionId: collectionId, items: &items, existingIds: &existingIds)
+                         transaction.replaceOrderedItemListItems(collectionId: collectionId, items: items)
+                     }
+                 } else {
+diff --git a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
++++ b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+@@ -7,6 +7,44 @@ public enum ClearHooks {
+     public static let expandedMessageIds = Atomic<Set<MessageId>>(value: Set())
+     public static let fasterFileLoad = Atomic<Bool>(value: false)
+     public static let hideStories = Atomic<Bool>(value: false)
++    // 0 = stock (Telegram's hardcoded recent-sticker cap of 20).
++    public static let recentStickersLimit = Atomic<Int32>(value: 0)
++}
++
++// Cleargram: the cap passed to `removeTailIfCountExceeds` for the cloud recent-sticker list.
++// Never shrinks below the stock value, so a configured value smaller than 20 cannot make the
++// list shorter than stock.
++func clearRecentStickersCap(_ stockValue: Int) -> Int {
++    let configured = Int(ClearHooks.recentStickersLimit.with({ $0 }))
++    return configured > stockValue ? configured : stockValue
++}
++
++// Cleargram: a cloud sync replaces the whole ordered list with the server's copy, which the server
++// truncates to `stickers_recent_limit`. Re-append the locally known stickers the server dropped,
++// behind the server's own ones, up to the configured cap.
++func clearMergeLocalRecentStickers(
++    transaction: Transaction,
++    collectionId: Int32,
++    items: inout [OrderedItemListEntry],
++    existingIds: inout Set<Data>
++) {
++    guard collectionId == Namespaces.OrderedItemList.CloudRecentStickers else {
++        return
++    }
++    let limit = Int(ClearHooks.recentStickersLimit.with({ $0 }))
++    guard limit > items.count else {
++        return
++    }
++    for entry in transaction.getOrderedListItems(collectionId: collectionId) {
++        if items.count >= limit {
++            break
++        }
++        let id = entry.id.makeData()
++        if !existingIds.contains(id) {
++            existingIds.insert(id)
++            items.append(entry)
++        }
++    }
+ }
+ 
+ func addSynchronizeChatInputStateOperation(transaction: Transaction, peerId: PeerId, threadId: Int64?) {
+diff --git a/submodules/TelegramCore/Sources/State/SynchronizeRecentlyUsedMediaOperations.swift b/submodules/TelegramCore/Sources/State/SynchronizeRecentlyUsedMediaOperations.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/SynchronizeRecentlyUsedMediaOperations.swift
++++ b/submodules/TelegramCore/Sources/State/SynchronizeRecentlyUsedMediaOperations.swift
+@@ -40,7 +40,7 @@ func addSynchronizeRecentlyUsedMediaOperation(transaction: Transaction, category
+ func addRecentlyUsedSticker(transaction: Transaction, fileReference: FileMediaReference) {
+     if let resource = fileReference.media.resource as? CloudDocumentMediaResource {
+         if let entry = CodableEntry(RecentMediaItem(fileReference.media)) {
+-            transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentStickers, item: OrderedItemListEntry(id: RecentMediaItemId(fileReference.media.fileId).rawValue, contents: entry), removeTailIfCountExceeds: 20)
++            transaction.addOrMoveToFirstPositionOrderedItemListItem(collectionId: Namespaces.OrderedItemList.CloudRecentStickers, item: OrderedItemListEntry(id: RecentMediaItemId(fileReference.media.fileId).rawValue, contents: entry), removeTailIfCountExceeds: clearRecentStickersCap(20))
+         }
+         addSynchronizeRecentlyUsedMediaOperation(transaction: transaction, category: .stickers, operation: .add(id: resource.fileId, accessHash: resource.accessHash, fileReference: fileReference))
+     }

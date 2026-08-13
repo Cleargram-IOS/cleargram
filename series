@@ -7,7 +7,6 @@ feature/camera-picker-video-messages.patch
 debloat/hide-ai-features.patch
 misc/app-icon.patch
 feature/clear-settings-ui.patch
-feature/hide-stories.patch
 feature/seconds-in-messages.patch
 feature/confirm-calls.patch
 feature/double-tap-to-edit.patch
@@ -17,7 +16,6 @@ feature/default-emojis-first.patch
 feature/scroll-next-channel.patch
 feature/inline-reactions.patch
 feature/hide-sponsored.patch
-feature/disable-gallery-camera.patch
 feature/flat-sticker-corners.patch
 feature/forwarded-time.patch
 feature/block-cloud-drafts.patch
@@ -32,7 +30,6 @@ feature/time-on-service-messages.patch
 feature/warn-polls-revote.patch
 feature/confirm-internal-links.patch
 feature/visual-swiftgram.patch
-feature/compact-chat-list.patch
 feature/settings-ui-fixes.patch
 feature/disable-contacts-calls.patch
 feature/biometric-confirmation.patch
@@ -44,3 +41,13 @@ feature/profile-copy-name.patch
 feature/font-size-override.patch
 feature/copy-image-in-gallery.patch
 feature/registration-date.patch
+feature/hide-stories.patch
+feature/compact-chat-list.patch
+feature/disable-gallery-camera.patch
+feature/peer-id-everywhere.patch
+feature/copy-bot-button-url.patch
+debloat/hide-chat-list-notices.patch
+feature/recent-stickers-limit.patch
+feature/chat-list-swipe-actions.patch
+feature/send-video-as-circle.patch
+feature/settings-transfer.patch

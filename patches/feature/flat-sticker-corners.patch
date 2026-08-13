@@ -4,9 +4,11 @@ Date: Tue, 28 Jul 2026 01:26:05 +0700
 Subject: Flat sticker corners
 
 ---
- .../MediaEditor/Sources/MediaEditorComposer.swift          | 7 +++++--
- .../MediaEditor/Sources/StickerOutlineRenderPass.swift     | 3 ++-
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ .../Sources/MediaEditorComposer.swift         |  7 ++++--
+ .../Sources/StickerOutlineRenderPass.swift    |  3 ++-
+ .../Sources/MediaCutoutScreen.swift           |  3 ++-
+ .../Sources/MediaEditorScreen.swift           | 24 +++++++++++++++----
+ 4 files changed, 29 insertions(+), 8 deletions(-)
 
 diff --git a/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorComposer.swift b/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorComposer.swift
 index 0000000..0000000 100644
@@ -61,3 +63,89 @@ index 0000000..0000000 100644
      let image = generateImage(CGSize(width: 1080.0, height: 1920.0), opaque: true, scale: 1.0) { size, context in
          context.setFillColor(UIColor.black.cgColor)
          context.fill(CGRect(origin: .zero, size: size))
+diff --git a/submodules/TelegramUI/Components/MediaEditorScreen/Sources/MediaCutoutScreen.swift b/submodules/TelegramUI/Components/MediaEditorScreen/Sources/MediaCutoutScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/MediaEditorScreen/Sources/MediaCutoutScreen.swift
++++ b/submodules/TelegramUI/Components/MediaEditorScreen/Sources/MediaCutoutScreen.swift
+@@ -18,6 +18,7 @@ import MessageInputPanelComponent
+ import DustEffect
+ import PlainButtonComponent
+ import ImageObjectSeparation
++import TelegramUIPreferences
+ 
+ private final class MediaCutoutScreenComponent: Component {
+     typealias EnvironmentType = ViewControllerComponentContainer.Environment
+@@ -423,7 +424,7 @@ private final class MediaCutoutScreenComponent: Component {
+                 
+                 let frameWidth = floorToScreenPixels(previewContainerFrame.width * 0.97)
+                 self.fadeView.frame = CGRect(x: floorToScreenPixels((previewContainerFrame.width - frameWidth) / 2.0), y: previewContainerFrame.minY + floorToScreenPixels((previewContainerFrame.height - frameWidth) / 2.0), width: frameWidth, height: frameWidth)
+-                self.fadeView.layer.cornerRadius = frameWidth / 8.0
++                self.fadeView.layer.cornerRadius = ClearConfig.flatStickerCorners ? 0.0 : frameWidth / 8.0
+                 
+                 if isFirstTime {
+                     let values = component.mediaEditor.values
+diff --git a/submodules/TelegramUI/Components/MediaEditorScreen/Sources/MediaEditorScreen.swift b/submodules/TelegramUI/Components/MediaEditorScreen/Sources/MediaEditorScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/MediaEditorScreen/Sources/MediaEditorScreen.swift
++++ b/submodules/TelegramUI/Components/MediaEditorScreen/Sources/MediaEditorScreen.swift
+@@ -48,6 +48,7 @@ import StickerPackEditTitleController
+ import StickerPickerScreen
+ import UIKitRuntimeUtils
+ import ImageObjectSeparation
++import TelegramUIPreferences
+ import SaveProgressScreen
+ import TelegramNotices
+ import AttachmentFileController
+@@ -5038,7 +5039,18 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
+                 }
+                 
+                 let completeWithImage: (UIImage) -> Void = { [weak self] image in
+-                    let updatedImage = roundedImageWithTransparentCorners(image: image, cornerRadius: floor(image.size.width * 0.03))!
++                    // Stock bakes a 3% corner radius into the inserted photo itself, so it stays
++                    // rounded in the preview and in the exported sticker.
++                    var clearSquareCorners = false
++                    if ClearConfig.flatStickerCorners, let controller = self?.controller, case .stickerEditor = controller.mode {
++                        clearSquareCorners = true
++                    }
++                    let updatedImage: UIImage
++                    if clearSquareCorners {
++                        updatedImage = image
++                    } else {
++                        updatedImage = roundedImageWithTransparentCorners(image: image, cornerRadius: floor(image.size.width * 0.03))!
++                    }
+                     let entity = DrawingStickerEntity(content: .image(updatedImage, .rectangle))
+                     entity.canCutOut = false
+                     
+@@ -6508,6 +6520,10 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
+                 }
+ 
+                 let stickerFrameWidth = floorToScreenPixels(previewSize.width * stickerFrameFraction)
++                var stickerCornerRadius = stickerFrameWidth / 8.0
++                if case .stickerEditor = controller.mode, ClearConfig.flatStickerCorners {
++                    stickerCornerRadius = 0.0
++                }
+                 stickerOverlayLayer.frame = CGRect(origin: .zero, size: previewSize)
+                 
+                 let stickerFrameRect = CGRect(
+@@ -6546,7 +6562,7 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
+                     
+                     cropScrollRect = fittedSize.centered(around: stickerFrameRect.center)
+                 default:
+-                    overlayInnerRect = UIBezierPath(cgPath: CGPath(roundedRect: stickerFrameRect, cornerWidth: stickerFrameWidth / 8.0, cornerHeight: stickerFrameWidth / 8.0, transform: nil))
++                    overlayInnerRect = UIBezierPath(cgPath: CGPath(roundedRect: stickerFrameRect, cornerWidth: stickerCornerRadius, cornerHeight: stickerCornerRadius, transform: nil))
+                 }
+                 
+                 let overlayLineWidth: CGFloat = 2.0 - UIScreenPixel
+@@ -6556,10 +6572,10 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
+                 
+                 stickerFrameLayer.frame = stickerOverlayLayer.frame
+                 stickerFrameLayer.lineWidth = overlayLineWidth
+-                stickerFrameLayer.path = CGPath(roundedRect: stickerFrameRect.insetBy(dx: -overlayLineWidth / 2.0, dy: -overlayLineWidth / 2.0), cornerWidth: stickerFrameWidth / 8.0 * 1.02, cornerHeight: stickerFrameWidth / 8.0 * 1.02, transform: nil)
++                stickerFrameLayer.path = CGPath(roundedRect: stickerFrameRect.insetBy(dx: -overlayLineWidth / 2.0, dy: -overlayLineWidth / 2.0), cornerWidth: stickerCornerRadius * 1.02, cornerHeight: stickerCornerRadius * 1.02, transform: nil)
+                 
+                 transition.setFrame(view: stickerBackgroundView, frame: CGRect(origin: CGPoint(x: floorToScreenPixels((previewSize.width - stickerFrameWidth) / 2.0), y: floorToScreenPixels((previewSize.height - stickerFrameWidth) / 2.0)), size: CGSize(width: stickerFrameWidth, height: stickerFrameWidth)))
+-                stickerBackgroundView.layer.cornerRadius = stickerFrameWidth / 8.0
++                stickerBackgroundView.layer.cornerRadius = stickerCornerRadius
+                 
+                 if let cropScrollView = self.cropScrollView {
+                     cropScrollView.frame = cropScrollRect

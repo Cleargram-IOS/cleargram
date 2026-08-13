@@ -38,6 +38,56 @@ adding/removing/materially changing a patch, update `docs/features.md` in the sa
 11. **No LSP.** SourceKit/IDE diagnostics don't work here — ignore "No such module" noise.
     Verify by building (see `docs/build-codesigning.md`); a Bazel build is slow but allowed.
 12. **`print(...)` for debug logging** in Swift, not stock loggers.
+13. **No patch may violate the Telegram API ToS or the Apple guidelines.** See
+    "Compliance" below. If a requested feature does, say so and stop — don't implement it
+    behind a toggle and don't implement a "lite" version of it.
+
+---
+
+## Compliance — Telegram API ToS & Apple guidelines
+
+**Features that violate the Telegram API Terms of Service or the Apple App Review
+Guidelines are not accepted into this patchset.** Not as an opt-in toggle, not default-off,
+not "just for me". A toggle does not launder a violation: the code still ships in the
+binary and the client still misbehaves once it's on. When a request lands in this
+territory, report it to the user with the specific clause and propose the nearest
+compliant alternative instead of quietly building it.
+
+### Telegram API ToS (https://core.telegram.org/api/terms) — hard limits
+
+| clause | what it means for a patch |
+| --- | --- |
+| "If an app allows accessing content from Telegram channels, it must include support for official sponsored messages … and may not interfere with this functionality" | **Hard violation, no exceptions.** Anything that hides channel ads, the promoted/PSA chat (`ChatListAdditionalItem.promoInfo`) or suppresses the sponsored view/click reporting calls is out — this is the clause Telegram actually enforces (notice → `api_id` cut in 10 days, which kills the build for everyone). `feature__hide-sponsored` / `ClearConfig.hideSponsoredMessages` is the existing offender and is **marked for deletion**; don't extend it, don't reference it as precedent. |
+| no "ghost mode" | Don't block read receipts, typing status, online/last-seen, or defeat self-destructing messages / screenshot notifications. Hiding a chat *locally* (`feature__hidden-chats`) is fine — it doesn't lie to the server. Faking "unread" upstream is not. |
+| no acting on the user's behalf without consent | No auto-join, auto-read, auto-reply, background account actions the user didn't trigger. |
+| own `api_id`, disclosure, naming | Keep the api id/hash out of the stack (see `misc__build-config`), never name the app "Telegram\*" without an "Unofficial" prefix, and never ship Telegram's official logo as the app icon (`misc__app-icon`). |
+| no training ML models on API data | Rules out any "export my chats to feed a model" patch. |
+
+### Apple App Review Guidelines — the ones this app touches
+
+| guideline | what it means for a patch |
+| --- | --- |
+| **1.2 User-Generated Content** — apps must keep "a mechanism to report offensive content" and "the ability to block abusive users" | Removing the **Report** action is a review risk. `ClearConfig.hideContextMenuReport` (in `feature__context-menu-toggles`) does exactly that; it survives only because the app isn't shipped through App Review today. Don't add more patches that remove report/block entry points. |
+| **3.1.1 In-App Purchase** | Never unlock Telegram Premium functionality client-side. Building an *independent* implementation (e.g. voice transcription with Apple's on-device `Speech` framework) is fine — it isn't Telegram's paid feature, just a parallel one. Flipping a `isPremium` flag, faking limits or bypassing Stars is not. |
+| **5.2.1 Intellectual property** | Telegram-iOS is GPLv2 — the fork itself is fine — but Telegram's name, logo and branding are not licensed. Keep branding distinct (`misc__branding`). |
+| **2.5.1 private APIs / 2.3 accurate metadata** | No private-API tricks, no feature descriptions that don't match behaviour. |
+
+**Distribution caveat:** cleargram is ad-hoc/sideload-signed today (`misc__build-config`), so
+App Review never runs on it — Apple's guidelines are a self-imposed bar, not a gate. The
+Telegram ToS *is* a live gate regardless of distribution: it binds the `api_id`, and losing
+it kills the build for everyone.
+
+### Clearly allowed
+
+- **Hiding stock UI locally** (stories, AI buttons, Premium/Stars/Gifts upsell, chat-list
+  notices, similar channels, join requests) — client-side presentation, no Telegram service
+  is interfered with. Sponsored/promoted content is **not** in this bucket, see above. One
+  self-imposed limit: never hide *security* notices (`reviewLogin`, `accountFreeze`,
+  `setupPassword`, low-balance-before-cutoff) — that's a user-safety call, not a ToS one.
+- **Reading more than the official client shows** (peer ids, DC, registration month, audio
+  format) — all of it comes from fields the API already sent us.
+- **Local-only storage changes** (blocking cloud drafts, extending the local recent-sticker
+  list) — they only change what *this* client keeps.
 
 ---
 
@@ -129,6 +179,7 @@ outside it.** So fork Swift code is **copied**, not symlinked:
 - The copied dir is git-excluded (`.git/info/exclude`), so `git status` stays clean and the patch doesn't carry the fork file — only the stock wiring + BUILD deps.
 - The submodule's `BUILD` uses `glob(["Sources/**/*.swift"])`, so the copied files are picked up automatically; only new **deps** (e.g. `ItemListPeerItem`) need a patch hunk.
 - Convention: edit in `src/swift/ClearGram/`, then `pnpm sync`. Don't edit the copied file in `worktree/` directly — it'll be overwritten on the next sync.
+- **A new area needs an entry in `forkSyncDirs` (`scripts/config.ts`)** or `pnpm sync` never copies it and Bazel never sees the file. Current areas: `TelegramUIPreferences`, `DebugSettingsUI`, `TextFormat`, `ChatListUI`, `LegacyMediaPickerUI`, `MediaPickerUI`, `PeerInfoScreen` (→ `submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/ClearGram`, a nested target path — that works, `copyForkDir` mkdir -p's it and adds the git-exclude).
 
 ---
 
@@ -151,6 +202,17 @@ public enum ClearConfig {
 - Default-off — every behavior gated: `if ClearConfig.hideStories.value { ... }`.
 - Settings UI — Debug → "Cleargram Settings", or a dedicated section (planned).
 
+### `ClearHooks` — the bridge into modules that can't import `TelegramUIPreferences`
+
+Lives in `worktree/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift`
+(odd home, but established). Each entry is an `Atomic` mirrored from `ClearConfig.start(...)`.
+Use it **only** when the call site genuinely can't reach `ClearConfig` — check the submodule's
+`BUILD` deps first; most already have `TelegramUIPreferences`.
+
+Current entries: `blockCloudDrafts`, `expandedMessageIds`, `fasterFileLoad`, `hideStories`
+(read by `AvatarNode.setStoryStats`), `recentStickersLimit`. Adding one means two edits: the
+`Atomic` here, and the matching `swap` in `ClearConfig.start`.
+
 ---
 
 ## Database / persistent state
@@ -167,7 +229,14 @@ public enum ClearConfig {
 ## Settings UI
 
 - Debug Settings — simple start: add a section in `DebugController`. See `submodules/DebugSettingsUI/Sources/DebugController.swift`.
-- Later — a dedicated `ClearSettingsController` (planned in `docs/features.md`).
+- `ClearSettingsController` (`src/swift/ClearGram/DebugSettingsUI/`) is the real home. The screen
+  tree is **data** — `clearRootScreen()` at the bottom of the file. Row kinds: `.toggle`
+  (`ClearToggle`, a `WritableKeyPath<…, Bool>` into `ClearConfigSettings` or
+  `ExperimentalUISettings`, or `.soon(title:plan:)` for a disabled placeholder), `.select`
+  (`ClearSelect`, a `WritableKeyPath<…, Int32>` + a fixed option list, rendered as a disclosure row
+  with an action sheet), `.action` (`ClearAction`, a plain tappable row that runs code — used by
+  the settings export/import), `.screen` (nested `ClearScreen`) and `.reset`. Adding an option is
+  normally one line; the ids, equality and `ItemList` plumbing are generic.
 - Any toggle that needs a restart → show a "Restart required" alert in the click handler.
 
 ---

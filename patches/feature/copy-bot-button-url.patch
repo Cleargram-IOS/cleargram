@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Thu, 13 Aug 2026 23:13:10 +0800
+Subject: Copy bot button URL on hold
+
+---
+ .../Components/Chat/ChatMessageActionButtonsNode/BUILD |  1 +
+ .../Sources/ChatMessageActionButtonsNode.swift         |  3 +++
+ .../Components/Chat/ChatMessageItemView/BUILD          |  1 +
+ .../Sources/ChatMessageItemView.swift                  | 10 ++++++++++
+ 4 files changed, 15 insertions(+)
+
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageActionButtonsNode/BUILD b/submodules/TelegramUI/Components/Chat/ChatMessageActionButtonsNode/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageActionButtonsNode/BUILD
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageActionButtonsNode/BUILD
+@@ -13,6 +13,7 @@ swift_library(
+         "//submodules/SSignalKit/SwiftSignalKit",
+         "//submodules/AsyncDisplayKit",
+         "//submodules/TelegramCore",
++        "//submodules/TelegramUIPreferences",
+         "//submodules/Display",
+         "//submodules/TelegramPresentationData",
+         "//submodules/AccountContext",
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageActionButtonsNode/Sources/ChatMessageActionButtonsNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageActionButtonsNode/Sources/ChatMessageActionButtonsNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageActionButtonsNode/Sources/ChatMessageActionButtonsNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageActionButtonsNode/Sources/ChatMessageActionButtonsNode.swift
+@@ -2,6 +2,7 @@ import Foundation
+ import UIKit
+ import AsyncDisplayKit
+ import TelegramCore
++import TelegramUIPreferences
+ import Display
+ import TelegramPresentationData
+ import AccountContext
+@@ -354,6 +355,8 @@ private final class ChatMessageActionButtonNode: ASDisplayNode {
+                     switch button.action {
+                     case .url:
+                         node.longTapRecognizer?.isEnabled = true
++                    case .urlAuth, .openWebView:
++                        node.longTapRecognizer?.isEnabled = ClearConfig.copyBotButtonUrl
+                     default:
+                         node.longTapRecognizer?.isEnabled = false
+                     }
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageItemView/BUILD b/submodules/TelegramUI/Components/Chat/ChatMessageItemView/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageItemView/BUILD
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageItemView/BUILD
+@@ -13,6 +13,7 @@ swift_library(
+         "//submodules/AsyncDisplayKit",
+         "//submodules/Display",
+         "//submodules/TelegramCore",
++        "//submodules/TelegramUIPreferences",
+         "//submodules/AccountContext",
+         "//submodules/LocalizedPeerData",
+         "//submodules/ContextUI",
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageItemView/Sources/ChatMessageItemView.swift b/submodules/TelegramUI/Components/Chat/ChatMessageItemView/Sources/ChatMessageItemView.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageItemView/Sources/ChatMessageItemView.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageItemView/Sources/ChatMessageItemView.swift
+@@ -3,6 +3,7 @@ import UIKit
+ import AsyncDisplayKit
+ import Display
+ import TelegramCore
++import TelegramUIPreferences
+ import AccountContext
+ import LocalizedPeerData
+ import ContextUI
+@@ -877,6 +878,15 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
+             switch button.action {
+                 case let .url(url):
+                     item.controllerInteraction.longTap(.url(url), ChatControllerInteraction.LongTapParams(message: item.message))
++                case let .urlAuth(url, _):
++                    // The fallback URL of a login-url button — stock never surfaces it anywhere.
++                    if ClearConfig.copyBotButtonUrl, !url.isEmpty {
++                        item.controllerInteraction.copyText(url)
++                    }
++                case let .openWebView(url, _):
++                    if ClearConfig.copyBotButtonUrl, !url.isEmpty {
++                        item.controllerInteraction.copyText(url)
++                    }
+                 default:
+                     break
+             }

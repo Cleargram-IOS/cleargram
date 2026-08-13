@@ -4,23 +4,42 @@ Date: Tue, 28 Jul 2026 01:26:03 +0700
 Subject: Disable gallery camera
 
 ---
- submodules/MediaPickerUI/Sources/MediaPickerScreen.swift | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ .../Sources/MediaPickerScreen.swift           | 26 ++++++++++++++++---
+ 1 file changed, 22 insertions(+), 4 deletions(-)
 
 diff --git a/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift b/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift
 index 0000000..0000000 100644
 --- a/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift
 +++ b/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift
-@@ -711,7 +711,7 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+@@ -324,6 +324,7 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+         
+         fileprivate let cameraWrapperView: UIView
+         fileprivate var cameraView: TGAttachmentCameraView?
++        fileprivate var clearCameraTileView: ClearCameraTileView?
+         
+         fileprivate var modernCamera: Camera?
+         fileprivate var modernCameraView: CameraSimplePreviewView?
+@@ -711,7 +712,18 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
                  }
              }
              
 -            if useLegacyCamera {
-+            if useLegacyCamera, !ClearConfig.disableGalleryCamera {
++            if useLegacyCamera, !ClearConfig.disableGalleryCamera, ClearConfig.compactGalleryCamera {
++                let tileView = ClearCameraTileView(theme: self.presentationData.theme, pressed: { [weak self] in
++                    guard let self, !self.openingMedia else {
++                        return
++                    }
++                    self.dismissInput()
++                    self.controller?.openCamera?(nil)
++                })
++                self.clearCameraTileView = tileView
++                self.gridNode.scrollView.addSubview(tileView)
++                self.gridNode.addSubnode(self.cameraActivateAreaNode)
++            } else if useLegacyCamera, !ClearConfig.disableGalleryCamera {
                  let enableAnimations = self.controller?.context.sharedContext.energyUsageSettings.fullTranslucency ?? true
    
                  let cameraView = TGAttachmentCameraView(forSelfPortrait: false, videoModeByDefault: controller.bannedSendPhotos != nil && controller.bannedSendVideos == nil)!
-@@ -735,7 +735,7 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+@@ -735,7 +747,7 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
                  
                  self.gridNode.scrollView.addSubview(cameraView)
                  self.gridNode.addSubnode(self.cameraActivateAreaNode)
@@ -29,3 +48,34 @@ index 0000000..0000000 100644
                  #if !targetEnvironment(simulator)
                  var cameraPosition: Camera.Position = .back
                  if case .assets(nil, .createAvatar) = controller.subject {
+@@ -1187,6 +1199,7 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+             
+             self.backgroundNode.backgroundColor = self.presentationData.theme.list.plainBackgroundColor
+             self.backgroundNode.updateColor(color: self.presentationData.theme.rootController.tabBar.backgroundColor, transition: .immediate)
++            self.clearCameraTileView?.updateTheme(presentationData.theme)
+             
+             self.updateSelectionState(animated: true)
+         }
+@@ -1719,8 +1732,11 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+             let itemWidth = floorToScreenPixels((width - itemSpacing * CGFloat(itemsPerRow - 1)) / CGFloat(itemsPerRow))
+             
+             var cutoutRects: [CGRect] = []
+-            var cameraRect: CGRect? = CGRect(origin: CGPoint(x: layout.safeInsets.left, y: 0.0), size: CGSize(width: itemWidth, height: itemWidth * 2.0 + 1.0))
+-            if self.cameraView == nil && self.modernCameraView == nil {
++            // One square cell for the static tile, stock's 1x2 for the live preview. Gated on the
++            // view actually existing rather than on the toggle, so geometry can't disagree with it.
++            let clearCameraHeight: CGFloat = self.clearCameraTileView != nil ? itemWidth : itemWidth * 2.0 + 1.0
++            var cameraRect: CGRect? = CGRect(origin: CGPoint(x: layout.safeInsets.left, y: 0.0), size: CGSize(width: itemWidth, height: clearCameraHeight))
++            if self.cameraView == nil && self.modernCameraView == nil && self.clearCameraTileView == nil {
+                 cameraRect = nil
+             }
+                         
+@@ -1886,6 +1902,8 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+             var cameraView: UIView?
+             if let view = self.cameraView {
+                 cameraView = view
++            } else if let view = self.clearCameraTileView {
++                cameraView = view
+             } else if let view = self.modernCameraView {
+                 cameraView = view
+             }

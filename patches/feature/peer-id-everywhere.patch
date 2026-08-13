@@ -1,0 +1,119 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Thu, 13 Aug 2026 23:13:10 +0800
+Subject: Show numeric id for groups and channels
+
+---
+ .../Sources/PeerInfoProfileItems.swift        | 78 +------------------
+ 1 file changed, 3 insertions(+), 75 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
+@@ -93,8 +93,6 @@ func infoItems(
+         let ItemAbout = 3003
+         let ItemNote = 3004
+         let ItemAppFooter = 3005
+-        let ItemClearId = 3006
+-        let ItemClearDc = 3007
+         let ItemClearRegistration = 3008
+         let ItemClearPhoneCountry = 3009
+         let ItemAffiliate = 4000
+@@ -214,79 +212,7 @@ func infoItems(
+             )
+         }
+         
+-        if ClearConfig.showProfileId, let peer = data.peer {
+-            let idText = "\(peer.id.id._internalGetInt64Value())"
+-            items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemClearId, label: "id", text: idText, textColor: .primary, action: { node, progress in
+-                UIPasteboard.general.string = idText
+-                if let controller = interaction.getController() {
+-                    let pd = context.sharedContext.currentPresentationData.with { $0 }
+-                    controller.present(UndoOverlayController(presentationData: pd, content: .copy(text: pd.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
+-                }
+-                interaction.requestLayout(false)
+-            }, longTapAction: nil, contextAction: { node, gesture, _ in
+-                guard let sourceNode = node as? ContextExtractedContentContainingNode, let gesture = gesture else {
+-                    UIPasteboard.general.string = idText
+-                    interaction.requestLayout(false)
+-                    return
+-                }
+-                let pd = context.sharedContext.currentPresentationData.with { $0 }
+-                let copyAction = {
+-                    UIPasteboard.general.string = idText
+-                    if let controller = interaction.getController() {
+-                        controller.present(UndoOverlayController(presentationData: pd, content: .copy(text: pd.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
+-                    }
+-                }
+-                var menuItems: [ContextMenuItem] = []
+-                menuItems.append(.action(ContextMenuActionItem(text: pd.strings.Conversation_ContextMenuCopy, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Copy"), color: theme.contextMenu.primaryColor) }, action: { c, _ in
+-                    c?.dismiss { copyAction() }
+-                })))
+-                let contextController = makeContextController(presentationData: pd, source: .extracted(PeerInfoContextExtractedContentSource(sourceNode: sourceNode)), items: .single(ContextController.Items(content: .list(menuItems))), gesture: gesture)
+-                interaction.getController()?.present(contextController, in: .window(.root))
+-            }, requestLayout: { animated in
+-                interaction.requestLayout(animated)
+-            }))
+-        }
+-        
+-        if ClearConfig.showDC, let peer = data.peer {
+-            var dcId: Int?
+-            if let smallestRep = peer.profileImageRepresentations.first {
+-                if let cloudResource = smallestRep.resource as? CloudPeerPhotoSizeMediaResource {
+-                    dcId = cloudResource.datacenterId
+-                }
+-            }
+-            if let dcId = dcId {
+-                let dcText = "DC \(dcId)"
+-                items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemClearDc, label: "dc", text: dcText, textColor: .primary, action: { node, progress in
+-                    UIPasteboard.general.string = "\(dcId)"
+-                    if let controller = interaction.getController() {
+-                        let pd = context.sharedContext.currentPresentationData.with { $0 }
+-                        controller.present(UndoOverlayController(presentationData: pd, content: .copy(text: pd.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
+-                    }
+-                    interaction.requestLayout(false)
+-                }, longTapAction: nil, contextAction: { node, gesture, _ in
+-                    guard let sourceNode = node as? ContextExtractedContentContainingNode, let gesture = gesture else {
+-                        UIPasteboard.general.string = "\(dcId)"
+-                        interaction.requestLayout(false)
+-                        return
+-                    }
+-                    let pd = context.sharedContext.currentPresentationData.with { $0 }
+-                    let copyAction = {
+-                        UIPasteboard.general.string = "\(dcId)"
+-                        if let controller = interaction.getController() {
+-                            controller.present(UndoOverlayController(presentationData: pd, content: .copy(text: pd.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
+-                        }
+-                    }
+-                    var menuItems: [ContextMenuItem] = []
+-                    menuItems.append(.action(ContextMenuActionItem(text: pd.strings.Conversation_ContextMenuCopy, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Copy"), color: theme.contextMenu.primaryColor) }, action: { c, _ in
+-                        c?.dismiss { copyAction() }
+-                    })))
+-                    let contextController = makeContextController(presentationData: pd, source: .extracted(PeerInfoContextExtractedContentSource(sourceNode: sourceNode)), items: .single(ContextController.Items(content: .list(menuItems))), gesture: gesture)
+-                    interaction.getController()?.present(contextController, in: .window(.root))
+-                }, requestLayout: { animated in
+-                    interaction.requestLayout(animated)
+-                }))
+-            }
+-        }
++        items[currentPeerInfoSection]!.append(contentsOf: clearPeerIdItems(peer: data.peer, context: context, interaction: interaction))
+ 
+         // peerSettings carries registration_month / phone_country only for accounts the server
+         // considers unfamiliar (it's the anti-scam card above the chat history), so both rows
+@@ -764,6 +690,7 @@ func infoItems(
+                     )
+                 )
+             }
++            items[currentPeerInfoSection]!.append(contentsOf: clearPeerIdItems(peer: data.peer, context: context, interaction: interaction))
+             if let cachedData = data.cachedData as? CachedChannelData {
+                 let aboutText: String?
+                 if channel.isFake {
+@@ -937,6 +864,7 @@ func infoItems(
+             }
+         }
+     } else if case let .legacyGroup(group) = data.peer {
++        items[currentPeerInfoSection]!.append(contentsOf: clearPeerIdItems(peer: data.peer, context: context, interaction: interaction))
+         if let cachedData = data.cachedData as? CachedGroupData {
+             let aboutText: String?
+             if group.isFake {

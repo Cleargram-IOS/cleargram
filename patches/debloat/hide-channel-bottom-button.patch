@@ -4,21 +4,20 @@ Date: Tue, 28 Jul 2026 16:08:52 +0700
 Subject: Hide channel bottom button in channel preview
 
 ---
- .../TelegramUI/Sources/ChatInterfaceStateInputPanels.swift    | 4 ++++
- 1 file changed, 4 insertions(+)
+ .../TelegramUI/Sources/ChatInterfaceStateInputPanels.swift     | 3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
 +++ b/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
-@@ -47,6 +47,10 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
-         return (nil, nil)
-     }
-     
-+    if ClearConfig.hideChannelBottomButton, let peer = chatPresentationInterfaceState.renderedPeer?.peer, let channel = peer as? TelegramChannel, channel.participationStatus != .member {
-+        return (nil, nil)
-+    }
-+    
-     if context.isFrozen {
-         var isActuallyFrozen = true
-         let accountFreezeConfiguration = AccountFreezeConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
+@@ -374,6 +374,9 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
+                 if chatPresentationInterfaceState.interfaceState.editMessage != nil, channel.hasPermission(.editAllMessages) {
+                     displayInputTextPanel = true
+                 } else if !channel.hasPermission(.sendSomething) || !isMember {
++                    if ClearConfig.hideChannelBottomButton {
++                        return (nil, nil)
++                    }
+                     if let currentPanel = (currentPanel as? ChatChannelSubscriberInputPanelNode) ?? (currentSecondaryPanel as? ChatChannelSubscriberInputPanelNode) {
+                         return (currentPanel, nil)
+                     } else {

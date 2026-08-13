@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Thu, 13 Aug 2026 23:13:10 +0800
+Subject: Hide chat list notices
+
+---
+ .../Sources/GlobalControlPanelsContext.swift        | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/GlobalControlPanelsContext/Sources/GlobalControlPanelsContext.swift b/submodules/TelegramUI/Components/GlobalControlPanelsContext/Sources/GlobalControlPanelsContext.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/GlobalControlPanelsContext/Sources/GlobalControlPanelsContext.swift
++++ b/submodules/TelegramUI/Components/GlobalControlPanelsContext/Sources/GlobalControlPanelsContext.swift
+@@ -341,11 +341,16 @@ public final class GlobalControlPanelsContext {
+                     ),
+                     context.account.stateManager.contactBirthdays,
+                     starsSubscriptionsContextPromise.get(),
+-                    accountFreezeConfiguration
++                    accountFreezeConfiguration,
++                    clearConfigEntry(accountManager: context.sharedContext.accountManager) |> distinctUntilChanged
+                 )
+-                |> mapToSignal { suggestions, dismissedSuggestions, configuration, newSessionReviews, newBotConnectionReviews, data, birthdays, starsSubscriptionsContext, accountFreezeConfiguration -> Signal<ChatListNotice?, NoError> in
++                |> mapToSignal { suggestions, dismissedSuggestions, configuration, newSessionReviews, newBotConnectionReviews, data, birthdays, starsSubscriptionsContext, accountFreezeConfiguration, _ -> Signal<ChatListNotice?, NoError> in
+                     let (accountPeer, birthday) = data
+-                    
++                    // Dropping entries here rather than nil-ing the finished notice matters: the
++                    // if/else-if chain below then falls through to the birthday branch instead of
++                    // losing it to a promo that would have won.
++                    let suggestions = ClearNoticeFilter.filterChatListSuggestions(suggestions)
++
+                     if let newSessionReview = newSessionReviews.first {
+                         return .single(.reviewLogin(newSessionReview: newSessionReview, totalCount: newSessionReviews.count))
+                     }
+@@ -387,7 +392,7 @@ public final class GlobalControlPanelsContext {
+                         return lhs < rhs
+                     }
+                     
+-                    if dismissedSuggestions.contains(ServerProvidedSuggestion.todayBirthdays.id) {
++                    if dismissedSuggestions.contains(ServerProvidedSuggestion.todayBirthdays.id) || ClearConfig.hideChatListBirthdayNotices {
+                         todayBirthdayPeerIds = []
+                     }
+                     

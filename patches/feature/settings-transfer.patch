@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Thu, 13 Aug 2026 23:13:11 +0800
+Subject: Export and import Cleargram settings
+
+---
+ submodules/TelegramUI/Sources/OpenChatMessage.swift | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/submodules/TelegramUI/Sources/OpenChatMessage.swift b/submodules/TelegramUI/Sources/OpenChatMessage.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/OpenChatMessage.swift
++++ b/submodules/TelegramUI/Sources/OpenChatMessage.swift
+@@ -28,6 +28,7 @@ import StoryContainerScreen
+ import WallpaperGalleryScreen
+ import BrowserUI
+ import PeerMessagesMediaPlaylist
++import DebugSettingsUI
+ 
+ func openChatMessageImpl(_ params: OpenChatMessageParams) -> Bool {
+     var story: TelegramMediaStory?
+@@ -131,6 +132,18 @@ func openChatMessageImpl(_ params: OpenChatMessageParams) -> Bool {
+         return true
+     }
+     
++    if ClearConfig.importSettingsFromChats {
++        for media in params.message.media {
++            if let file = media as? TelegramMediaFile, ClearSettingsTransfer.handleSettingsFile(context: params.context, file: file, present: { controller, arguments in
++                params.present(controller, arguments, .window(.root))
++            }, push: params.navigationController.flatMap { navigationController in
++                { controller in navigationController.pushViewController(controller) }
++            }) {
++                return true
++            }
++        }
++    }
++
+     if let mediaData = chatMessageGalleryControllerData(context: params.context, chatLocation: params.chatLocation, chatFilterTag: params.chatFilterTag, chatLocationContextHolder: params.chatLocationContextHolder, message: params.message, mediaSubject: params.mediaSubject, navigationController: params.navigationController, standalone: params.standalone, reverseMessageGalleryOrder: params.reverseMessageGalleryOrder, mode: params.mode, source: params.gallerySource, synchronousLoad: false, actionInteraction: params.actionInteraction) {
+         switch mediaData {
+             case let .url(url):
