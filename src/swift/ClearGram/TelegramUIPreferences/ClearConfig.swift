@@ -11,6 +11,9 @@ public enum ClearConfig {
     private static let cache = Atomic<ClearConfigSettings>(value: ClearConfigSettings.defaultSettings)
 
     public static func start(accountManager: AccountManager<TelegramAccountManagerTypes>) {
+        // fork strings follow the client language, mirrored from shared-data the same way
+        ClearStrings.start(accountManager: accountManager)
+
         // keep the in-memory cache in sync with shared-data
         _ = clearConfigEntry(accountManager: accountManager).start(next: { value in
             _ = cache.swap(value)
@@ -66,7 +69,6 @@ public enum ClearConfig {
     public static var biometricConfirmDeleteChat: Bool { current().biometricConfirmDeleteChat }
     public static var biometricConfirmClearHistory: Bool { current().biometricConfirmClearHistory }
     public static var biometricConfirmLogout: Bool { current().biometricConfirmLogout }
-    public static var hideSponsoredMessages: Bool { current().hideSponsoredMessages }
     public static var hideStarReactionButton: Bool { current().hideStarReactionButton }
     public static var hideStarReactionCount: Bool { current().hideStarReactionCount }
     public static var hideSimilarChannels: Bool { current().hideSimilarChannels }

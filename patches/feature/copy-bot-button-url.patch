@@ -4,11 +4,11 @@ Date: Thu, 13 Aug 2026 23:13:10 +0800
 Subject: Copy bot button URL on hold
 
 ---
- .../Components/Chat/ChatMessageActionButtonsNode/BUILD |  1 +
- .../Sources/ChatMessageActionButtonsNode.swift         |  3 +++
- .../Components/Chat/ChatMessageItemView/BUILD          |  1 +
- .../Sources/ChatMessageItemView.swift                  | 10 ++++++++++
- 4 files changed, 15 insertions(+)
+ .../Chat/ChatMessageActionButtonsNode/BUILD    |  1 +
+ .../Sources/ChatMessageActionButtonsNode.swift | 10 ++++++++++
+ .../Components/Chat/ChatMessageItemView/BUILD  |  1 +
+ .../Sources/ChatMessageItemView.swift          | 18 ++++++++++++++++++
+ 4 files changed, 30 insertions(+)
 
 diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageActionButtonsNode/BUILD b/submodules/TelegramUI/Components/Chat/ChatMessageActionButtonsNode/BUILD
 index 0000000..0000000 100644
@@ -34,15 +34,28 @@ index 0000000..0000000 100644
  import Display
  import TelegramPresentationData
  import AccountContext
-@@ -354,6 +355,8 @@ private final class ChatMessageActionButtonNode: ASDisplayNode {
+@@ -351,12 +352,21 @@ private final class ChatMessageActionButtonNode: ASDisplayNode {
+                     node.wallpaperBackgroundNode = backgroundNode
+                     node.button = button
+                     
++                    var longTapMinimumPressDuration: Double = 0.3
                      switch button.action {
                      case .url:
                          node.longTapRecognizer?.isEnabled = true
 +                    case .urlAuth, .openWebView:
 +                        node.longTapRecognizer?.isEnabled = ClearConfig.copyBotButtonUrl
++                    case .callback:
++                        node.longTapRecognizer?.isEnabled = ClearConfig.copyBotButtonUrl
++                        // Longer than the stock 0.3s: a slow tap must still fire the callback instead of copying it.
++                        longTapMinimumPressDuration = ClearConfig.copyBotButtonUrl ? 0.8 : 0.3
                      default:
                          node.longTapRecognizer?.isEnabled = false
                      }
++                    // Nodes are reused across buttons, so the duration is restated on every layout.
++                    node.longTapRecognizer?.minimumPressDuration = longTapMinimumPressDuration
+                     
+                     if node.backgroundBlurView == nil {
+                         if let backgroundBlurView = backgroundNode?.makeFreeBackground() {
 diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageItemView/BUILD b/submodules/TelegramUI/Components/Chat/ChatMessageItemView/BUILD
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Components/Chat/ChatMessageItemView/BUILD
@@ -67,7 +80,7 @@ index 0000000..0000000 100644
  import AccountContext
  import LocalizedPeerData
  import ContextUI
-@@ -877,6 +878,15 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
+@@ -877,6 +878,23 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
              switch button.action {
                  case let .url(url):
                      item.controllerInteraction.longTap(.url(url), ChatControllerInteraction.LongTapParams(message: item.message))
@@ -79,6 +92,14 @@ index 0000000..0000000 100644
 +                case let .openWebView(url, _):
 +                    if ClearConfig.copyBotButtonUrl, !url.isEmpty {
 +                        item.controllerInteraction.copyText(url)
++                    }
++                case let .callback(_, data):
++                    if ClearConfig.copyBotButtonUrl {
++                        let payload = data.makeData()
++                        if !payload.isEmpty {
++                            // Callback payloads are usually UTF-8 text; binary ones are copied as hex.
++                            item.controllerInteraction.copyText(String(data: payload, encoding: .utf8) ?? payload.map { String(format: "%02x", $0) }.joined())
++                        }
 +                    }
                  default:
                      break

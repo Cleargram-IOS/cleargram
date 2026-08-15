@@ -15,13 +15,16 @@ public enum ClearSwipeAction: String, CaseIterable {
     case delete
     case archive
 
+    // Not shown anywhere today — the reveal options keep the titles stock gave them, already
+    // localized by Telegram. Kept for debugging, and localized so it stays usable if it ever
+    // reaches the screen.
     public var title: String {
         switch self {
-        case .pin: return "Pin"
-        case .mute: return "Mute"
-        case .read: return "Read / Unread"
-        case .delete: return "Delete"
-        case .archive: return "Archive"
+        case .pin: return ClearStrings.tr("Pin", "Закрепить")
+        case .mute: return ClearStrings.tr("Mute", "Без звука")
+        case .read: return ClearStrings.tr("Read / Unread", "Прочитано / Не прочитано")
+        case .delete: return ClearStrings.tr("Delete", "Удалить")
+        case .archive: return ClearStrings.tr("Archive", "Архивировать")
         }
     }
 }

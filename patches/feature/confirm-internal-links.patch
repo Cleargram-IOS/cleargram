@@ -34,7 +34,7 @@ index 0000000..0000000 100644
 +        if ClearConfig.confirmInternalLinks, case .externalUrl = resolved {
 +            baseHandleResolvedUrl(resolved)
 +        } else if ClearConfig.confirmInternalLinks {
-+            context.sharedContext.presentGlobalController(textAlertController(context: context, title: nil, text: "Open link?", actions: [
++            context.sharedContext.presentGlobalController(textAlertController(context: context, title: nil, text: ClearStrings.confirmOpenLink, actions: [
 +                TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_Yes, action: {
 +                    baseHandleResolvedUrl(resolved)
 +                }),

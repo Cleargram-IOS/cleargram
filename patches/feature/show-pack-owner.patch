@@ -47,7 +47,7 @@ index 0000000..0000000 100644
 +            }
 +            let ownerId = PeerId(ownerBareId)
 +            items.append(.separator)
-+            items.append(.action(ContextMenuActionItem(text: "Show Pack Owner", icon: { theme in
++            items.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuShowPackOwner, icon: { theme in
 +                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Info"), color: theme.contextMenu.primaryColor)
 +            }, action: { [weak self] _, f in
 +                f(.default)

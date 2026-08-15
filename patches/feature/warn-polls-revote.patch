@@ -32,7 +32,7 @@ index 0000000..0000000 100644
 +                    }),
 +                    TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {})
 +                ]
-+                strongSelf.present(textAlertController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, title: nil, text: "Change your vote?", actions: actions), in: .window(.root))
++                strongSelf.present(textAlertController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, title: nil, text: ClearStrings.confirmPollRevote, actions: actions), in: .window(.root))
 +                return
 +            }
 +            

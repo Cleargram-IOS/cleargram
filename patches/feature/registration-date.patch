@@ -67,7 +67,7 @@ index 0000000..0000000 100644
 +            } else if let country = context.currentCountriesConfiguration.with({ $0 }).countries.first(where: { $0.id == phoneCountry }) {
 +                countryName = country.localizedName ?? country.name
 +            } else if phoneCountry == "TS" {
-+                countryName = "Test"
++                countryName = ClearStrings.testCountryName
 +            }
 +            let countryText = emojiFlagForISOCountryCode(phoneCountry) + " " + countryName
 +            items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemClearPhoneCountry, label: presentationData.strings.Chat_NonContactUser_PhoneNumber, text: countryText, textColor: .primary, action: nil, requestLayout: { animated in

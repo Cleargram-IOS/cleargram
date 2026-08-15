@@ -11,18 +11,23 @@ import ItemListUI
 import PresentationDataUtils
 import ItemListPeerItem
 
+// Same shorthand as the settings screen: English source text first, Russian second.
+private func L(_ en: String, _ ru: String) -> String {
+    return ClearStrings.tr(en, ru)
+}
+
 private func hiddenMessagePreviewString(_ message: EngineMessage) -> String {
     if !message.text.isEmpty {
         return message.text
     }
     for media in message.media {
         if media is TelegramMediaImage {
-            return "Photo"
+            return L("Photo", "Фото")
         } else if media is TelegramMediaFile {
-            return "File"
+            return L("File", "Файл")
         }
     }
-    return message.media.isEmpty ? "Message" : "Media"
+    return message.media.isEmpty ? L("Message", "Сообщение") : L("Media", "Медиа")
 }
 
 private enum QuietChatsSection: ItemListSectionId {
@@ -255,7 +260,7 @@ public func quietChatsSelectionController(context: AccountContext) -> ViewContro
                     let peer = message.peers[engineId.peerId].flatMap(EnginePeer.init)
                     return (hiddenId, peer, hiddenMessagePreviewString(message))
                 } else {
-                    return (hiddenId, nil, "Message unavailable")
+                    return (hiddenId, nil, L("Message unavailable", "Сообщение недоступно"))
                 }
             }
         }
@@ -266,34 +271,34 @@ public func quietChatsSelectionController(context: AccountContext) -> ViewContro
         let pd = ItemListPresentationData(presentationData)
         var entries: [QuietChatsEntry] = []
 
-        entries.append(.toggle(presentationData.theme, "Show Hide Option in Messages", messagesSettings.enabled))
+        entries.append(.toggle(presentationData.theme, L("Show Hide Option in Messages", "Показывать «Скрыть» в сообщениях"), messagesSettings.enabled))
 
-        entries.append(.peersHeader(presentationData.theme, "HIDDEN CHATS"))
+        entries.append(.peersHeader(presentationData.theme, L("HIDDEN CHATS", "СКРЫТЫЕ ЧАТЫ")))
         for (i, peer) in peers.enumerated() {
             entries.append(.peer(i, peer, presentationData.theme, presentationData.strings))
         }
-        entries.append(.addPeer(presentationData.theme, "Add Chat"))
+        entries.append(.addPeer(presentationData.theme, L("Add Chat", "Добавить чат")))
 
-        entries.append(.peerPresetsHeader(presentationData.theme, "CHAT PRESETS"))
+        entries.append(.peerPresetsHeader(presentationData.theme, L("CHAT PRESETS", "НАБОРЫ ЧАТОВ")))
         let sortedChatPresets = chatsSettings.presets.keys.sorted()
         for (i, name) in sortedChatPresets.enumerated() {
             entries.append(.peerPreset(i, name, presentationData.theme, presentationData.strings))
         }
-        entries.append(.savePeerPreset(presentationData.theme, "Save Current Chats as Preset"))
+        entries.append(.savePeerPreset(presentationData.theme, L("Save Current Chats as Preset", "Сохранить текущие чаты как набор")))
 
-        entries.append(.messagesHeader(presentationData.theme, "HIDDEN MESSAGES"))
+        entries.append(.messagesHeader(presentationData.theme, L("HIDDEN MESSAGES", "СКРЫТЫЕ СООБЩЕНИЯ")))
         for (i, item) in messagesContent.enumerated() {
             entries.append(.message(i, item.1, item.2, item.0, presentationData.theme, presentationData.strings))
         }
 
-        entries.append(.messagePresetsHeader(presentationData.theme, "MESSAGE PRESETS"))
+        entries.append(.messagePresetsHeader(presentationData.theme, L("MESSAGE PRESETS", "НАБОРЫ СООБЩЕНИЙ")))
         let sortedMessagePresets = messagesSettings.presets.keys.sorted()
         for (i, name) in sortedMessagePresets.enumerated() {
             entries.append(.messagePreset(i, name, presentationData.theme, presentationData.strings))
         }
-        entries.append(.saveMessagePreset(presentationData.theme, "Save Current Messages as Preset"))
+        entries.append(.saveMessagePreset(presentationData.theme, L("Save Current Messages as Preset", "Сохранить текущие сообщения как набор")))
 
-        let state = ItemListControllerState(presentationData: pd, title: .text("Peer Sync Preferences"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+        let state = ItemListControllerState(presentationData: pd, title: .text(L("Peer Sync Preferences", "Скрытые чаты и сообщения")), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         return (state, (ItemListNodeState(presentationData: pd, entries: entries, style: .blocks, animateChanges: true), arguments))
     }
 
@@ -307,7 +312,7 @@ public func quietChatsSelectionController(context: AccountContext) -> ViewContro
             hasChatListSelector: true,
             hasContactSelector: false,
             hasGlobalSearch: false,
-            title: "Select Chat"
+            title: L("Select Chat", "Выберите чат")
         ))
         selector.peerSelected = { [weak selector] peer, _ in
             let _ = updateHiddenChatsSettingsInteractively(accountManager: context.sharedContext.accountManager) { settings in
@@ -321,25 +326,33 @@ public func quietChatsSelectionController(context: AccountContext) -> ViewContro
 
     savePeerPresetImpl = { [weak controller] in
         guard let controller else { return }
-        let alert = UIAlertController(title: "Save Chat Preset", message: "Enter a name for this preset", preferredStyle: .alert)
-        alert.addTextField { tf in tf.placeholder = "Preset name" }
-        alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+        let alert = UIAlertController(
+            title: L("Save Chat Preset", "Сохранить набор чатов"),
+            message: L("Enter a name for this preset", "Введите название набора"),
+            preferredStyle: .alert
+        )
+        alert.addTextField { tf in tf.placeholder = L("Preset name", "Название набора") }
+        alert.addAction(UIAlertAction(title: L("Save", "Сохранить"), style: .default) { _ in
             guard let name = alert.textFields?.first?.text, !name.isEmpty else { return }
             let _ = updateHiddenChatsSettingsInteractively(accountManager: context.sharedContext.accountManager) { $0.withPresetSaved(name: name) }.start()
         })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: L("Cancel", "Отмена"), style: .cancel))
         controller.present(alert, animated: true)
     }
 
     saveMessagePresetImpl = { [weak controller] in
         guard let controller else { return }
-        let alert = UIAlertController(title: "Save Message Preset", message: "Enter a name for this preset", preferredStyle: .alert)
-        alert.addTextField { tf in tf.placeholder = "Preset name" }
-        alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+        let alert = UIAlertController(
+            title: L("Save Message Preset", "Сохранить набор сообщений"),
+            message: L("Enter a name for this preset", "Введите название набора"),
+            preferredStyle: .alert
+        )
+        alert.addTextField { tf in tf.placeholder = L("Preset name", "Название набора") }
+        alert.addAction(UIAlertAction(title: L("Save", "Сохранить"), style: .default) { _ in
             guard let name = alert.textFields?.first?.text, !name.isEmpty else { return }
             let _ = updateHiddenMessagesSettingsInteractively(accountManager: context.sharedContext.accountManager) { $0.withPresetSaved(name: name) }.start()
         })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: L("Cancel", "Отмена"), style: .cancel))
         controller.present(alert, animated: true)
     }
 

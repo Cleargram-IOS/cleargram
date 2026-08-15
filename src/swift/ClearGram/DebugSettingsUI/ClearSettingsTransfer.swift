@@ -29,6 +29,11 @@ import UndoUI
 // surfaces (Fake Glass / Force Clear Glass). ClearConfigSettings itself is only Bools and Int32s —
 // no credentials, no peer ids, nothing account-specific.
 
+// Same shorthand as the settings screen: English source text first, Russian second.
+private func L(_ en: String, _ ru: String) -> String {
+    return ClearStrings.tr(en, ru)
+}
+
 public struct ClearSettingsPayload {
     public let version: Int
     public let appVersion: String?
@@ -190,7 +195,7 @@ public enum ClearSettingsTransfer {
         }
         if let number = value as? NSNumber {
             if CFGetTypeID(number) == CFBooleanGetTypeID() {
-                return number.boolValue ? "On" : "Off"
+                return number.boolValue ? L("On", "Вкл.") : L("Off", "Выкл.")
             }
             return "\(number.intValue)"
         }
@@ -240,7 +245,7 @@ extension ClearSettingsTransfer {
     ) {
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
         guard let data = encode(ClearConfig.current()) else {
-            present(textAlertController(context: context, title: nil, text: "Couldn't build the settings file.", actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
+            present(textAlertController(context: context, title: nil, text: L("Couldn't build the settings file.", "Не удалось собрать файл настроек."), actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
             return
         }
 
@@ -248,7 +253,7 @@ extension ClearSettingsTransfer {
         var items: [ActionSheetButtonItem] = []
 
         if context.sharedContext.applicationBindings.isMainApp {
-            items.append(ActionSheetButtonItem(title: "Send to Chat", color: .accent, action: { [weak actionSheet] in
+            items.append(ActionSheetButtonItem(title: L("Send to Chat", "Отправить в чат"), color: .accent, action: { [weak actionSheet] in
                 actionSheet?.dismissAnimated()
 
                 let controller = context.sharedContext.makePeerSelectionController(PeerSelectionControllerParams(context: context, filter: [.onlyWriteable, .excludeDisabled]))
@@ -279,7 +284,7 @@ extension ClearSettingsTransfer {
             }))
         }
 
-        items.append(ActionSheetButtonItem(title: "Save to Files / Share", color: .accent, action: { [weak actionSheet] in
+        items.append(ActionSheetButtonItem(title: L("Save to Files / Share", "Сохранить в «Файлы» или поделиться"), color: .accent, action: { [weak actionSheet] in
             actionSheet?.dismissAnimated()
 
             let tempFile = EngineTempBox.shared.tempFile(fileName: defaultFileName())
@@ -373,13 +378,13 @@ private enum ClearImportEntry: ItemListNodeEntry {
         let args = arguments as! ClearImportArguments
         switch self {
         case .modeHeader:
-            return ItemListSectionHeaderItem(presentationData: presentationData, text: "HOW TO APPLY", sectionId: self.section)
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: L("HOW TO APPLY", "КАК ПРИМЕНИТЬ"), sectionId: self.section)
         case let .modeMerge(selected):
-            return ItemListCheckboxItem(presentationData: presentationData, systemStyle: .glass, title: "Add on Top", style: .right, checked: selected, zeroSeparatorInsets: false, sectionId: self.section, action: {
+            return ItemListCheckboxItem(presentationData: presentationData, systemStyle: .glass, title: L("Add on Top", "Поверх текущих"), style: .right, checked: selected, zeroSeparatorInsets: false, sectionId: self.section, action: {
                 args.setMode(.merge)
             })
         case let .modeReplace(selected):
-            return ItemListCheckboxItem(presentationData: presentationData, systemStyle: .glass, title: "Replace Everything", style: .right, checked: selected, zeroSeparatorInsets: false, sectionId: self.section, action: {
+            return ItemListCheckboxItem(presentationData: presentationData, systemStyle: .glass, title: L("Replace Everything", "Заменить полностью"), style: .right, checked: selected, zeroSeparatorInsets: false, sectionId: self.section, action: {
                 args.setMode(.replace)
             })
         case let .modeFooter(text):
@@ -433,7 +438,12 @@ extension ClearSettingsTransfer {
                 dismissImpl?()
                 presentImpl?(UndoOverlayController(
                     presentationData: presentationData,
-                    content: .info(title: nil, text: "Settings imported. Restart to apply everything.", timeout: nil, customUndoText: "Restart Now"),
+                    content: .info(
+                        title: nil,
+                        text: L("Settings imported. Restart to apply everything.", "Настройки импортированы. Перезапустите приложение, чтобы применить всё."),
+                        timeout: nil,
+                        customUndoText: L("Restart Now", "Перезапустить")
+                    ),
                     elevatedLayout: false,
                     action: { action in
                         if action == .undo {
@@ -460,30 +470,52 @@ extension ClearSettingsTransfer {
             entries.append(.modeReplace(mode == .replace))
             switch mode {
             case .merge:
-                entries.append(.modeFooter("Only the options listed below are touched; anything the file doesn't mention keeps its current value."))
+                entries.append(.modeFooter(L(
+                    "Only the options listed below are touched; anything the file doesn't mention keeps its current value.",
+                    "Затрагиваются только перечисленные ниже параметры; всё, чего в файле нет, сохраняет текущее значение."
+                )))
             case .replace:
-                entries.append(.modeFooter("Everything Cleargram controls is reset to its default first, then the file is applied — so your current setup is replaced wholesale."))
+                entries.append(.modeFooter(L(
+                    "Everything Cleargram controls is reset to its default first, then the file is applied — so your current setup is replaced wholesale.",
+                    "Сначала все параметры Cleargram сбрасываются к значениям по умолчанию, затем применяется файл — то есть текущая настройка заменяется целиком."
+                )))
             }
 
             if changeList.isEmpty {
-                entries.append(.changesHeader("CHANGES"))
-                entries.append(.changesFooter("Nothing would change — these settings already match yours."))
+                entries.append(.changesHeader(L("CHANGES", "ИЗМЕНЕНИЯ")))
+                entries.append(.changesFooter(L(
+                    "Nothing would change — these settings already match yours.",
+                    "Ничего не изменится — эти настройки уже совпадают с вашими."
+                )))
             } else {
-                entries.append(.changesHeader("\(changeList.count) CHANGE\(changeList.count == 1 ? "" : "S")"))
+                let count = changeList.count
+                entries.append(.changesHeader(L(
+                    "\(count) CHANGE\(count == 1 ? "" : "S")",
+                    "\(count) \(ClearStrings.plural(count, one: "ИЗМЕНЕНИЕ", few: "ИЗМЕНЕНИЯ", many: "ИЗМЕНЕНИЙ"))"
+                )))
                 for (index, change) in changeList.enumerated() {
                     entries.append(.change(index: index, title: change.title, value: "\(change.fromText) → \(change.toText)"))
                 }
-                var footer = "Telegram's own settings are not part of a Cleargram settings file."
+                var footer = L(
+                    "Telegram's own settings are not part of a Cleargram settings file.",
+                    "Собственные настройки Telegram в файл настроек Cleargram не входят."
+                )
                 if let appVersion = payload.appVersion {
-                    footer = "Exported from \(appVersion).\n\n" + footer
+                    footer = L("Exported from \(appVersion).\n\n", "Экспортировано из \(appVersion).\n\n") + footer
                 }
                 entries.append(.changesFooter(footer))
-                entries.append(.apply(mode == .replace ? "Replace My Settings" : "Import \(changeList.count) Setting\(changeList.count == 1 ? "" : "s")"))
+                entries.append(.apply(mode == .replace
+                    ? L("Replace My Settings", "Заменить мои настройки")
+                    : L(
+                        "Import \(count) Setting\(count == 1 ? "" : "s")",
+                        "Импортировать \(count) \(ClearStrings.plural(count, one: "параметр", few: "параметра", many: "параметров"))"
+                    )
+                ))
             }
 
             let state = ItemListControllerState(
                 presentationData: itemListPresentationData,
-                title: .text("Import Settings"),
+                title: .text(L("Import Settings", "Импорт настроек")),
                 leftNavigationButton: isModal ? ItemListNavigationButton(content: .text(presentationData.strings.Common_Cancel), style: .regular, enabled: true, action: {
                     dismissImpl?()
                 }) : nil,
@@ -527,7 +559,7 @@ extension ClearSettingsTransfer {
     ) {
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
         guard let payload = decode(data) else {
-            present(textAlertController(context: context, title: "Not a Cleargram settings file", text: "This file isn't a Cleargram settings export, or it's damaged.", actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
+            present(textAlertController(context: context, title: L("Not a Cleargram settings file", "Это не файл настроек Cleargram"), text: L("This file isn't a Cleargram settings export, or it's damaged.", "Этот файл не является экспортом настроек Cleargram или повреждён."), actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), nil)
             return
         }
         if let push {

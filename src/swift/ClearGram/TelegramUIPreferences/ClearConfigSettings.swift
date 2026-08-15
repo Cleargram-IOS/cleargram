@@ -38,7 +38,6 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var biometricConfirmDeleteChat: Bool
     public var biometricConfirmClearHistory: Bool
     public var biometricConfirmLogout: Bool
-    public var hideSponsoredMessages: Bool
     public var hideStarReactionButton: Bool
     public var hideStarReactionCount: Bool
     public var hideSimilarChannels: Bool
@@ -120,7 +119,6 @@ public struct ClearConfigSettings: Codable, Equatable {
             biometricConfirmDeleteChat: false,
             biometricConfirmClearHistory: false,
             biometricConfirmLogout: false,
-            hideSponsoredMessages: false,
             hideStarReactionButton: false,
             hideStarReactionCount: false,
             hideSimilarChannels: false,
@@ -203,7 +201,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         biometricConfirmDeleteChat: Bool = false,
         biometricConfirmClearHistory: Bool = false,
         biometricConfirmLogout: Bool = false,
-        hideSponsoredMessages: Bool = false,
         hideStarReactionButton: Bool = false,
         hideStarReactionCount: Bool = false,
         hideSimilarChannels: Bool = false,
@@ -283,7 +280,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.biometricConfirmDeleteChat = biometricConfirmDeleteChat
         self.biometricConfirmClearHistory = biometricConfirmClearHistory
         self.biometricConfirmLogout = biometricConfirmLogout
-        self.hideSponsoredMessages = hideSponsoredMessages
         self.hideStarReactionButton = hideStarReactionButton
         self.hideStarReactionCount = hideStarReactionCount
         self.hideSimilarChannels = hideSimilarChannels
@@ -345,7 +341,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case hideContextMenuReply, hideContextMenuPin, hideContextMenuForward, hideContextMenuReport, hideContextMenuSelect
         case doubleTapDelay, defaultEmojisFirst, disableScrollToNextChannel, showInlineReactions
         case blockCloudDrafts, showForwardedTime, stripTrackingParams, replacePreviewLinks, confirmInternalLinks, biometricConfirmDeleteChat, biometricConfirmClearHistory, biometricConfirmLogout
-        case hideSponsoredMessages, hideStarReactionButton, hideStarReactionCount, hideSimilarChannels, warnPollsRevote, showPackOwner, timeOnServiceMessages
+        case hideStarReactionButton, hideStarReactionCount, hideSimilarChannels, warnPollsRevote, showPackOwner, timeOnServiceMessages
         case showTabNames, compactChatList, chatListLines, compactFolderNames, allChatsHidden, hideTabBar, narrowTabBar, tabBarSearchEnabled, wideChannelPosts, hideChannelBottomButton
         case disableGalleryCamera, compactGalleryCamera, disableStoryCameraSwipe, enableMultiColumnLayout
         case flatStickerCorners
@@ -390,7 +386,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.biometricConfirmDeleteChat = try c.decodeIfPresent(Bool.self, forKey: .biometricConfirmDeleteChat) ?? false
         self.biometricConfirmClearHistory = try c.decodeIfPresent(Bool.self, forKey: .biometricConfirmClearHistory) ?? false
         self.biometricConfirmLogout = try c.decodeIfPresent(Bool.self, forKey: .biometricConfirmLogout) ?? false
-        self.hideSponsoredMessages = try c.decodeIfPresent(Bool.self, forKey: .hideSponsoredMessages) ?? false
         self.hideStarReactionButton = try c.decodeIfPresent(Bool.self, forKey: .hideStarReactionButton) ?? false
         self.hideStarReactionCount = try c.decodeIfPresent(Bool.self, forKey: .hideStarReactionCount) ?? false
         self.hideSimilarChannels = try c.decodeIfPresent(Bool.self, forKey: .hideSimilarChannels) ?? false

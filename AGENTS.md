@@ -57,7 +57,7 @@ compliant alternative instead of quietly building it.
 
 | clause | what it means for a patch |
 | --- | --- |
-| "If an app allows accessing content from Telegram channels, it must include support for official sponsored messages … and may not interfere with this functionality" | **Hard violation, no exceptions.** Anything that hides channel ads, the promoted/PSA chat (`ChatListAdditionalItem.promoInfo`) or suppresses the sponsored view/click reporting calls is out — this is the clause Telegram actually enforces (notice → `api_id` cut in 10 days, which kills the build for everyone). `feature__hide-sponsored` / `ClearConfig.hideSponsoredMessages` is the existing offender and is **marked for deletion**; don't extend it, don't reference it as precedent. |
+| "If an app allows accessing content from Telegram channels, it must include support for official sponsored messages … and may not interfere with this functionality" | **Hard violation, no exceptions.** Anything that hides channel ads, the promoted/PSA chat (`ChatListAdditionalItem.promoInfo`) or suppresses the sponsored view/click reporting calls is out — this is the clause Telegram actually enforces (notice → `api_id` cut in 10 days, which kills the build for everyone). A default-off toggle does not launder it — the code still ships in the binary. |
 | no "ghost mode" | Don't block read receipts, typing status, online/last-seen, or defeat self-destructing messages / screenshot notifications. Hiding a chat *locally* (`feature__hidden-chats`) is fine — it doesn't lie to the server. Faking "unread" upstream is not. |
 | no acting on the user's behalf without consent | No auto-join, auto-read, auto-reply, background account actions the user didn't trigger. |
 | own `api_id`, disclosure, naming | Keep the api id/hash out of the stack (see `misc__build-config`), never name the app "Telegram\*" without an "Unofficial" prefix, and never ship Telegram's official logo as the app icon (`misc__app-icon`). |
@@ -214,6 +214,33 @@ Current entries: `blockCloudDrafts`, `expandedMessageIds`, `fasterFileLoad`, `hi
 `Atomic` here, and the matching `swap` in `ClearConfig.start`.
 
 ---
+
+### `ClearStrings` — localization of fork-only UI
+
+Lives in `src/swift/ClearGram/TelegramUIPreferences/ClearStrings.swift`. Every user-visible
+string the fork adds goes through it:
+
+```swift
+ClearStrings.tr("Open link?", "Открыть ссылку?")   // English source, Russian translation
+ClearStrings.plural(n, one: "параметр", few: "параметра", many: "параметров")
+```
+
+- **Language source:** `SharedDataKeys.localizationSettings` → `primaryComponent.languageCode`,
+  mirrored into an `Atomic` by `ClearStrings.start(accountManager:)`, which `ClearConfig.start`
+  calls. Same pattern as `ClearHooks` — call sites stay static, no `PresentationStrings`
+  threading. Anything not `ru*` falls back to the English text.
+- **Fork files** (`ClearSettingsController`, `ClearSettingsTransfer`, `QuietChatsController`)
+  declare a file-private `private func L(_ en: String, _ ru: String)` shorthand and call it
+  inline, so the text stays next to the row it belongs to.
+- **Stock files patched by us** must NOT contain Russian text: add a named property to
+  `ClearStrings` (`confirmOpenLink`, `contextMenuShowPackOwner`, `biometricReason*`…) and
+  reference it, keeping the patch hunk a one-liner.
+- **Don't translate:** stock strings (Telegram ships its own Russian, server-delivered — a
+  locally added `Localizable.strings` key gets overwritten anyway), technical identifiers
+  (`ID`, `DC`, codec names), and the `.cleargram` settings-file keys, which are format, not UI.
+- Prefer an existing stock key when one fits (`strings.Conversation_ContextMenuCopy`,
+  `strings.SponsoredMessageMenu_Hide`, `strings.Chat_NonContactUser_Registration`) — several
+  patches already do, and those need no `ClearStrings` entry at all.
 
 ## Database / persistent state
 

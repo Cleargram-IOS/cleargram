@@ -90,7 +90,7 @@ func clearPeerIdItems(peer: EnginePeer?, context: AccountContext, interaction: P
         let idText = "\(peer.id.id._internalGetInt64Value())"
         var extraCopy: (title: String, value: String)?
         if let botApi = clearBotApiPeerId(peer) {
-            extraCopy = (title: "Copy Bot API ID", value: botApi)
+            extraCopy = (title: ClearStrings.tr("Copy Bot API ID", "Копировать ID для Bot API"), value: botApi)
         }
         result.append(clearCopyableRow(id: clearItemPeerId, label: "id", text: idText, copyValue: idText, extraCopy: extraCopy, context: context, interaction: interaction))
     }

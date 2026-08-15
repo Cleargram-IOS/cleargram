@@ -15,7 +15,6 @@ feature/context-menu-toggles.patch
 feature/default-emojis-first.patch
 feature/scroll-next-channel.patch
 feature/inline-reactions.patch
-feature/hide-sponsored.patch
 feature/flat-sticker-corners.patch
 feature/forwarded-time.patch
 feature/block-cloud-drafts.patch

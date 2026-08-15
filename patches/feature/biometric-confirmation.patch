@@ -18,7 +18,7 @@ index 0000000..0000000 100644
      }
      
      private func schedulePeerChatRemoval(peer: EngineRenderedPeer, type: InteractiveMessagesDeletionType, deleteGloballyIfPossible: Bool, completion: @escaping () -> Void) {
-+        ClearBiometricHelper.gate(reason: "Confirm delete chat", enabled: ClearConfig.biometricConfirmDeleteChat) { [weak self] in
++        ClearBiometricHelper.gate(reason: ClearStrings.biometricReasonDeleteChat, enabled: ClearConfig.biometricConfirmDeleteChat) { [weak self] in
 +            self?.schedulePeerChatRemovalImpl(peer: peer, type: type, deleteGloballyIfPossible: deleteGloballyIfPossible, completion: completion)
 +        }
 +    }
@@ -45,7 +45,7 @@ index 0000000..0000000 100644
              TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {
 -                let _ = logoutFromAccount(id: context.account.id, accountManager: context.sharedContext.accountManager, alreadyLoggedOutRemotely: false).start()
 -                dismissImpl?()
-+                ClearBiometricHelper.gate(reason: "Confirm logout", enabled: ClearConfig.biometricConfirmLogout) {
++                ClearBiometricHelper.gate(reason: ClearStrings.biometricReasonLogout, enabled: ClearConfig.biometricConfirmLogout) {
 +                    let _ = logoutFromAccount(id: context.account.id, accountManager: context.sharedContext.accountManager, alreadyLoggedOutRemotely: false).start()
 +                    dismissImpl?()
 +                }
@@ -60,7 +60,7 @@ index 0000000..0000000 100644
      }
      
      public func beginClearHistory(type: InteractiveHistoryClearingType) {
-+        ClearBiometricHelper.gate(reason: "Confirm clear history", enabled: ClearConfig.biometricConfirmClearHistory) { [weak self] in
++        ClearBiometricHelper.gate(reason: ClearStrings.biometricReasonClearHistory, enabled: ClearConfig.biometricConfirmClearHistory) { [weak self] in
 +            self?.beginClearHistoryImpl(type: type)
 +        }
 +    }
@@ -73,7 +73,7 @@ index 0000000..0000000 100644
      }
      
      func deleteChat(reportChatSpam: Bool) {
-+        ClearBiometricHelper.gate(reason: "Confirm delete chat", enabled: ClearConfig.biometricConfirmDeleteChat) { [weak self] in
++        ClearBiometricHelper.gate(reason: ClearStrings.biometricReasonDeleteChat, enabled: ClearConfig.biometricConfirmDeleteChat) { [weak self] in
 +            self?.deleteChatImpl(reportChatSpam: reportChatSpam)
 +        }
 +    }
