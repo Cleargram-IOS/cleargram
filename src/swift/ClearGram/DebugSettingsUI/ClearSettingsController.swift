@@ -1013,35 +1013,35 @@ private func clearLinksScreen() -> ClearScreen {
             dynamicFooter: { settings in
                 if settings.stripTrackingParams {
                     return L(
-                        "example.com/article?utm_source=telegram&fbclid=… becomes example.com/article.\n\nApplies to the link preview while you compose, and to Copy on a link. The text you actually send is left as you typed it.",
-                        "example.com/article?utm_source=telegram&fbclid=… превращается в example.com/article.\n\nДействует на предпросмотр ссылки при наборе сообщения и на «Копировать» у ссылки. Отправляемый текст остаётся таким, каким вы его набрали."
+                        "youtu.be/dQw4w9WgXcQ?si=…\nbecomes youtu.be/dQw4w9WgXcQ\n\nApplied to links in messages you send, and to Copy on a link.",
+                        "youtu.be/dQw4w9WgXcQ?si=…\nстанет youtu.be/dQw4w9WgXcQ\n\nПрименяется к ссылкам в отправляемых сообщениях и к «Копировать» у ссылки."
                     )
                 } else {
                     return L(
-                        "Removes utm_*, fbclid, igshid, ref and similar parameters from links.\n\nApplies to the link preview while you compose, and to Copy on a link. The text you actually send is left as you typed it.",
-                        "Убирает из ссылок параметры utm_*, fbclid, igshid, ref и им подобные.\n\nДействует на предпросмотр ссылки при наборе сообщения и на «Копировать» у ссылки. Отправляемый текст остаётся таким, каким вы его набрали."
+                        "Removes utm_*, fbclid, si and similar parameters.\n\nApplied to links in messages you send, and to Copy on a link.",
+                        "Убирает параметры utm_*, fbclid, si и подобные.\n\nПрименяется к ссылкам в отправляемых сообщениях и к «Копировать» у ссылки."
                     )
                 }
             },
             rows: [
-                .toggle(ClearToggle(L("Strip Tracking Parameters", "Убирать параметры отслеживания"), .config(\.stripTrackingParams)))
+                .toggle(ClearToggle(L("Remove Tracking", "Убирать трекинг"), .config(\.stripTrackingParams)))
             ]
         ),
         ClearSection(
             header: L("PREVIEWS", "ПРЕДПРОСМОТР"),
             footer: L(
-                "Some sites block Telegram from building a preview. This swaps the host for a mirror that doesn't: x/twitter → fixupx, instagram → kkclip, tiktok → kktiktok, reddit → rxddit, bsky → fxbsky, pixiv → phixiv.",
-                "Некоторые сайты не дают Telegram построить предпросмотр. Этот параметр подменяет их адрес на зеркало, которое даёт: x/twitter → fixupx, instagram → kkclip, tiktok → kktiktok, reddit → rxddit, bsky → fxbsky, pixiv → phixiv."
+                "Sends links through a mirror that lets Telegram build a preview.\n\nX, Instagram, TikTok, Reddit, Bluesky, Pixiv.",
+                "Отправляет ссылки через зеркало, с которым Telegram может построить предпросмотр.\n\nX, Instagram, TikTok, Reddit, Bluesky, Pixiv."
             ),
             rows: [
-                .toggle(ClearToggle(L("Rewrite Links for Previews", "Подменять ссылки для предпросмотра"), .config(\.replacePreviewLinks)))
+                .toggle(ClearToggle(L("Fix Previews", "Чинить предпросмотр"), .config(\.replacePreviewLinks)))
             ]
         ),
         ClearSection(
             header: L("TELEGRAM LINKS", "ССЫЛКИ TELEGRAM"),
             footer: L(
-                "Asks before opening a t.me or tg:// link — those can join a channel or open a bot with one tap.",
-                "Спрашивает перед открытием ссылки t.me или tg:// — такая ссылка может одним нажатием подписать на канал или открыть бота."
+                "Asks before opening a t.me or tg:// link — those can trigger unwanted actions.",
+                "Спрашивает перед открытием ссылки t.me или tg:// — такие ссылки могут выполнять нежелательные действия."
             ),
             rows: [
                 .toggle(ClearToggle(L("Confirm Telegram Links", "Подтверждать ссылки Telegram"), .config(\.confirmInternalLinks)))

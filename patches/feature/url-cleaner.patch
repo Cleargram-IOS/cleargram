@@ -4,10 +4,32 @@ Date: Tue, 28 Jul 2026 02:52:08 +0700
 Subject: Strip tracking params and replace preview links
 
 ---
+ submodules/TelegramUI/Sources/ChatControllerNode.swift     | 3 ++-
  .../Sources/ChatInterfaceStateContextQueries.swift         | 7 ++++---
  submodules/TelegramUI/Sources/TextLinkHandling.swift       | 3 ++-
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ 3 files changed, 8 insertions(+), 5 deletions(-)
 
+diff --git a/submodules/TelegramUI/Sources/ChatControllerNode.swift b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatControllerNode.swift
++++ b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+@@ -4873,7 +4873,7 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+             
+             var messages: [EnqueueMessage] = []
+             
+-            let effectiveInputText: NSAttributedString
++            var effectiveInputText: NSAttributedString
+             let composeContent = effectivePresentationInterfaceState.interfaceState.composeInputState.content
+             let isNewMessage = effectivePresentationInterfaceState.interfaceState.editMessage == nil
+             let requiresPremiumRichContent = isNewMessage
+@@ -4929,6 +4929,7 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+             } else {
+                 effectiveInputText = expandedInputStateAttributedString(effectivePresentationInterfaceState.interfaceState.composeInputState.inputText)
+             }
++            effectiveInputText = ClearURLCleaner.clean(text: effectiveInputText, strip: ClearConfig.stripTrackingParams, replace: ClearConfig.replacePreviewLinks)
+ 
+             // Rich-message routing: new messages only (editMessage == nil), structural content the entity
+             // set can't express (heading/list/table/media), and non-empty. Entity-expressible content
 diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift
