@@ -1,7 +1,11 @@
 # Copy to `build.local` (untracked) and fill in. Sourced by ./build.sh.
 
-# Directory holding your .mobileprovision and .p12. Keep it outside the repo.
-CLEARGRAM_SIGNING_SRC="$HOME/.cleargram/signing"
+# How to sign: `self` (default) uses your own Apple ID through Xcode — free, but the
+# profile expires after 7 days. `adhoc` uses a distribution certificate you supply.
+#CLEARGRAM_SIGN_METHOD=self
+
+# Directory holding your .mobileprovision and .p12, for `adhoc`. Keep it outside the repo.
+#CLEARGRAM_SIGNING_SRC="$HOME/.cleargram/signing"
 
 # Device UDID for --install. Find it with: xcrun devicectl list devices
 CLEARGRAM_DEVICE=

@@ -17,7 +17,10 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Keep them out of the repository — `build.local` is untracked.
 [ -f "$REPO/build.local" ] && . "$REPO/build.local"
 
-# Directory holding your `.mobileprovision` and `.p12`. Never inside the repo.
+# How to sign: `self` uses your own Apple ID through Xcode (free, profile expires after 7
+# days), `adhoc` uses a distribution certificate you supply. Overridden by --self / --adhoc.
+SIGN_METHOD="${CLEARGRAM_SIGN_METHOD:-self}"
+# Directory holding your `.mobileprovision` and `.p12`. Only used by `adhoc`.
 SIGNING_SRC="${CLEARGRAM_SIGNING_SRC:-$HOME/.cleargram/signing}"
 # Where they get staged for Make.py, which wants `profiles/` + `certs/` side by side.
 SIGNING_DIR="${CLEARGRAM_SIGNING_DIR:-/tmp/tg-cs}"
@@ -42,8 +45,11 @@ usage: ./build.sh (-r | -d) [-s] [-c] [-i] [-f]
 
   -r, --release   optimised build
   -d, --debug     faster build, unoptimised
-  -s, --sign      sign with your ad-hoc certificate (otherwise the signature is
-                  stripped from the .ipa, for handing to other people)
+  -s, --sign      keep the signature (otherwise it is stripped from the .ipa,
+                  for handing to other people)
+      --self      sign with your own Apple ID via Xcode (default) — free, but
+                  the provisioning profile expires after 7 days
+      --adhoc     sign with a distribution certificate from CLEARGRAM_SIGNING_SRC
   -c, --clear     wipe local bazel state first
   -i, --install   install on the device afterwards
   -f, --file      also copy the .ipa to ~/Downloads
@@ -62,7 +68,8 @@ hand to other people, who re-sign it themselves.
 full recompile.
 
 Configuration (build.local or environment):
-  CLEARGRAM_SIGNING_SRC   dir with .mobileprovision + .p12
+  CLEARGRAM_SIGN_METHOD   self (default) | adhoc
+  CLEARGRAM_SIGNING_SRC   dir with .mobileprovision + .p12, for adhoc
   CLEARGRAM_DEVICE        device UDID for --install
   CLEARGRAM_XCODE         Developer dir to build with
   CLEARGRAM_CACHE_DIR     bazel disk cache
@@ -81,6 +88,8 @@ while [ $# -gt 0 ]; do
         -r|--release) FLAVOUR=release ;;
         -d|--debug)   FLAVOUR=debug ;;
         -s|--sign)    SIGN=1 ;;
+        --self)       SIGN_METHOD=self ;;
+        --adhoc)      SIGN_METHOD=adhoc ;;
         -c|--clear)   CLEAN=1 ;;
         -i|--install) INSTALL=1 ;;
         -f|--file)    COPY=1 ;;
@@ -133,29 +142,44 @@ fi
 # to be a real device .ipa. Make.py cannot skip codesigning, so it is stripped afterwards.
 CONFIG="${FLAVOUR}_arm64"
 
-# Make.py demands a codesigning source even where nothing is actually signed.
-# --xcodeManagedCodesigning is not a substitute: it goes looking for an "iOS Team
-# Provisioning Profile: <bundle id>" and fails when none exists. So stage the material and
-# let the configuration decide whether it is used.
-#
-# Always re-stage: /tmp is wiped by a reboot, and a stale copy would silently sign with the
-# previous certificate after the source ones are swapped.
-echo "==> staging codesigning material from $SIGNING_SRC"
-[ -d "$SIGNING_SRC" ] || {
-    echo "error: $SIGNING_SRC not found — set CLEARGRAM_SIGNING_SRC in build.local" >&2
-    exit 1
-}
-rm -rf "$SIGNING_DIR"
-mkdir -p "$SIGNING_DIR/profiles" "$SIGNING_DIR/certs"
-cp "$SIGNING_SRC"/*.mobileprovision "$SIGNING_DIR/profiles/"
-cp "$SIGNING_SRC"/*.p12 "$SIGNING_DIR/certs/"
-CODESIGN_ARGS=(--codesigningInformationPath "$SIGNING_DIR")
+# Make.py always demands a codesigning source, even for the build we strip afterwards — the
+# two modes are mutually exclusive arguments, so pick one either way.
+case "$SIGN_METHOD" in
+    self)
+        # Xcode issues the profile, not bazel. A free Apple Developer profile lives 7 days;
+        # when it has lapsed the build dies on "Finding provisioning profile ... failed" and
+        # opening Telegram/Telegram.xcodeproj in Xcode reissues it.
+        echo "==> signing with your Apple ID (Xcode-managed profile)"
+        CODESIGN_ARGS=(--xcodeManagedCodesigning)
+        ;;
+    adhoc)
+        # Always re-stage: /tmp is wiped by a reboot, and a stale copy would silently sign
+        # with the previous certificate after the source ones are swapped.
+        echo "==> staging codesigning material from $SIGNING_SRC"
+        [ -d "$SIGNING_SRC" ] || {
+            echo "error: $SIGNING_SRC not found — set CLEARGRAM_SIGNING_SRC in build.local" >&2
+            echo "       (or drop --adhoc to sign with your own Apple ID)" >&2
+            exit 1
+        }
+        rm -rf "$SIGNING_DIR"
+        mkdir -p "$SIGNING_DIR/profiles" "$SIGNING_DIR/certs"
+        cp "$SIGNING_SRC"/*.mobileprovision "$SIGNING_DIR/profiles/"
+        cp "$SIGNING_SRC"/*.p12 "$SIGNING_DIR/certs/"
+        CODESIGN_ARGS=(--codesigningInformationPath "$SIGNING_DIR")
+        ;;
+    *)
+        echo "error: unknown signing method '$SIGN_METHOD' — use self or adhoc" >&2
+        exit 1
+        ;;
+esac
 
-# The signing patch hardcodes the app group that your profile actually grants (Telegram
-# derives `group.<bundleId>`, which an ad-hoc service certificate never registers).
-#   signed build   -> it must be applied, or the app cannot reach its container (black screen)
-#   unsigned build -> it must NOT be applied, or whoever re-signs the .ipa with their own
-#                     certificate gets that same black screen
+# The signing patch hardcodes the app group that your profile actually grants. Telegram
+# derives `group.<bundleId>` at runtime, which is exactly what an Xcode-managed profile
+# registers — so it is only needed for a distribution certificate that grants some other
+# group string.
+#   adhoc + signed -> it must be applied, or the app cannot reach its container (black screen)
+#   self / unsigned -> it must NOT be applied, or whoever installs the .ipa under a profile
+#                      granting `group.<bundleId>` gets that same black screen
 # The script flips it as needed and puts the stack back the way it found it on exit, so
 # neither mode leaves the other one broken.
 # The disable-extensions patch belongs in every device build off a limited profile: it covers
@@ -206,14 +230,17 @@ trap cleanup EXIT
 DIST_WAS_APPLIED=0
 printf '%s\n' "$APPLIED" | grep -qF -- "$PATCH_UNSIGNED_DIST" && DIST_WAS_APPLIED=1 || true
 
+NEED_SIGNING_PATCH=0
+[ "$SIGN" = 1 ] && [ "$SIGN_METHOD" = adhoc ] && NEED_SIGNING_PATCH=1
+
 if patch_exists "$PATCH_SIGNING"; then
-    if [ "$SIGN" = 1 ] && [ "$SIGNING_WAS_APPLIED" = 0 ]; then
-        echo "==> applying $PATCH_SIGNING (signed build needs the app group)"
+    if [ "$NEED_SIGNING_PATCH" = 1 ] && [ "$SIGNING_WAS_APPLIED" = 0 ]; then
+        echo "==> applying $PATCH_SIGNING (ad-hoc signing needs the app group)"
         stg -C "$REPO/worktree" push "$PATCH_SIGNING" || {
             echo "error: could not apply $PATCH_SIGNING" >&2; exit 1; }
         SIGNING_FLIPPED=1
-    elif [ "$SIGN" = 0 ] && [ "$SIGNING_WAS_APPLIED" = 1 ]; then
-        echo "==> popping $PATCH_SIGNING (unsigned build must not hardcode the app group)"
+    elif [ "$NEED_SIGNING_PATCH" = 0 ] && [ "$SIGNING_WAS_APPLIED" = 1 ]; then
+        echo "==> popping $PATCH_SIGNING (this build must not hardcode the app group)"
         stg -C "$REPO/worktree" pop "$PATCH_SIGNING" || {
             echo "error: could not pop $PATCH_SIGNING — is the worktree dirty?" >&2; exit 1; }
         SIGNING_FLIPPED=1

@@ -15,7 +15,7 @@ export const workBranch = 'cleargram'
 export const bundleId = 'org.YOUR_BUNDLE_ID_HERE.Telegram'
 export const appGroup = `group.${bundleId}`
 
-// Shared-data key range for fork settings. 30..39 is far from stock (<=22) and keetgram (23,24).
+// Shared-data key range for fork settings. 30..39 stays clear of stock, which occupies <=22.
 export const clearSharedDataKeyRange = {
   clearConfig: 30, // ClearConfigSettings (toggles)
   hiddenChats: 31, // HiddenChatsSettings (per-peer hidden)
@@ -29,9 +29,9 @@ export const clearSharedDataKeyRange = {
 // misc__build-config / per-feature patch does. This map only wires the physical symlinks;
 // BUILD registration is a separate concern.
 //
-// Keetgram puts fork settings types into TelegramUIPreferences (same module as the shared-data
-// keys) and fork management UI into DebugSettingsUI — we follow the same placement so that
-// every consumer already depends on the right module.
+// Fork settings types go into TelegramUIPreferences (same module as the shared-data keys) and
+// fork management UI into DebugSettingsUI, so that every consumer already depends on the
+// right module.
 export interface ForkSyncDir {
   source: string
   target: string

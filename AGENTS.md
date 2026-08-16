@@ -34,7 +34,7 @@ adding/removing/materially changing a patch, update `docs/features.md` in the sa
    `TelegramEngine` facades. (Upstream Telegram-iOS is mid Postbox→Engine refactor — see
    `worktree/CLAUDE.md`.)
 10. **Don't touch stock DB schema.** Fork state goes through `accountManager` shared-data
-    keys (like keetgram `HiddenChatsSettings`, shared-data key 23).
+    keys (see `HiddenChatsSettings`).
 11. **No LSP.** SourceKit/IDE diagnostics don't work here — ignore "No such module" noise.
     Verify by building (see `docs/build-codesigning.md`); a Bazel build is slow but allowed.
 12. **`print(...)` for debug logging** in Swift, not stock loggers.
@@ -165,8 +165,7 @@ One-off for a single feature → keep inside the `feature/` patch.
 | Cross-cutting feature (several submodules) | a fork file in the submodule that owns the area (e.g. settings types in `TelegramUIPreferences`, management UI in `DebugSettingsUI`) |
 
 Fork file/symbol naming convention: prefix `Clear` (e.g. `ClearConfig`,
-`HiddenChatsSettings`, `ClearHooks`). Not `inu_` (that's inugram), not `Keet` (that's
-keetgram).
+`HiddenChatsSettings`, `ClearHooks`).
 
 ### Fork source sync (copy, not symlink)
 
@@ -208,8 +207,8 @@ public enum ClearConfig {
 ```
 
 - Storage: shared-data keys via `accountManager`
-  (`applicationContext.sharedContext.accountManager`) — same mechanism as keetgram's
-  `HiddenChatsSettings` (shared-data key, NOT Postbox `PreferencesEntry`).
+  (`applicationContext.sharedContext.accountManager`) — the same mechanism
+  `HiddenChatsSettings` uses (shared-data key, NOT Postbox `PreferencesEntry`).
 - Toggle via `ClearBool.value` (computed, reads from an in-memory cache that's kept in sync
   with shared-data).
 - Default-off — every behavior gated: `if ClearConfig.hideStories.value { ... }`.
@@ -258,11 +257,10 @@ ClearStrings.plural(n, one: "параметр", few: "параметра", many:
 ## Database / persistent state
 
 - Stock DB schema and `LAST_DB_VERSION` are off-limits.
-- Fork state — in `accountManager` shared-data keys (an integer namespace; keetgram uses 23
-  = hidden chats, 24 = hidden messages — cleargram uses a separate range starting at 30, see
-  `scripts/config.ts` `clearSharedDataKeyRange`).
+- Fork state — in `accountManager` shared-data keys (an integer namespace; stock occupies
+  `<=22`, cleargram uses 30..39, see `scripts/config.ts` `clearSharedDataKeyRange`).
 - Read/write via `applicationContext.sharedContext.accountManager.transaction { ... }` /
-  `sharedData` with `ValueBoxKey`. See `HiddenChatsSettings.swift` in keetgram as reference.
+  `sharedData` with `ValueBoxKey`. See `HiddenChatsSettings.swift` for a worked example.
 
 ---
 
@@ -279,42 +277,6 @@ ClearStrings.plural(n, one: "параметр", few: "параметра", many:
   the settings export/import), `.screen` (nested `ClearScreen`) and `.reset`. Adding an option is
   normally one line; the ids, equality and `ItemList` plumbing are generic.
 - Any toggle that needs a restart → show a "Restart required" alert in the click handler.
-
----
-
-## Porting features from keetgram — cookbook
-
-Keetgram is **merge-based**, not a patchset: its master has 30k commits and has merged
-`origin/master` forward. So a keetgram feature commit's *parent* is usually an older
-upstream point than cleargram's pinned `upstream-commit`. The keetgram commit diff won't
-apply to the pinned commit directly.
-
-**Working method:** diff keetgram's *current master* against the pinned upstream commit for
-just the stock files the feature touches. That net diff already accounts for upstream
-drift (keetgram merged origin/master), so it applies cleanly to the pinned commit:
-
-```sh
-# from the keetgram repo
-git diff <pinned-upstream-commit> master -- <stock files...> > /tmp/feature.patch
-# then in cleargram/worktree
-git -C worktree apply /tmp/feature.patch
-```
-
-The fork code files (new `.swift` in `submodules/.../Sources/`) are **not** taken from this
-diff — they live in `src/swift/ClearGram/` and are synced via `pnpm sync`. Only the stock
-wiring + BUILD deps come from the net diff.
-
-Features chosen for the first branch:
-
-| keetgram commits | cleargram patch | status |
-| --- | --- | --- |
-| `46252b040a` "oauth fix" | — | **not ported**: authored by Ilya Laktyushin (a Telegram dev), already in upstream `6ad963e5b6` |
-| `76131c1ec7` + `c4650d972a` hidden chats + presets | `feature__hidden-chats` | ✅ ported (net diff against `6ad963e5b6`) |
-| `f2e0edb417` hidden messages | `feature__hidden-messages` | 🔵 planned (depends on hidden-chats) |
-| `4798e9fd8e` camera picker | `feature__camera-picker-video-messages` | 🔵 planned |
-
-Cherry-pick from keetgram into worktree (user runs only). AI doesn't run git/stg — only
-suggests commands.
 
 ---
 

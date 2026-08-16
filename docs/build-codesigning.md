@@ -1,7 +1,6 @@
 # Build & Codesigning — Cleargram (iOS)
 
-Adapted from the fork-specific part of keetgram's `CLAUDE.md` to the patchset structure.
-Practical recipes and the gotchas keetgram hit, so cleargram doesn't repeat them.
+Practical recipes and the gotchas that cost time, so they only cost it once.
 
 ## Two build configurations — don't confuse them
 
@@ -28,27 +27,11 @@ TrollStore only (unavailable on iOS 26+). Don't use it to install on an iPhone.
 i.e. the app-group entitlement wasn't granted by the profile. **Check signing/app-group
 first, then code.**
 
-## First build on a fresh machine — four blockers
+## First build on a fresh machine — three blockers
 
-All four bite once, in this order. Verified 2026-08-02 on a clean clone.
+All three bite once, in this order.
 
-1. ~~**`pnpm setup` dies on `misc/app-icon.patch`.**~~ **Fixed 2026-08-16.** It carries the
-   only binary hunk in the stack, and `generateStablePatchFromCommit` in `scripts/lib.ts`
-   used to rewrite every `index a..b` line to `index 0000000..0000000` for stable diffs.
-   `git apply` requires a full 40-hex index for binary hunks, so the patch could never be
-   re-imported (`cannot apply binary patch ... without full index line`).
-
-   This was not a one-time annoyance but a **loop that silently deleted the patch**: setup
-   or rebase failed to import it → the patch dropped out of the stgit stack → the next
-   `pnpm export` saw no such patch and removed `patches/misc/app-icon.patch` plus its
-   `series` line. That is exactly how `misc__app-icon` disappeared before 2026-08-16 (it was
-   restored with `stg pick` from the surviving commit `bd9a2444f4`).
-
-   The fix splits the patch on `diff --git` boundaries and skips the index rewrite for any
-   section containing `GIT binary patch`; text sections stay zeroed. Guard when touching
-   that function: a patch with a binary hunk must survive `git apply --check`.
-
-2. **git submodules are not initialized.** `pnpm setup` clones without `--recurse-submodules`,
+1. **git submodules are not initialized.** `pnpm setup` clones without `--recurse-submodules`,
    so bazel fails with `No MODULE.bazel ... in build-system/bazel-rules/rules_swift`. Also
    `rlottie` and `tgcalls` use relative URLs (`../rlottie.git`) which resolve against a
    remote named `origin` — setup only creates `upstream`, so they fail to clone:
@@ -59,11 +42,11 @@ All four bite once, in this order. Verified 2026-08-02 on a clean clone.
    git -C worktree submodule update --init --recursive   # NOT --depth 1: pinned commits aren't tips
    ```
 
-3. **`--disableExtensions` is not a `build` flag.** It exists only on `generateProject`.
+2. **`--disableExtensions` is not a `build` flag.** It exists only on `generateProject`.
    For `build`, add `build --//Telegram:disableExtensions=True` to the worktree's
    `.bazelrc` yourself — it is machine-specific, so no patch in the stack sets it.
 
-4. **dav1d hardcodes `/Applications/Xcode.app` for device builds.**
+3. **dav1d hardcodes `/Applications/Xcode.app` for device builds.**
    `third-party/dav1d/build-dav1d-bazel.sh` substitutes `xcode-select -p` only for the
    simulator and macOS crossfiles; the `arm64` path uses the upstream crossfile as-is, so
    with a versioned Xcode (`Xcode-26.4.0.app`) the build fails with `'stdlib.h' file not
@@ -85,18 +68,28 @@ sources, flips the local-only stgit patches a device build needs, runs `Make.py`
 optionally strips the signature or installs the result.
 
 ```sh
-./build.sh -r          # release, unsigned  -> Telegram-unsigned.ipa (for other people)
-./build.sh -r -s       # release, signed    -> Telegram.ipa
+./build.sh -r -s       # release, signed with your Apple ID -> Telegram.ipa
 ./build.sh -r -s -i    # same, then install on the device
+./build.sh -r          # release, signature stripped -> Telegram-unsigned.ipa (for other people)
 ./build.sh -d -s -c    # debug, signed, wipe bazel state first
 ./build.sh -i          # install the newest .ipa already built, no rebuild
+./build.sh -r -s --adhoc   # sign with a distribution certificate instead
 ```
+
+**Signing defaults to your own Apple ID** (`--self`, i.e. `--xcodeManagedCodesigning`):
+free, nothing to obtain, and the profile grants `group.<bundleId>` — the exact app group
+Telegram derives at runtime, so nothing has to be patched. The catch is that a free profile
+expires after 7 days; when it lapses the build fails on `Finding provisioning profile ...
+failed` and opening `Telegram/Telegram.xcodeproj` in Xcode reissues it. `--adhoc` switches
+to a distribution certificate from `CLEARGRAM_SIGNING_SRC` — longer-lived, but you have to
+have one, and it usually grants a different app group (see below).
 
 Personal values go in `build.local` (untracked, `cp build.local.example build.local`):
 
 | variable | meaning |
 | --- | --- |
-| `CLEARGRAM_SIGNING_SRC` | dir holding your `.mobileprovision` + `.p12`, staged into `profiles/`+`certs/` on every run |
+| `CLEARGRAM_SIGN_METHOD` | `self` (default) or `adhoc` |
+| `CLEARGRAM_SIGNING_SRC` | dir holding your `.mobileprovision` + `.p12` for `adhoc`, staged into `profiles/`+`certs/` on every run |
 | `CLEARGRAM_DEVICE` | device UDID for `-i` (`xcrun devicectl list devices`) |
 | `CLEARGRAM_XCODE` | Developer dir; defaults to `xcode-select -p` |
 | `CLEARGRAM_CACHE_DIR` | bazel disk cache; defaults to `~/telegram-bazel-cache` |
@@ -114,7 +107,7 @@ stack, so a fresh clone just builds:
 
 | patch | why |
 | --- | --- |
-| `local__signing` | pins the app group your profile actually grants — applied for a signed build, popped for an unsigned one (see below) |
+| `local__signing` | pins the app group your profile actually grants — applied only for `--adhoc` signed builds, popped for self-signed and unsigned ones |
 | `local__disable-extensions` | a limited profile covers only the main app id; with extensions on, bazel demands a profile per extension target |
 | `local__unsigned-dist` | skips entitlements validation, only for the build that gets stripped |
 
