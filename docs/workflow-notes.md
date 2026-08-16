@@ -157,7 +157,6 @@ for f in ct.get('frames', [])[:30]: print(' ', f.get('symbol',''), '+'+str(f.get
 ```
 
 ## Disk space budget
-- Total: 460G
 - Bazel execroot: ~36G (clearable via `bazel clean`)
 - Disk cache: ~24G (20G GC cap in `.bazelrc`, don't delete)
 - Xcode DerivedData: ~800M (clearable)

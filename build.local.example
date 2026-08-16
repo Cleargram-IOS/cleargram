@@ -1,0 +1,22 @@
+# Copy to `build.local` (untracked) and fill in. Sourced by ./build.sh.
+
+# Directory holding your .mobileprovision and .p12. Keep it outside the repo.
+CLEARGRAM_SIGNING_SRC="$HOME/.cleargram/signing"
+
+# Device UDID for --install. Find it with: xcrun devicectl list devices
+CLEARGRAM_DEVICE=
+
+# Xcode to build with. Defaults to `xcode-select -p`.
+#CLEARGRAM_XCODE=/Applications/Xcode.app/Contents/Developer
+
+# Bazel disk cache (~24G once warm).
+#CLEARGRAM_CACHE_DIR="$HOME/telegram-bazel-cache"
+
+# How to invoke pnpm, if it is not on PATH.
+#CLEARGRAM_PNPM="npx --yes pnpm@10.33.2"
+
+# Names of your local stgit patches, if they differ from the defaults. Each is skipped
+# when absent from the stack.
+#CLEARGRAM_SIGNING_PATCH=local__signing
+#CLEARGRAM_NO_EXTENSIONS_PATCH=local__disable-extensions
+#CLEARGRAM_UNSIGNED_DIST_PATCH=local__unsigned-dist

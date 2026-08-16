@@ -11,9 +11,11 @@ Practical recipes and the gotchas keetgram hit, so cleargram doesn't repeat them
    days, must be re-issued. Extensions disabled via `.bazelrc`
    (`--//Telegram:disableExtensions=True`) — otherwise free-account hits the App ID limit.
 
-2. **Ad-hoc / ad-hoc service cert** (long-lived IPA, ~1 year). For device without
-   jailbreak/TrollStore. Needs `.p12` + `.mobileprovision` (ad-hoc distribution), device
-   UDID registered. See "Ad-hoc IPA" below.
+2. **Ad-hoc distribution cert** (long-lived IPA, ~1 year). For a device without
+   jailbreak/TrollStore. Needs `.p12` + `.mobileprovision` and the device UDID registered
+   on the issuing account. Stage them into a dir with `profiles/` + `certs/` and pass it
+   as `--codesigningInformationPath` instead of `--xcodeManagedCodesigning`. Obtaining
+   such a certificate is out of scope for this repo.
 
 The CI variant (`appstore-configuration.json` + `fake-codesigning`) produces a
 **fake-signed** IPA (`TeamIdentifier=not set`) — does NOT install on a normal device,
@@ -58,8 +60,8 @@ All four bite once, in this order. Verified 2026-08-02 on a clean clone.
    ```
 
 3. **`--disableExtensions` is not a `build` flag.** It exists only on `generateProject`.
-   For `build`, put `build --//Telegram:disableExtensions=True` in `.bazelrc` — that is what
-   `misc__build-config` does.
+   For `build`, add `build --//Telegram:disableExtensions=True` to the worktree's
+   `.bazelrc` yourself — it is machine-specific, so no patch in the stack sets it.
 
 4. **dav1d hardcodes `/Applications/Xcode.app` for device builds.**
    `third-party/dav1d/build-dav1d-bazel.sh` substitutes `xcode-select -p` only for the
@@ -76,6 +78,49 @@ After that the first build is ~10 min cold (~2300 actions); everything after is 
 `pnpm rebase`, or deleting the output base / disk cache forces a cold rebuild again.
 `pnpm export` does not touch the worktree or the cache.
 
+## `./build.sh` — the fast path
+
+Once the config below exists, `build.sh` wraps everything on this page: it syncs fork
+sources, flips the local-only stgit patches a device build needs, runs `Make.py`, and
+optionally strips the signature or installs the result.
+
+```sh
+./build.sh -r          # release, unsigned  -> Telegram-unsigned.ipa (for other people)
+./build.sh -r -s       # release, signed    -> Telegram.ipa
+./build.sh -r -s -i    # same, then install on the device
+./build.sh -d -s -c    # debug, signed, wipe bazel state first
+./build.sh -i          # install the newest .ipa already built, no rebuild
+```
+
+Personal values go in `build.local` (untracked, `cp build.local.example build.local`):
+
+| variable | meaning |
+| --- | --- |
+| `CLEARGRAM_SIGNING_SRC` | dir holding your `.mobileprovision` + `.p12`, staged into `profiles/`+`certs/` on every run |
+| `CLEARGRAM_DEVICE` | device UDID for `-i` (`xcrun devicectl list devices`) |
+| `CLEARGRAM_XCODE` | Developer dir; defaults to `xcode-select -p` |
+| `CLEARGRAM_CACHE_DIR` | bazel disk cache; defaults to `~/telegram-bazel-cache` |
+| `CLEARGRAM_PNPM` | how to invoke pnpm, if not on PATH |
+| `CLEARGRAM_*_PATCH` | names of your local stgit patches, if they differ from the defaults |
+
+**Unsigned mode is what you hand to other people.** `Make.py` cannot skip codesigning, so
+the build is signed and then stripped: `embedded.mobileprovision` (which carries the team
+id, the certificate and every provisioned device UDID) and `_CodeSignature` are removed,
+and the script fails if either survives in the archive. The recipient re-signs it.
+
+**Local patches are flipped, not required.** Three optional `local__*` patches are pushed
+and popped around the build and restored on exit; each is skipped when it is not in the
+stack, so a fresh clone just builds:
+
+| patch | why |
+| --- | --- |
+| `local__signing` | pins the app group your profile actually grants — applied for a signed build, popped for an unsigned one (see below) |
+| `local__disable-extensions` | a limited profile covers only the main app id; with extensions on, bazel demands a profile per extension target |
+| `local__unsigned-dist` | skips entitlements validation, only for the build that gets stripped |
+
+They are never exported: `pnpm export` writes applied patches only, and `scripts/ci/pre-commit.ts`
+skips `local__*` on both sides, so they cannot reach `patches/` or the remote.
+
 ## Quick start (simulator, no signing)
 
 Get api id/hash at https://core.telegram.org/api/obtaining_api_id (free, needs a Telegram
@@ -88,9 +133,13 @@ https://developer.apple.com/account → Membership Details.
 
    ```sh
    cp build-system/template_minimal_development_configuration.json.example \
-      build-system/template_minimal_development_configuration.json
+      worktree/build-system/template_minimal_development_configuration.json
    # edit: bundle_id is preset; fill api_id, api_hash, team_id
    ```
+
+   The `.example` is tracked here at the repo root; the filled-in copy belongs in
+   `worktree/`, where `Make.py` runs. Mark it `skip-worktree` right away — see
+   "App group and the build config" below.
 
 2. Generate the Xcode project (one-time per `upstream-commit` bump):
 
@@ -152,87 +201,40 @@ in Xcode and letting it regenerate.
 The profile **must** carry the `group.<bundleId>` app-group entitlement — verify with
 `security cms -D -i <profile> | plutil -extract Entitlements xml1 -o - -`.
 
-## App-group patch — mandatory for ad-hoc
+## App group and the build config
 
-Telegram derives its app group as `group.<bundleId>` at runtime. The service certificate
-registers unrelated group strings (never `group.<bundleId>`). Without patching the app
-group in **both** places — the entitlement (`Telegram/BUILD`, `app_groups_fragment`) AND
-runtime (`AppDelegate.swift`) — `containerURL(...)` returns nil → black screen.
-
-Cleargram keeps this in **`local__signing`**, a patch that is deliberately kept
-**popped** (`stg -C worktree series` shows it below the applied ones). `pnpm export` only
-writes applied patches, so it never reaches `patches/` or the remote — which matters,
-because the app group and `--//Telegram:disableExtensions=True` are specific to one ad-hoc
-certificate and would break a dev-signed build on another machine.
+Telegram derives its app group as `group.<bundleId>` at runtime, and the same string must
+be granted by the profile — in the entitlement (`Telegram/BUILD`, `app_groups_fragment`)
+and at runtime (`AppDelegate.swift`). If the signing profile registers a different group,
+`containerURL(...)` returns nil and the app opens to a black screen. Either use a profile
+that carries `group.<bundleId>`, or patch both places to the group the profile does grant.
+Verify what a profile actually grants with:
 
 ```sh
-stg -C worktree push local__signing   # before building for the device
-stg -C worktree pop  local__signing   # before exporting / committing
+security cms -D -i <profile> | plutil -extract Entitlements xml1 -o - -
 ```
 
-Generic build settings (disk-cache GC limits) live in `misc__build-config`, which *is*
-exported. The display name is in `misc__branding`.
+and what ended up in the signed app with:
 
-**The build configuration file itself is NOT in the stack.**
-`build-system/template_minimal_development_configuration.json` holds api id/hash — personal
-credentials tied to a my.telegram.org account. Keep it as a local file only:
+```sh
+codesign -d --entitlements - Payload/Telegram.app | grep group
+```
+
+**The build configuration file is NOT in the stack.**
+`build-system/template_minimal_development_configuration.json` holds api id/hash —
+personal credentials tied to a my.telegram.org account. Keep it as a local file only:
 
 ```sh
 git -C worktree update-index --skip-worktree build-system/template_minimal_development_configuration.json
 # verify: `git ls-files -v <path>` prints "S"
 ```
 
-Without this, `stg refresh` picks the file up and `pnpm export` bakes the credentials into a
-patch. The root `.gitignore` does not help: the file lives in
-`worktree/`, a separate clone. Upstream Telegram-iOS and Swiftgram both ship this file with
-placeholders only.
+Without this, `stg refresh` picks the file up and `pnpm export` bakes the credentials into
+a patch. The root `.gitignore` does not help: the file lives in `worktree/`, a separate
+clone. Upstream Telegram-iOS and Swiftgram both ship this file with placeholders only.
 
 The `skip-worktree` bit lives in `worktree/.git` — `pnpm setup --force` recreates the
 worktree and loses it. Re-apply after a fresh setup.
-
-## Ad-hoc IPA — the working recipe
-
-Needs an ad-hoc service cert: `.p12` + `.mobileprovision`, team like `<TEAM_ID>`, your
-own bundle id, device UDID registered. The `.p12` password is NOT in the repo.
-
-1. **Import the cert** (macOS `security` can't read modern OpenSSL-3 `.p12` — convert to
-   legacy first):
-
-   ```sh
-   P=<signing dir>/*.p12
-   openssl pkcs12 -in $P -passin pass:<pw> -nodes | \
-     openssl pkcs12 -export -legacy -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES \
-       -macalg sha1 -passout pass:<pw> -out /tmp/legacy.p12
-   security import /tmp/legacy.p12 -k ~/Library/Keychains/login.keychain-db \
-     -P <pw> -T /usr/bin/codesign
-   ```
-
-2. **Stage the codesigning dir** (`--codesigningInformationPath` wants `profiles/` +
-   `certs/`):
-
-   ```sh
-   D=/tmp/tg-cs; rm -rf $D; mkdir -p $D/profiles $D/certs
-   cp <signing dir>/*.mobileprovision $D/profiles/
-   cp /tmp/legacy.p12 $D/certs/
-   ```
-
-3. **Build + sign** (NOT `--xcodeManagedCodesigning`):
-
-   ```sh
-   DEVELOPER_DIR=/Applications/Xcode-26.4.0.app/Contents/Developer \
-   python3 build-system/Make/Make.py --overrideXcodeVersion --cacheDir ~/telegram-bazel-cache \
-     build \
-     --configurationPath build-system/template_minimal_development_configuration.json \
-     --codesigningInformationPath $D \
-     --configuration=release_arm64 --buildNumber=1 \
-     --outputBuildArtifactsPath="$PWD/build/artifacts-ad-hoc"
-   ```
-
-4. **Install:** `xcrun devicectl device install app --device <UDID> build/artifacts-ad-hoc/Telegram.ipa`
-   (device unlocked). Ad-hoc distribution → runs with no "trust developer" step.
-
-Verify the patched app group made it into the signed app:
-`codesign -d --entitlements - Payload/Telegram.app | grep <group>`.
 
 ## Disk cache
 

@@ -31,11 +31,9 @@ async function listExportedPatchFiles(): Promise<string[]> {
   return out
 }
 
-// `local__*` patches are one maintainer's machine-specific tweaks (signing, app group) and are
-// deliberately never exported, so they sit outside this check on both sides. Without this, any
-// commit made while one is pushed — which is most of them, they stay applied between builds —
-// would fail on a patch that is missing from patches/ by design. What keeps such a patch from
-// being committed if it ever does get exported is the .husky/local guard, not this one.
+// `local__*` patches hold machine-specific build tweaks and are deliberately never exported, so
+// they sit outside this check on both sides. Without this, any commit made while one is applied
+// would fail on a patch that is missing from patches/ by design.
 const isLocal = (seriesEntry: string) => seriesEntry.startsWith('local/')
 
 const [applied, commitIds] = await Promise.all([

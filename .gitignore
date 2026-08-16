@@ -18,7 +18,7 @@ patches/**/*.orig
 # Сборочные артефакты
 /build/
 /artifacts/
-/artifacts-ad-hoc/
+/artifacts-*/
 *.ipa
 *.app/
 
@@ -37,3 +37,6 @@ patches/**/*.orig
 CLAUDE.local.md
 TODO.md
 STATUS.md
+
+# Локальная конфигурация билд-скрипта
+/build.local
