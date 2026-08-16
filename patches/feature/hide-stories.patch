@@ -76,7 +76,7 @@ diff --git a/submodules/ChatListUI/Sources/ChatListControllerNode.swift b/submod
 index 0000000..0000000 100644
 --- a/submodules/ChatListUI/Sources/ChatListControllerNode.swift
 +++ b/submodules/ChatListUI/Sources/ChatListControllerNode.swift
-@@ -668,9 +668,15 @@ public final class ChatListContainerNode: ASDisplayNode, ASGestureRecognizerDele
+@@ -664,9 +664,15 @@ public final class ChatListContainerNode: ASDisplayNode, ASGestureRecognizerDele
                      }
                      
                      let cameraIsAlreadyOpened = self.controller?.hasStoryCameraTransition ?? false
@@ -93,7 +93,7 @@ index 0000000..0000000 100644
                      } else if translation.x <= 0.0 && cameraIsAlreadyOpened {
                          self.controller?.storyCameraPanGestureChanged(transitionFraction: 0.0)
                      }
-@@ -2467,6 +2473,9 @@ final class ChatListControllerNode: ASDisplayNode, ASGestureRecognizerDelegate {
+@@ -2463,6 +2469,9 @@ final class ChatListControllerNode: ASDisplayNode, ASGestureRecognizerDelegate {
  }
  
  func shouldDisplayStoriesInChatListHeader(storySubscriptions: EngineStorySubscriptions, isHidden: Bool) -> Bool {

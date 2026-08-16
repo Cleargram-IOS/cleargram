@@ -30,13 +30,21 @@ first, then code.**
 
 All four bite once, in this order. Verified 2026-08-02 on a clean clone.
 
-1. **`pnpm setup` dies on `misc/app-icon.patch`.** It carries the only binary hunk in the
-   stack, and `scripts/lib.ts` rewrites every `index a..b` line to `index 0000000..0000000`
-   for stable diffs. `git apply` requires a full 40-hex index for binary hunks, so the patch
-   can never be re-imported (`cannot apply binary patch ... without full index line`).
-   Workaround: repair the index line in a copy of the patch (decode the base85 literal,
-   recompute the blob sha) and `stg import` that. Real fix: skip the index rewrite for diffs
-   containing `GIT binary patch`.
+1. ~~**`pnpm setup` dies on `misc/app-icon.patch`.**~~ **Fixed 2026-08-16.** It carries the
+   only binary hunk in the stack, and `generateStablePatchFromCommit` in `scripts/lib.ts`
+   used to rewrite every `index a..b` line to `index 0000000..0000000` for stable diffs.
+   `git apply` requires a full 40-hex index for binary hunks, so the patch could never be
+   re-imported (`cannot apply binary patch ... without full index line`).
+
+   This was not a one-time annoyance but a **loop that silently deleted the patch**: setup
+   or rebase failed to import it → the patch dropped out of the stgit stack → the next
+   `pnpm export` saw no such patch and removed `patches/misc/app-icon.patch` plus its
+   `series` line. That is exactly how `misc__app-icon` disappeared before 2026-08-16 (it was
+   restored with `stg pick` from the surviving commit `bd9a2444f4`).
+
+   The fix splits the patch on `diff --git` boundaries and skips the index rewrite for any
+   section containing `GIT binary patch`; text sections stay zeroed. Guard when touching
+   that function: a patch with a binary hunk must survive `git apply --check`.
 
 2. **git submodules are not initialized.** `pnpm setup` clones without `--recurse-submodules`,
    so bazel fails with `No MODULE.bazel ... in build-system/bazel-rules/rules_swift`. Also

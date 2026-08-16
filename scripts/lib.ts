@@ -290,7 +290,18 @@ export async function getPatchSubject(repoDir: string, patchName: string) {
 export async function generateStablePatchFromCommit(repoDir: string, commitId: string) {
   const patch = await cd(repoDir)`git format-patch --stdout --zero-commit --no-signature --subject-prefix= -1 ${commitId}`
   return patch.stdout
-    .replace(/^index [0-9a-f]+\.\.[0-9a-f]+( \d+)?$/gm, 'index 0000000..0000000$1')
+    .split(/(?=^diff --git )/m)
+    .map(section =>
+      // Zeroing the index keeps text diffs stable across rebases, but `git apply` refuses a
+      // binary hunk without a full 40-hex index pair ("cannot apply binary patch ... without
+      // full index line"), which makes such a patch impossible to re-import — it then drops
+      // out of the stack on `pnpm setup`/`rebase` and the next export deletes it outright.
+      // So binary sections keep their real blob shas; only text sections are zeroed.
+      section.includes('GIT binary patch')
+        ? section
+        : section.replace(/^index [0-9a-f]+\.\.[0-9a-f]+( \d+)?$/gm, 'index 0000000..0000000$1'),
+    )
+    .join('')
     .replace(/^Subject:.*(?:\n[ \t].*)+/m, m => m.replace(/\n[ \t]+/g, ' '))
 }
 
