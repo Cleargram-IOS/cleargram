@@ -68,6 +68,20 @@ export const forkSyncDirs: ForkSyncDir[] = [
   },
 ]
 
+// Build stamp: `pnpm sync` copies the placeholder from src/ like any other fork source, then
+// overwrites this path with the real upstream version/commit + cleargram commit (writeBuildInfo
+// in lib.ts). Cleargram Settings shows that line at the bottom.
+//
+// It sits in DebugSettingsUI, next to the settings screen that reads it, rather than in
+// TelegramUIPreferences: the file changes with every cleargram commit, and nearly every module
+// depends on the preferences one, so that placement would invalidate the whole tree.
+export const buildInfoTarget = 'submodules/DebugSettingsUI/Sources/ClearGram/ClearBuildInfo.swift'
+
+// Where a dirty build's working-tree patch is archived, named after the `+<id>` suffix the app
+// shows. Repo-relative and under the gitignored build/, so the archive can never feed back into
+// the id it is named after.
+export const dirtyStampsDir = 'build/dirty-stamps'
+
 // Kept for backward compat with any external callers; prefer forkSyncDirs.
 export interface ForkSyncFile {
   source: string

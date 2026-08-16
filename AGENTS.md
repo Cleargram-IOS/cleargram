@@ -179,6 +179,19 @@ outside it.** So fork Swift code is **copied**, not symlinked:
 - The copied dir is git-excluded (`.git/info/exclude`), so `git status` stays clean and the patch doesn't carry the fork file — only the stock wiring + BUILD deps.
 - The submodule's `BUILD` uses `glob(["Sources/**/*.swift"])`, so the copied files are picked up automatically; only new **deps** (e.g. `ItemListPeerItem`) need a patch hunk.
 - Convention: edit in `src/swift/ClearGram/`, then `pnpm sync`. Don't edit the copied file in `worktree/` directly — it'll be overwritten on the next sync.
+- **One generated file:** `ClearBuildInfo.swift` (upstream version + pinned upstream commit +
+  cleargram commit, shown at the bottom of Cleargram Settings). It is checked in like any other
+  fork source, but with placeholder values — `writeBuildInfo` (`scripts/lib.ts`) overwrites the
+  worktree copy with the real ones at the end of `linkForkSource`, i.e. *after* the copy loop
+  that just laid the placeholder down. The placeholder is what keeps a sync that didn't run
+  from breaking the build. Keep build-time values (timestamps) out of it — it's a Bazel input,
+  so it should only change when the pin or the commit does.
+- **Dirty builds are identified, not just flagged:** a build off an uncommitted tree gets a
+  `+<id>` suffix (hash of the working-tree patch) and `pnpm sync` archives that patch as
+  `build/dirty-stamps/<commit>+<id>.diff` — gitignored, and a directly appliable patch, so a
+  build seen on a device can be reconstructed with `git apply`. **That archive is also the
+  undo for a wiped working tree** — if uncommitted work is lost, the newest stamp restores it
+  (`git apply --exclude=<untracked file already on disk> build/dirty-stamps/<id>.diff`).
 - **A new area needs an entry in `forkSyncDirs` (`scripts/config.ts`)** or `pnpm sync` never copies it and Bazel never sees the file. Current areas: `TelegramUIPreferences`, `DebugSettingsUI`, `TextFormat`, `ChatListUI`, `LegacyMediaPickerUI`, `MediaPickerUI`, `PeerInfoScreen` (→ `submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/ClearGram`, a nested target path — that works, `copyForkDir` mkdir -p's it and adds the git-exclude).
 
 ---

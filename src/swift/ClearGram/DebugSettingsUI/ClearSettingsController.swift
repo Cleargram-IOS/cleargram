@@ -595,6 +595,13 @@ private func clearRootScreen() -> ClearScreen {
             rows: [
                 .reset(title: L("Reset All Settings", "Сбросить все настройки"))
             ]
+        ),
+        // Which build this is: the upstream release, the commit the patchset is pinned to and
+        // the cleargram commit it was assembled from. Generated at sync time, see
+        // ClearBuildInfo. Not translated — versions and hashes aren't UI text.
+        ClearSection(
+            footer: ClearBuildInfo.summary,
+            rows: []
         )
     ])
 }
