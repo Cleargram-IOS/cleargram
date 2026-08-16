@@ -31,20 +31,31 @@ async function listExportedPatchFiles(): Promise<string[]> {
   return out
 }
 
+// `local__*` patches are one maintainer's machine-specific tweaks (signing, app group) and are
+// deliberately never exported, so they sit outside this check on both sides. Without this, any
+// commit made while one is pushed — which is most of them, they stay applied between builds —
+// would fail on a patch that is missing from patches/ by design. What keeps such a patch from
+// being committed if it ever does get exported is the .husky/local guard, not this one.
+const isLocal = (seriesEntry: string) => seriesEntry.startsWith('local/')
+
 const [applied, commitIds] = await Promise.all([
   getAppliedPatchNames(worktreeDir),
   getAllPatchCommitIds(worktreeDir),
 ])
 const expected = new Map<string, { patchName: string, commitId: string }>()
 for (const name of applied) {
+  const { seriesEntry } = parsePatchName(name)
+  if (isLocal(seriesEntry)) continue
   const commitId = commitIds.get(name)
   if (!commitId) throw new Error(`No commit id for applied patch ${name}`)
-  expected.set(parsePatchName(name).seriesEntry, { patchName: name, commitId })
+  expected.set(seriesEntry, { patchName: name, commitId })
 }
 
 const exportedFiles = await listExportedPatchFiles()
 const exportedEntries = new Set(
-  exportedFiles.map(f => relative(patchesDir, f).replaceAll('\\', '/')),
+  exportedFiles
+    .map(f => relative(patchesDir, f).replaceAll('\\', '/'))
+    .filter(entry => !isLocal(entry)),
 )
 
 const missing: string[] = []
