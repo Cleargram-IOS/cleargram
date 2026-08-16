@@ -1,2 +1,2 @@
 [ -f .husky/local ] && . .husky/local
-pnpm tsx scripts/ci/pre-commit.ts
+npx tsx scripts/ci/pre-commit.ts
