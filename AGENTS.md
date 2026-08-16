@@ -268,7 +268,8 @@ ClearStrings.plural(n, one: "параметр", few: "параметра", many:
 
 ## Settings UI
 
-- Debug Settings — simple start: add a section in `DebugController`. See `submodules/DebugSettingsUI/Sources/DebugController.swift`.
+- Debug Settings — simple start: add a section in `DebugController`. See
+  `submodules/DebugSettingsUI/Sources/DebugController.swift`.
 - `ClearSettingsController` (`src/swift/ClearGram/DebugSettingsUI/`) is the real home. The screen
   tree is **data** — `clearRootScreen()` at the bottom of the file. Row kinds: `.toggle`
   (`ClearToggle`, a `WritableKeyPath<…, Bool>` into `ClearConfigSettings` or
