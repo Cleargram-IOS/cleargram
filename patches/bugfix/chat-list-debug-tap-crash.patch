@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Mon, 17 Aug 2026 18:40:55 +0800
+Subject: Drop the debug tap crash from the chat list
+
+---
+ .../ChatListUI/Sources/ChatListController.swift       | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/submodules/ChatListUI/Sources/ChatListController.swift b/submodules/ChatListUI/Sources/ChatListController.swift
+index 0000000..0000000 100644
+--- a/submodules/ChatListUI/Sources/ChatListController.swift
++++ b/submodules/ChatListUI/Sources/ChatListController.swift
+@@ -737,12 +737,11 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController
+             })
+         }
+         
+-        if enableDebugActions {
+-            self.tabBarItemDebugTapAction = {
+-                preconditionFailure("debug tap")
+-            }
+-        }
+-        
++        // ClearGram: upstream arms a deliberate `preconditionFailure("debug tap")` here whenever
++        // `enableDebugActions` is set, i.e. in every non-App-Store build — ten quick taps on the
++        // Chats tab bar item then kill the app. Cleargram only ever ships as a sideload build
++        // (is_appstore_build = false), so for us that crash-test hook is just a crash.
++
+         if case .chatList(.root) = self.location {
+             self.chatListDisplayNode.mainContainerNode.currentItemFilterUpdated = { [weak self] filter, fraction, transition, force in
+                 guard let strongSelf = self else {

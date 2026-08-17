@@ -56,7 +56,7 @@ diff --git a/submodules/TelegramUI/Sources/ChatController.swift b/submodules/Tel
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Sources/ChatController.swift
 +++ b/submodules/TelegramUI/Sources/ChatController.swift
-@@ -8455,6 +8455,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
+@@ -8457,6 +8457,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
      }
      
      public func beginClearHistory(type: InteractiveHistoryClearingType) {
@@ -69,7 +69,7 @@ index 0000000..0000000 100644
          guard case let .peer(peerId) = self.chatLocation else {
              return
          }
-@@ -9745,6 +9751,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
+@@ -9720,6 +9726,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
      }
      
      func deleteChat(reportChatSpam: Bool) {

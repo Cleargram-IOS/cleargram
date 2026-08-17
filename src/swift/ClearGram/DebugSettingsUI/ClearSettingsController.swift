@@ -807,11 +807,11 @@ private func clearChatsScreen() -> ClearScreen {
         ClearSection(
             header: L("POLLS", "ОПРОСЫ"),
             footer: L(
-                "Asks before changing a vote you already cast — the retract is easy to trigger by accident and is visible to the poll's author.",
-                "Спрашивает перед изменением уже отданного голоса — отозвать его легко случайно, и автор опроса это видит."
+                "Warns before you vote in a poll that cannot be revoted — a quiz, or one whose author disabled changing the vote — because that tap is final and nothing in the poll says so. Also asks before changing a vote you already cast, which the poll's author can see.",
+                "Предупреждает перед голосованием в опросе, где нельзя переголосовать — в викторине или там, где автор запретил менять голос, — потому что нажатие окончательное, а в самом опросе об этом ничего не сказано. Также спрашивает перед сменой уже отданного голоса, которую видит автор опроса."
             ),
             rows: [
-                .toggle(ClearToggle(L("Confirm Vote Change", "Подтверждать смену голоса"), .config(\.warnPollsRevote)))
+                .toggle(ClearToggle(L("Confirm Poll Votes", "Подтверждать голосование"), .config(\.warnPollsRevote)))
             ]
         ),
         ClearSection(
@@ -931,14 +931,14 @@ private func clearMediaScreen() -> ClearScreen {
             rows: [
                 .toggle(ClearToggle(L("Hide Camera in Picker", "Скрыть камеру в меню вложений"), .config(\.disableGalleryCamera))),
                 .toggle(ClearToggle(L("Compact Camera Tile", "Компактная плитка камеры"), .config(\.compactGalleryCamera), isEnabled: { !$0.disableGalleryCamera })),
-                .toggle(ClearToggle(L("Camera for Video Messages", "Камера для видеосообщений"), .config(\.videoMessageCameraSelection)))
+                .toggle(ClearToggle(L("Ask Which Camera for Video Messages", "Спрашивать камеру для видеосообщений"), .config(\.videoMessageCameraSelection)))
             ]
         ),
         ClearSection(
             header: L("VIDEO", "ВИДЕО"),
             footer: L(
-                "“Send as Video Message” appears in the ⋯ menu of the media picker when a single video is selected. The video is cropped to a centred square, re-encoded to 400×400 h.264 and trimmed to the first 60 seconds — the same conversion the round-video camera uses.",
-                "Пункт «Отправить видеосообщением» появляется в меню ⋯ выбора медиа, когда выбрано одно видео. Видео обрезается по центру в квадрат, перекодируется в 400×400 h.264 и укорачивается до первых 60 секунд — то же преобразование, что и у камеры кругляшей."
+                "A round-video button appears next to the GIF button while previewing a video in the media picker. It opens a circular crop-and-trim editor, then sends: the video is cropped to a square, re-encoded to 400×400 h.264 and trimmed to 60 seconds — the same conversion the round-video camera uses.",
+                "Кнопка кругляша появляется рядом с кнопкой GIF при просмотре видео в выборе медиа. Она открывает круглый редактор обрезки и подрезки, а затем отправляет: видео обрезается в квадрат, перекодируется в 400×400 h.264 и укорачивается до 60 секунд — то же преобразование, что и у камеры кругляшей."
             ),
             rows: [
                 .toggle(ClearToggle(L("Send Video as Video Message", "Отправлять видео кругляшом"), .config(\.sendVideoAsCircle))),

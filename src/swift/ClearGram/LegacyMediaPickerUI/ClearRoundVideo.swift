@@ -79,31 +79,44 @@ public func clearSquareCroppedImage(_ image: UIImage) -> UIImage {
     }
 }
 
-// A picker selection can become a round video message when it is exactly one video and the
-// destination peer allows instant videos.
-public func clearCanSendAsRoundVideo(selectedItems: [Any], peer: EnginePeer?) -> Bool {
-    guard selectedItems.count == 1, let peer else {
+// Whether this chat takes round video messages at all — the caller checks the feature toggle,
+// this module has no TelegramUIPreferences dependency. Which *item* qualifies is decided by the
+// gallery itself: it already knows which previewed item is a real video (the same test that
+// governs the GIF button next to ours).
+public func clearRoundVideoAllowed(peer: EnginePeer?) -> Bool {
+    guard let peer else {
         return false
     }
     switch peer {
     case let .channel(channel):
-        if channel.hasBannedPermission(.banSendInstantVideos) != nil {
-            return false
-        }
+        return channel.hasBannedPermission(.banSendInstantVideos) == nil
     case let .legacyGroup(group):
-        if group.hasBannedPermission(.banSendInstantVideos) {
-            return false
-        }
+        return !group.hasBannedPermission(.banSendInstantVideos)
     default:
-        break
+        return true
     }
-    if let asset = selectedItems[0] as? TGMediaAsset {
-        return asset.isVideo
+}
+
+// The gallery's buttons carry plain white glyphs on a dark circle, and there is no stock asset for
+// "video message", so draw one: a ring — the кружок itself — around a play triangle.
+public func clearRoundVideoButtonIcon() -> UIImage {
+    let size = CGSize(width: 24.0, height: 24.0)
+    let format = UIGraphicsImageRendererFormat.default()
+    format.opaque = false
+    return UIGraphicsImageRenderer(size: size, format: format).image { context in
+        let c = context.cgContext
+        c.setStrokeColor(UIColor.white.cgColor)
+        c.setFillColor(UIColor.white.cgColor)
+        c.setLineWidth(1.5)
+        c.strokeEllipse(in: CGRect(origin: CGPoint(), size: size).insetBy(dx: 1.75, dy: 1.75))
+
+        let triangle = UIBezierPath()
+        triangle.move(to: CGPoint(x: 9.5, y: 7.5))
+        triangle.addLine(to: CGPoint(x: 17.0, y: 12.0))
+        triangle.addLine(to: CGPoint(x: 9.5, y: 16.5))
+        triangle.close()
+        triangle.fill()
     }
-    if let video = selectedItems[0] as? TGCameraCapturedVideo {
-        return !video.isAnimation
-    }
-    return false
 }
 
 // MARK: - Crop / trim editor

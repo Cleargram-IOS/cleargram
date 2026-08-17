@@ -15,7 +15,7 @@ index 0000000..0000000 100644
      case mediaDisplaySettings = 20
      case updateSettings = 21
      case chatSettings = 22
-+    // cleargram fork keys — 30..39 (kept clear of stock <=22 and keetgram 23,24)
++    // cleargram fork keys — 30..39 (kept clear of stock, which occupies <=22)
 +    case clearConfigSettings = 30
 +    case hiddenChatsSettings = 31
 +    case hiddenMessagesSettings = 32

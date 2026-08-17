@@ -5,8 +5,8 @@ Subject: Show sticker pack owner
 
 ---
  submodules/StickerPackPreviewUI/BUILD         |  1 +
- .../Sources/StickerPackScreen.swift           | 32 +++++++++++++++++++
- 2 files changed, 33 insertions(+)
+ .../Sources/StickerPackScreen.swift           | 53 +++++++++++++++++++
+ 2 files changed, 54 insertions(+)
 
 diff --git a/submodules/StickerPackPreviewUI/BUILD b/submodules/StickerPackPreviewUI/BUILD
 index 0000000..0000000 100644
@@ -32,20 +32,27 @@ index 0000000..0000000 100644
  import SwiftSignalKit
  import AccountContext
  import TelegramPresentationData
-@@ -1145,6 +1146,37 @@ private final class StickerPackContainer: ASDisplayNode {
+@@ -1145,6 +1146,58 @@ private final class StickerPackContainer: ASDisplayNode {
              }
          })))
          
 +        if ClearConfig.showPackOwner, let (info, _, _) = self.currentStickerPack {
-+            let setId = UInt64(bitPattern: info.id.id)
-+            var ownerBareId = Int64(setId >> 32)
++            // The owner is encoded in the pack id. The shift must be arithmetic, on the signed
++            // id: a pack whose owner has bit 31 set — every user id past ~2.1 billion, so most
++            // of them now — has a negative pack id, and a logical shift there lands 0x100000000
++            // above the signed one, after which the correction below adds that offset a second
++            // time. The masks are unaffected, they drop the sign extension anyway.
++            let setId = info.id.id
++            var ownerBareId = setId >> 32
 +            if (setId >> 16) & 0xff == 0x3f {
-+                ownerBareId |= Int64(bitPattern: 0x80000000)
++                ownerBareId |= 0x80000000
 +            }
 +            if (setId >> 24) & 0xff != 0 {
-+                ownerBareId += Int64(bitPattern: 0x100000000)
++                ownerBareId += 0x100000000
 +            }
-+            let ownerId = PeerId(ownerBareId)
++            // ownerBareId is a bare user id, not a packed PeerId — PeerId(Int64) would read
++            // its bits above 32 as the namespace, which breaks for every 64-bit user id.
++            let ownerId = PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(ownerBareId))
 +            items.append(.separator)
 +            items.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuShowPackOwner, icon: { theme in
 +                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Info"), color: theme.contextMenu.primaryColor)
@@ -57,11 +64,25 @@ index 0000000..0000000 100644
 +                    guard let self else { return }
 +                    if let peer = peer {
 +                        if let infoController = self.context.sharedContext.makePeerInfoController(context: self.context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
-+                            controller.push(infoController)
++                            // The pack screen is a sheet, and which stack is live depends on how it
++                            // was opened: either the explicit `parentNavigationController` or its
++                            // own `navigationController`, with the other one nil — and pushing on
++                            // nil is a silent no-op, which is why `controller.push` alone works in
++                            // some entry points and does nothing in others. Take whichever exists,
++                            // and take it before dismissing, since dismissing clears the latter.
++                            let navigationController = controller.parentNavigationController ?? (controller.navigationController as? NavigationController)
++                            controller.dismiss(animated: false, completion: nil)
++                            navigationController?.pushViewController(infoController)
 +                        }
 +                    } else {
-+                        let idUrl = "tg://user?id=\(ownerId.id._internalGetInt64Value())"
-+                        self.context.sharedContext.applicationBindings.openUrl(idUrl)
++                        // Telegram has no "resolve user by bare id" call — users.getUsers needs an
++                        // accessHash the server only hands out together with the peer itself. So an
++                        // owner never seen on this device cannot be opened, and tg://user?id= is no
++                        // way around it: its handler performs this very same local lookup. Copy the
++                        // id instead, like the upstream tdesktop implementation does.
++                        let ownerIdValue = ownerId.id._internalGetInt64Value()
++                        UIPasteboard.general.string = "\(ownerIdValue)"
++                        controller.present(UndoOverlayController(presentationData: self.presentationData, content: .copy(text: ClearStrings.packOwnerIdCopied(ownerIdValue)), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .window(.root))
 +                    }
 +                })
 +            })))

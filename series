@@ -50,3 +50,4 @@ feature/recent-stickers-limit.patch
 feature/chat-list-swipe-actions.patch
 feature/send-video-as-circle.patch
 feature/settings-transfer.patch
+bugfix/chat-list-debug-tap-crash.patch

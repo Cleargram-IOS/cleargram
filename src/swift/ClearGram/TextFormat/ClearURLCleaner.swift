@@ -21,9 +21,10 @@ public enum ClearURLCleaner {
     // Only params that must NOT be treated as prefixes belong here — a prefix entry already
     // matches itself, so anything listed above would be dead weight.
     // "ref" would eat `referrer`/`refresh`/`refid`; "si" (YouTube/Spotify share tracking)
-    // would eat `site`/`size`/`sid`.
+    // would eat `site`/`size`/`sid`; "is" (what newer YouTube clients emit in place of "si")
+    // would eat `island`/`isbn`/`issue`.
     private static let exactTrackingParams: Set<String> = [
-        "ref", "si",
+        "ref", "si", "is",
     ]
 
     public static func stripTrackingParams(url: String) -> String {

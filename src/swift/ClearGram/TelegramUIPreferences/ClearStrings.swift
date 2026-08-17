@@ -71,8 +71,9 @@ public enum ClearStrings {
         return tr("Show Pack Owner", "Показать владельца набора")
     }
 
-    public static var contextMenuSendAsVideoMessage: String {
-        return tr("Send as Video Message", "Отправить видеосообщением")
+    // Shown when the pack owner is not a peer this device knows, so there is nothing to open.
+    public static func packOwnerIdCopied(_ id: Int64) -> String {
+        return tr("Owner ID \(id) copied", "ID владельца \(id) скопирован")
     }
 
     // The country name behind Telegram's "TS" test-number code; stock has no key for it.
@@ -82,6 +83,13 @@ public enum ClearStrings {
 
     public static var confirmPollRevote: String {
         return tr("Change your vote?", "Изменить голос?")
+    }
+
+    public static var confirmPollPermanentVote: String {
+        return tr(
+            "This poll does not allow changing your vote. Your choice will be permanent.",
+            "В этом опросе нельзя переголосовать. Ваш выбор останется навсегда."
+        )
     }
 
     public static var confirmOpenLink: String {

@@ -4,14 +4,39 @@ Date: Thu, 13 Aug 2026 23:13:11 +0800
 Subject: Send a gallery video as a video message
 
 ---
+ .../TGMediaPickerGalleryInterfaceView.h       |  6 +++
  .../TGPhotoEditorController.h                 |  8 +++
+ .../TGMediaPickerGalleryInterfaceView.m       | 51 +++++++++++++++++++
  .../Sources/TGPhotoAvatarPreviewController.h  |  3 ++
  .../Sources/TGPhotoAvatarPreviewController.m  |  1 +
  .../Sources/TGPhotoEditorController.m         | 26 ++++++----
- .../Sources/LegacyMediaPickers.swift          | 50 ++++++++++++++++---
- .../Sources/MediaPickerScreen.swift           | 25 ++++++++--
- 6 files changed, 93 insertions(+), 20 deletions(-)
+ .../Sources/LegacyMediaPickers.swift          | 50 +++++++++++++++---
+ .../Sources/LegacyMediaPickerGallery.swift    | 20 ++++++++
+ .../Sources/MediaPickerScreen.swift           | 22 ++++++--
+ 9 files changed, 167 insertions(+), 20 deletions(-)
 
+diff --git a/submodules/LegacyComponents/PublicHeaders/LegacyComponents/TGMediaPickerGalleryInterfaceView.h b/submodules/LegacyComponents/PublicHeaders/LegacyComponents/TGMediaPickerGalleryInterfaceView.h
+index 0000000..0000000 100644
+--- a/submodules/LegacyComponents/PublicHeaders/LegacyComponents/TGMediaPickerGalleryInterfaceView.h
++++ b/submodules/LegacyComponents/PublicHeaders/LegacyComponents/TGMediaPickerGalleryInterfaceView.h
+@@ -6,6 +6,7 @@
+ #import <LegacyComponents/LegacyComponentsContext.h>
+ 
+ @protocol TGPhotoPaintStickersContext;
++@protocol TGMediaEditableItem;
+ @class TGMediaSelectionContext;
+ @class TGMediaEditingContext;
+ @class TGMediaPickerGallerySelectedItemsModel;
+@@ -64,4 +65,9 @@
+ 
+ - (void)setTabBarUserInteractionEnabled:(bool)enabled;
+ 
++// ClearGram: installs the "send as video message" button next to the GIF/mute one, handing the
++// previewed item back to the fork when tapped. Until this is called the button stays hidden, so
++// callers that know nothing about it see stock behaviour.
++- (void)clearSetRoundVideoIcon:(UIImage *)icon action:(void (^)(id<TGMediaEditableItem>))action;
++
+ @end
 diff --git a/submodules/LegacyComponents/PublicHeaders/LegacyComponents/TGPhotoEditorController.h b/submodules/LegacyComponents/PublicHeaders/LegacyComponents/TGPhotoEditorController.h
 index 0000000..0000000 100644
 --- a/submodules/LegacyComponents/PublicHeaders/LegacyComponents/TGPhotoEditorController.h
@@ -31,6 +56,152 @@ index 0000000..0000000 100644
  @property (nonatomic, strong) TGMediaEditingContext *editingContext;
  @property (nonatomic, strong) id<TGPhotoPaintStickersContext> stickersContext;
  
+diff --git a/submodules/LegacyComponents/Sources/TGMediaPickerGalleryInterfaceView.m b/submodules/LegacyComponents/Sources/TGMediaPickerGalleryInterfaceView.m
+index 0000000..0000000 100644
+--- a/submodules/LegacyComponents/Sources/TGMediaPickerGalleryInterfaceView.m
++++ b/submodules/LegacyComponents/Sources/TGMediaPickerGalleryInterfaceView.m
+@@ -123,6 +123,9 @@ @interface TGMediaPickerGalleryInterfaceView () <ASWatcher>
+     TGPhotoCaptionInputMixin *_captionMixin;
+     
+     TGModernButton *_muteButton;
++    // ClearGram: "send as video message" button, sitting next to the GIF/mute button.
++    TGModernButton *_clearRoundVideoButton;
++    void (^_clearSendAsRoundVideo)(id<TGMediaEditableItem>);
+     TGCheckButtonView *_checkButton;
+     bool _ignoreSetSelected;
+     TGMediaPickerPhotoCounterButton *_photoCounterButton;
+@@ -254,6 +257,14 @@ - (instancetype)initWithContext:(id<LegacyComponentsContext>)context focusItem:(
+         [_muteButton setImage:[TGPhotoEditorInterfaceAssets muteActiveIcon]  forState:UIControlStateSelected | UIControlStateHighlighted];
+         [_muteButton addTarget:self action:@selector(toggleSendAsGif) forControlEvents:UIControlEventTouchUpInside];
+         [_wrapperView addSubview:_muteButton];
++
++        // ClearGram: stays hidden until the fork installs an action for it.
++        _clearRoundVideoButton = [[TGModernButton alloc] initWithFrame:CGRectMake(0, 0, 40.0f, 40.0f)];
++        _clearRoundVideoButton.hidden = true;
++        _clearRoundVideoButton.adjustsImageWhenHighlighted = false;
++        [_clearRoundVideoButton setBackgroundImage:[TGPhotoEditorInterfaceAssets gifBackgroundImage] forState:UIControlStateNormal];
++        [_clearRoundVideoButton addTarget:self action:@selector(clearRoundVideoButtonPressed) forControlEvents:UIControlEventTouchUpInside];
++        [_wrapperView addSubview:_clearRoundVideoButton];
+         
+         if (recipientName.length > 0)
+         {
+@@ -765,6 +776,7 @@ - (void)itemFocused:(id<TGModernGalleryItem>)item itemView:(TGModernGalleryItemV
+                 }
+             }
+             strongSelf->_muteButton.hidden = !sendableAsGif;
++            strongSelf->_clearRoundVideoButton.hidden = !sendableAsGif || strongSelf->_clearSendAsRoundVideo == nil;
+             
+             bool canHaveCover = false;
+             if ([strongItemView isKindOfClass:[TGMediaPickerGalleryVideoItemView class]]) {
+@@ -1416,6 +1428,7 @@ - (void)setSelectionInterfaceHidden:(bool)hidden delay:(NSTimeInterval)__unused
+         {
+             _checkButton.alpha = alpha;
+             _muteButton.alpha = alpha;
++            _clearRoundVideoButton.alpha = alpha;
+             _coverButton.alpha = alpha;
+             _arrowView.alpha = alpha * 0.6f;
+             _recipientLabel.alpha = alpha * 0.6;
+@@ -1426,6 +1439,7 @@ - (void)setSelectionInterfaceHidden:(bool)hidden delay:(NSTimeInterval)__unused
+             {
+                 _checkButton.userInteractionEnabled = !hidden;
+                 _muteButton.userInteractionEnabled = !hidden;
++                _clearRoundVideoButton.userInteractionEnabled = !hidden;
+                 _coverButton.userInteractionEnabled = !hidden;
+                 _captionMixin.livePhotoButtonView.userInteractionEnabled = !hidden;
+             }
+@@ -1450,6 +1464,8 @@ - (void)setSelectionInterfaceHidden:(bool)hidden delay:(NSTimeInterval)__unused
+         
+         _muteButton.alpha = alpha;
+         _muteButton.userInteractionEnabled = !hidden;
++        _clearRoundVideoButton.alpha = alpha;
++        _clearRoundVideoButton.userInteractionEnabled = !hidden;
+         
+         _coverButton.alpha = alpha;
+         _coverButton.userInteractionEnabled = !hidden;
+@@ -1486,6 +1502,7 @@ - (void)setAllInterfaceHidden:(bool)hidden keepHeader:(bool)keepHeader delay:(NS
+         {
+             _checkButton.alpha = alpha;
+             _muteButton.alpha = alpha;
++            _clearRoundVideoButton.alpha = alpha;
+             _coverButton.alpha = alpha;
+             _arrowView.alpha = alpha * 0.6;
+             _recipientLabel.alpha = alpha * 0.6;
+@@ -1499,6 +1516,7 @@ - (void)setAllInterfaceHidden:(bool)hidden keepHeader:(bool)keepHeader delay:(NS
+             {
+                 _checkButton.userInteractionEnabled = !hidden;
+                 _muteButton.userInteractionEnabled = !hidden;
++                _clearRoundVideoButton.userInteractionEnabled = !hidden;
+                 _coverButton.userInteractionEnabled = !hidden;
+                 _portraitToolbarView.userInteractionEnabled = !hidden;
+                 _landscapeToolbarView.userInteractionEnabled = !hidden;
+@@ -1526,6 +1544,8 @@ - (void)setAllInterfaceHidden:(bool)hidden keepHeader:(bool)keepHeader delay:(NS
+         
+         _muteButton.alpha = alpha;
+         _muteButton.userInteractionEnabled = !hidden;
++        _clearRoundVideoButton.alpha = alpha;
++        _clearRoundVideoButton.userInteractionEnabled = !hidden;
+         
+         _coverButton.alpha = alpha;
+         _coverButton.userInteractionEnabled = !hidden;
+@@ -1607,6 +1627,24 @@ - (void)setupGifEditing {
+         [(TGMediaPickerGalleryVideoItemView *)currentItemView toggleSendAsGif:false];
+     
+     [_muteButton removeFromSuperview];
++    [_clearRoundVideoButton removeFromSuperview];
++}
++
++// ClearGram: hands the currently previewed item to the fork, which turns it into a round video.
++- (void)clearSetRoundVideoIcon:(UIImage *)icon action:(void (^)(id<TGMediaEditableItem>))action
++{
++    _clearSendAsRoundVideo = [action copy];
++    [_clearRoundVideoButton setImage:icon forState:UIControlStateNormal];
++}
++
++- (void)clearRoundVideoButtonPressed
++{
++    if (_clearSendAsRoundVideo == nil || ![_currentItem conformsToProtocol:@protocol(TGModernGalleryEditableItem)])
++        return;
++
++    id<TGMediaEditableItem> editableItem = [(id<TGModernGalleryEditableItem>)_currentItem editableMediaItem];
++    if (editableItem != nil)
++        _clearSendAsRoundVideo(editableItem);
+ }
+ 
+ - (void)toggleSendAsGif
+@@ -1798,6 +1836,7 @@ - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event
+         if (view == _photoCounterButton
+             || view == _checkButton
+             || view == _muteButton
++            || view == _clearRoundVideoButton
+             || view == _groupButton
+             || view == _cameraButton
+             || view == _coverButton
+@@ -1879,6 +1918,17 @@ - (CGRect)_muteButtonFrameForOrientation:(UIInterfaceOrientation)orientation scr
+     return frame;
+ }
+ 
++// ClearGram: the round-video button shares the GIF button's row, one slot further along.
++- (CGRect)_clearRoundVideoButtonFrameForOrientation:(UIInterfaceOrientation)orientation screenEdges:(UIEdgeInsets)screenEdges hasHeaderView:(bool)hasHeaderView
++{
++    CGRect frame = [self _muteButtonFrameForOrientation:orientation screenEdges:screenEdges hasHeaderView:hasHeaderView];
++    if (orientation == UIInterfaceOrientationLandscapeLeft || orientation == UIInterfaceOrientationLandscapeRight)
++        frame.origin.y -= frame.size.height + 6.0f;
++    else
++        frame.origin.x += frame.size.width + 6.0f;
++    return frame;
++}
++
+ - (CGRect)_groupButtonFrameForOrientation:(UIInterfaceOrientation)orientation screenEdges:(UIEdgeInsets)screenEdges hasHeaderView:(bool)hasHeaderView
+ {
+     CGRect frame = CGRectZero;
+@@ -2183,6 +2233,7 @@ - (void)layoutSubviews
+     }
+     
+     _muteButton.frame = [self _muteButtonFrameForOrientation:orientation screenEdges:screenEdges hasHeaderView:true];
++    _clearRoundVideoButton.frame = [self _clearRoundVideoButtonFrameForOrientation:orientation screenEdges:screenEdges hasHeaderView:true];
+     _checkButton.frame = [self _checkButtonFrameForOrientation:orientation screenEdges:screenEdges hasHeaderView:hasHeaderView];
+     _groupButton.frame = [self _groupButtonFrameForOrientation:orientation screenEdges:screenEdges hasHeaderView:hasHeaderView];
+     _coverButton.frame = [self _coverButtonFrameForOrientation:orientation screenEdges:screenEdges hasHeaderView:hasHeaderView];
 diff --git a/submodules/LegacyComponents/Sources/TGPhotoAvatarPreviewController.h b/submodules/LegacyComponents/Sources/TGPhotoAvatarPreviewController.h
 index 0000000..0000000 100644
 --- a/submodules/LegacyComponents/Sources/TGPhotoAvatarPreviewController.h
@@ -282,20 +453,95 @@ index 0000000..0000000 100644
                                  fileAttributes.append(.Video(duration: finalDuration, size: PixelDimensions(finalDimensions), flags: flags, preloadSize: nil, coverTime: nil, videoCodec: nil))
                                  if let adjustments = adjustments {
                                      if adjustments.sendAsGif {
+diff --git a/submodules/MediaPickerUI/Sources/LegacyMediaPickerGallery.swift b/submodules/MediaPickerUI/Sources/LegacyMediaPickerGallery.swift
+index 0000000..0000000 100644
+--- a/submodules/MediaPickerUI/Sources/LegacyMediaPickerGallery.swift
++++ b/submodules/MediaPickerUI/Sources/LegacyMediaPickerGallery.swift
+@@ -9,6 +9,7 @@ import AccountContext
+ import LegacyComponents
+ import LegacyUI
+ import LegacyMediaPickerUI
++import TelegramUIPreferences
+ import Photos
+ import MediaAssetsContext
+ 
+@@ -130,6 +131,7 @@ func presentLegacyMediaPickerGallery(
+     transitionHostView: @escaping () -> UIView?,
+     transitionView: @escaping (String) -> UIView?,
+     completed: @escaping (TGMediaSelectableItem & TGMediaEditableItem, Bool, Int32?, @escaping () -> Void) -> Void,
++    clearSendAsRoundVideo: ((TGMediaSelectableItem & TGMediaEditableItem, @escaping () -> Void) -> Void)? = nil,
+     presentSchedulePicker: @escaping (Bool, @escaping (Int32, Bool) -> Void) -> Void,
+     presentTimerPicker: @escaping (@escaping (Int32) -> Void) -> Void,
+     getCaptionPanelView: @escaping () -> TGCaptionPanelView?,
+@@ -301,6 +303,24 @@ func presentLegacyMediaPickerGallery(
+         legacyController?.dismiss()
+     }
+ 
++    // ClearGram: the round-video button next to the GIF one. Crop and trim in the avatar-style
++    // editor first — presented over the gallery, which stays up behind it — then send.
++    if ClearConfig.sendVideoAsCircle, let clearSendAsRoundVideo, clearRoundVideoAllowed(peer: peer) {
++        model.interfaceView.clearSetRoundVideoIcon(clearRoundVideoButtonIcon(), action: { [weak controller, weak legacyController] editableItem in
++            guard let item = editableItem as? (TGMediaSelectableItem & TGMediaEditableItem) else {
++                return
++            }
++            clearPresentRoundVideoEditor(context: context, item: item, editingContext: editingContext, present: { c, a in
++                legacyController?.present(c, in: .window(.root), with: a)
++            }, completed: {
++                clearSendAsRoundVideo(item, {
++                    controller?.dismissWhenReady(animated: true)
++                    dismissAll()
++                })
++            })
++        })
++    }
++
+     model.interfaceView.donePressed = { [weak controller] item in
+         if let item = item as? TGMediaPickerGalleryItem {
+             completed(item.asset, false, nil, {
 diff --git a/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift b/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift
 index 0000000..0000000 100644
 --- a/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift
 +++ b/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift
-@@ -1468,7 +1468,7 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+@@ -1387,6 +1387,8 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+                 if let strongSelf = self {
+                     strongSelf.controller?.interaction?.sendSelected(result, silently, scheduleTime, false, nil, completion)
+                 }
++            }, clearSendAsRoundVideo: { [weak self] item, completion in
++                self?.clearSendAsRoundVideo(item: item, completion: completion)
+             }, presentSchedulePicker: controller.presentSchedulePicker, presentTimerPicker: controller.presentTimerPicker, getCaptionPanelView: controller.getCaptionPanelView, present: { [weak self] c, a in
+                 self?.currentGalleryParentController = c
+                 c.navigationPresentation = .flatModal
+@@ -1434,6 +1436,8 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+                 if let strongSelf = self {
+                     strongSelf.controller?.interaction?.sendSelected(result, silently, scheduleTime, false, nil, completion)
+                 }
++            }, clearSendAsRoundVideo: { [weak self] item, completion in
++                self?.clearSendAsRoundVideo(item: item, completion: completion)
+             }, presentSchedulePicker: controller.presentSchedulePicker, presentTimerPicker: controller.presentTimerPicker, getCaptionPanelView: controller.getCaptionPanelView, present: { [weak self] c, a in
+                 self?.currentGalleryParentController = c
+                 self?.controller?.present(c, in: .window(.root), with: a, blockInteraction: true)
+@@ -1468,7 +1472,19 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
              }
          }
          
 -        fileprivate func send(fromGallery: Bool = false, asFile: Bool = false, silently: Bool, scheduleTime: Int32?, animated: Bool, parameters: ChatSendMessageActionSheetController.SendParameters?, completion: @escaping () -> Void) {
++        // ClearGram: the gallery's round-video button. A video message carries exactly one video,
++        // so whatever else was ticked in the picker is dropped in favour of the previewed item.
++        fileprivate func clearSendAsRoundVideo(item: TGMediaSelectableItem & TGMediaEditableItem, completion: @escaping () -> Void) {
++            guard let controller = self.controller, let selectionState = controller.interaction?.selectionState, !controller.isDismissing else {
++                return
++            }
++            controller.isDismissing = true
++            selectionState.clear()
++            selectionState.setItem(item, selected: true)
++            self.send(fromGallery: true, asFile: false, asRoundVideo: true, silently: false, scheduleTime: nil, animated: true, parameters: nil, completion: completion)
++        }
++        
 +        fileprivate func send(fromGallery: Bool = false, asFile: Bool = false, asRoundVideo: Bool = false, silently: Bool, scheduleTime: Int32?, animated: Bool, parameters: ChatSendMessageActionSheetController.SendParameters?, completion: @escaping () -> Void) {
              guard let controller = self.controller, !controller.completed else {
                  return
              }
-@@ -1500,9 +1500,9 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+@@ -1500,9 +1516,9 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
                  let signals: [Any]!
                  switch controller.subject {
                  case .assets:
@@ -307,29 +553,3 @@ index 0000000..0000000 100644
                  }
                  guard let signals = signals else {
                      return
-@@ -3146,6 +3146,25 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
-                             self?.controllerNode.send(asFile: false, silently: false, scheduleTime: nil, animated: true, parameters: nil, completion: {})
-                         })))
-                     }
-+                    if ClearConfig.sendVideoAsCircle, price == nil, !hasSpoilers, clearCanSendAsRoundVideo(selectedItems: self.interaction?.selectionState?.selectedItems() ?? [], peer: self.peer) {
-+                        items.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuSendAsVideoMessage, icon: { theme in
-+                            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Attach Menu/Video"), color: theme.contextMenu.primaryColor)
-+                        }, action: { [weak self] _, f in
-+                            f(.default)
-+
-+                            guard let self, let editingContext = self.interaction?.editingState,
-+                                  let item = self.interaction?.selectionState?.selectedItems().first as? TGMediaEditableItem else {
-+                                return
-+                            }
-+                            // Crop + trim first, then send: the editor writes its adjustments into
-+                            // the picker's editing context, which the send path reads back.
-+                            clearPresentRoundVideoEditor(context: self.context, item: item, editingContext: editingContext, present: { controller, arguments in
-+                                self.present(controller, in: .window(.root), with: arguments)
-+                            }, completed: { [weak self] in
-+                                self?.controllerNode.send(asFile: false, asRoundVideo: true, silently: false, scheduleTime: nil, animated: true, parameters: nil, completion: {})
-+                            })
-+                        })))
-+                    }
-                     if selectionCount > 1, price == nil {
-                         items.append(.action(ContextMenuActionItem(text: strings.Attachment_SendWithoutGrouping, icon: { theme in
-                             return generateTintedImage(image: UIImage(bundleImageName: "Media Grid/GroupingOff"), color: theme.contextMenu.primaryColor)
