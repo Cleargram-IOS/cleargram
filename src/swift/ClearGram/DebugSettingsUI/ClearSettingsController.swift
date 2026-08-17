@@ -88,9 +88,24 @@ private struct ClearSelect {
 }
 
 // A plain tappable row that runs code (export / import), rather than storing a value.
+//
+// With a `label` it renders as a disclosure row showing that text on the right instead — for
+// rows that open a screen and should say what is currently picked there. The closure is given
+// the settings so the label re-reads on every change, like a toggle's subtitle.
 private struct ClearAction {
     let title: String
+    let label: ((ClearConfigSettings) -> String)?
     let perform: (AccountContext, _ present: @escaping (ViewController, Any?) -> Void, _ push: @escaping (ViewController) -> Void) -> Void
+
+    init(
+        title: String,
+        label: ((ClearConfigSettings) -> String)? = nil,
+        perform: @escaping (AccountContext, _ present: @escaping (ViewController, Any?) -> Void, _ push: @escaping (ViewController) -> Void) -> Void
+    ) {
+        self.title = title
+        self.label = label
+        self.perform = perform
+    }
 }
 
 private enum ClearRow {
@@ -156,7 +171,7 @@ private enum ClearEntry: ItemListNodeEntry {
     case header(section: Int, text: String)
     case toggle(section: Int, index: Int, title: String, subtitle: String?, value: Bool, enabled: Bool)
     case select(section: Int, index: Int, title: String, label: String)
-    case action(section: Int, index: Int, title: String)
+    case action(section: Int, index: Int, title: String, label: String?)
     case disclosure(section: Int, index: Int, title: String)
     case reset(section: Int, index: Int, title: String)
     case footer(section: Int, text: String)
@@ -166,7 +181,7 @@ private enum ClearEntry: ItemListNodeEntry {
         case let .header(section, _),
              let .toggle(section, _, _, _, _, _),
              let .select(section, _, _, _),
-             let .action(section, _, _),
+             let .action(section, _, _, _),
              let .disclosure(section, _, _),
              let .reset(section, _, _),
              let .footer(section, _):
@@ -184,7 +199,7 @@ private enum ClearEntry: ItemListNodeEntry {
             return section * 1000 + 10 + index
         case let .select(section, index, _, _):
             return section * 1000 + 10 + index
-        case let .action(section, index, _):
+        case let .action(section, index, _, _):
             return section * 1000 + 10 + index
         case let .disclosure(section, index, _):
             return section * 1000 + 10 + index
@@ -205,8 +220,8 @@ private enum ClearEntry: ItemListNodeEntry {
             return ls == rs && li == ri && lt == rt && lsub == rsub && lv == rv && le == re
         case let (.select(ls, li, lt, ll), .select(rs, ri, rt, rl)):
             return ls == rs && li == ri && lt == rt && ll == rl
-        case let (.action(ls, li, lt), .action(rs, ri, rt)):
-            return ls == rs && li == ri && lt == rt
+        case let (.action(ls, li, lt, ll), .action(rs, ri, rt, rl)):
+            return ls == rs && li == ri && lt == rt && ll == rl
         case let (.disclosure(ls, li, lt), .disclosure(rs, ri, rt)):
             return ls == rs && li == ri && lt == rt
         case let (.reset(ls, li, lt), .reset(rs, ri, rt)):
@@ -255,7 +270,21 @@ private enum ClearEntry: ItemListNodeEntry {
                     args.openRow(section, index)
                 }
             )
-        case let .action(section, index, title):
+        case let .action(section, index, title, label):
+            if let label {
+                return ItemListDisclosureItem(
+                    presentationData: presentationData,
+                    systemStyle: .glass,
+                    icon: nil,
+                    title: title,
+                    label: label,
+                    sectionId: self.section,
+                    style: .blocks,
+                    action: {
+                        args.openRow(section, index)
+                    }
+                )
+            }
             return ItemListActionItem(
                 presentationData: presentationData,
                 systemStyle: .glass,
@@ -350,7 +379,7 @@ private func clearEntries(screen: ClearScreen, settings: ClearConfigSettings, ex
             case let .select(select):
                 entries.append(.select(section: sectionIndex, index: rowIndex, title: select.title, label: select.label(settings)))
             case let .action(action):
-                entries.append(.action(section: sectionIndex, index: rowIndex, title: action.title))
+                entries.append(.action(section: sectionIndex, index: rowIndex, title: action.title, label: action.label?(settings)))
             case let .screen(child):
                 entries.append(.disclosure(section: sectionIndex, index: rowIndex, title: child.title))
             case let .reset(title):
@@ -769,6 +798,28 @@ private func clearChatsScreen() -> ClearScreen {
             ]
         ),
         ClearSection(
+            header: L("VOICE & VIDEO MESSAGES", "ГОЛОСОВЫЕ И ВИДЕОСООБЩЕНИЯ"),
+            footer: L(
+                "Transcribes voice and video messages on this device with Apple's speech recognition. The audio is never sent anywhere. Requires a restart.",
+                "Расшифровывает голосовые и видеосообщения на устройстве через распознавание речи Apple. Звук никуда не отправляется. Требуется перезапуск."
+            ),
+            rows: [
+                .toggle(ClearToggle(
+                    L("Transcribe on This Device", "Расшифровка на устройстве"),
+                    .experimental(\.localTranscription),
+                    subtitle: { _ in L("Works without Premium", "Работает без Premium") },
+                    requiresRestart: true
+                )),
+                .action(ClearAction(
+                    title: L("Language", "Язык"),
+                    label: { settings in clearTranscriptionLanguageLabel(settings.transcriptionLocales) },
+                    perform: { context, _, push in
+                        push(clearTranscriptionLanguageController(context: context))
+                    }
+                ))
+            ]
+        ),
+        ClearSection(
             header: L("TIMESTAMPS", "ВРЕМЯ"),
             dynamicFooter: { settings in
                 let sample = settings.secondsInMessages ? "12:30:45" : "12:30"
@@ -938,10 +989,10 @@ private func clearMediaScreen() -> ClearScreen {
             header: L("VIDEO", "ВИДЕО"),
             footer: L(
                 "A round-video button appears next to the GIF button while previewing a video in the media picker. It opens a circular crop-and-trim editor, then sends: the video is cropped to a square, re-encoded to 400×400 h.264 and trimmed to 60 seconds — the same conversion the round-video camera uses.",
-                "Кнопка кругляша появляется рядом с кнопкой GIF при просмотре видео в выборе медиа. Она открывает круглый редактор обрезки и подрезки, а затем отправляет: видео обрезается в квадрат, перекодируется в 400×400 h.264 и укорачивается до 60 секунд — то же преобразование, что и у камеры кругляшей."
+                "Кнопка кружка появляется рядом с кнопкой GIF при просмотре видео в выборе медиа. Она открывает круглый редактор обрезки и подрезки, а затем отправляет: видео обрезается в квадрат, перекодируется в 400×400 h.264 и укорачивается до 60 секунд — то же преобразование, что и у камеры кружков."
             ),
             rows: [
-                .toggle(ClearToggle(L("Send Video as Video Message", "Отправлять видео кругляшом"), .config(\.sendVideoAsCircle))),
+                .toggle(ClearToggle(L("Send Video as Video Message", "Отправить видео как кружок"), .config(\.sendVideoAsCircle))),
                 .toggle(ClearToggle.soon(
                     L("Audio Source for Video Messages", "Источник звука для видеосообщений"),
                     L(
@@ -972,6 +1023,40 @@ private func clearMediaScreen() -> ClearScreen {
             },
             rows: [
                 .toggle(ClearToggle(L("Show Codec & Bitrate", "Показывать кодек и битрейт"), .config(\.showAudioFormatBitrate)))
+            ]
+        ),
+        ClearSection(
+            header: L("LAST.FM", "LAST.FM"),
+            footer: L(
+                "Sends the music you play in Telegram to your Last.fm profile. Sign in under Last.fm Account.",
+                "Отправляет музыку, которую вы слушаете в Telegram, в ваш профиль Last.fm. Вход — в «Аккаунте Last.fm»."
+            ),
+            rows: [
+                .toggle(ClearToggle(
+                    L("Scrobble to Last.fm", "Скробблинг в Last.fm"),
+                    .config(\.lastFmScrobbling),
+                    subtitle: { _ in
+                        L(
+                            "Needs your own API key: \(ClearLastFm.apiAccountUrl)",
+                            "Нужен свой API-ключ: \(ClearLastFm.apiAccountUrl)"
+                        )
+                    }
+                )),
+                .toggle(ClearToggle(
+                    L("Send “Now Playing”", "Отправлять «Сейчас играет»"),
+                    .config(\.lastFmNowPlaying),
+                    subtitle: { _ in L("Shows the current track on your profile", "Показывает текущий трек в профиле") },
+                    isEnabled: { $0.lastFmScrobbling }
+                )),
+                .action(ClearAction(
+                    title: L("Last.fm Account", "Аккаунт Last.fm"),
+                    // Not part of ClearConfigSettings — credentials live in their own key — but the
+                    // in-memory mirror is current, and this row is rebuilt with the rest of the screen.
+                    label: { _ in ClearLastFm.current().username },
+                    perform: { context, _, push in
+                        push(clearLastFmController(context: context))
+                    }
+                ))
             ]
         ),
         ClearSection(

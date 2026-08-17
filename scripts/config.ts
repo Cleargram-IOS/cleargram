@@ -20,7 +20,7 @@ export const clearSharedDataKeyRange = {
   clearConfig: 30, // ClearConfigSettings (toggles)
   hiddenChats: 31, // HiddenChatsSettings (per-peer hidden)
   hiddenMessages: 32, // HiddenMessagesSettings (per-message hidden)
-  reserved: 33, // reserved
+  lastFm: 33, // ClearLastFmSettings (Last.fm credentials + scrobble queue)
 } as const
 
 // Fork source layout: each subdirectory under src/swift/ClearGram/<SubmoduleName>/ is
@@ -65,6 +65,19 @@ export const forkSyncDirs: ForkSyncDir[] = [
   {
     source: 'src/swift/ClearGram/PeerInfoScreen',
     target: 'submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/ClearGram',
+  },
+  // Fork code that needs the player types (AccountContext/UniversalMediaPlayer) has to live in a
+  // module that already depends on them; TelegramUI is that module, and its BUILD globs
+  // Sources/**, so nothing extra is registered.
+  {
+    source: 'src/swift/ClearGram/TelegramUI',
+    target: 'submodules/TelegramUI/Sources/ClearGram',
+  },
+  // Shared by two chat-message node modules (voice and round video), so it lives in the module
+  // that already owns on-device speech recognition rather than in either caller.
+  {
+    source: 'src/swift/ClearGram/LocalAudioTranscription',
+    target: 'submodules/Media/LocalAudioTranscription/Sources/ClearGram',
   },
 ]
 

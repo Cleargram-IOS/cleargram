@@ -89,6 +89,13 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var swipeActionsLeft: [String]
     public var swipeActionsRight: [String]
     public var importSettingsFromChats: Bool
+    public var lastFmScrobbling: Bool
+    public var lastFmNowPlaying: Bool
+    // Candidate speech-recognition locales for on-device transcription ("ru-RU", "en-US"…),
+    // in priority order. Empty = the system language, which is what stock uses and the only
+    // thing it can use. Each entry costs another pass over the audio — see
+    // ClearConfig.maxTranscriptionLocales.
+    public var transcriptionLocales: [String]
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -169,7 +176,10 @@ public struct ClearConfigSettings: Codable, Equatable {
             swipeActionArchive: true,
             swipeActionsLeft: [],
             swipeActionsRight: [],
-            importSettingsFromChats: true
+            importSettingsFromChats: true,
+            lastFmScrobbling: false,
+            lastFmNowPlaying: false,
+            transcriptionLocales: []
         )
     }
 
@@ -251,7 +261,10 @@ public struct ClearConfigSettings: Codable, Equatable {
         swipeActionArchive: Bool = true,
         swipeActionsLeft: [String] = [],
         swipeActionsRight: [String] = [],
-        importSettingsFromChats: Bool = true
+        importSettingsFromChats: Bool = true,
+        lastFmScrobbling: Bool = false,
+        lastFmNowPlaying: Bool = false,
+        transcriptionLocales: [String] = []
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -331,6 +344,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.swipeActionsLeft = swipeActionsLeft
         self.swipeActionsRight = swipeActionsRight
         self.importSettingsFromChats = importSettingsFromChats
+        self.lastFmScrobbling = lastFmScrobbling
+        self.lastFmNowPlaying = lastFmNowPlaying
+        self.transcriptionLocales = transcriptionLocales
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -355,6 +371,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case recentStickersLimit
         case swipeActionPin, swipeActionMute, swipeActionRead, swipeActionDelete, swipeActionArchive, swipeActionsLeft, swipeActionsRight
         case importSettingsFromChats
+        case lastFmScrobbling, lastFmNowPlaying, transcriptionLocales
     }
 
     public init(from decoder: Decoder) throws {
@@ -440,6 +457,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         // `.cleargram` extension, which does not exist in stock, so no real file type changes
         // behaviour. Import still always asks before applying anything.
         self.importSettingsFromChats = try c.decodeIfPresent(Bool.self, forKey: .importSettingsFromChats) ?? true
+        self.lastFmScrobbling = try c.decodeIfPresent(Bool.self, forKey: .lastFmScrobbling) ?? false
+        self.lastFmNowPlaying = try c.decodeIfPresent(Bool.self, forKey: .lastFmNowPlaying) ?? false
+        self.transcriptionLocales = try c.decodeIfPresent([String].self, forKey: .transcriptionLocales) ?? []
     }
 }
 

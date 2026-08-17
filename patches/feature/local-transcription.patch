@@ -1,0 +1,195 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Tue, 18 Aug 2026 01:15:15 +0800
+Subject: Add on-device voice message transcription
+
+---
+ .../Media/LocalAudioTranscription/BUILD       |  3 +
+ .../Sources/LocalAudioTranscription.swift     |  4 +-
+ .../ChatMessageInteractiveFileNode.swift      | 12 ++--
+ .../BUILD                                     |  1 +
+ ...atMessageInteractiveInstantVideoNode.swift | 58 +++++++++++++------
+ 5 files changed, 53 insertions(+), 25 deletions(-)
+
+diff --git a/submodules/Media/LocalAudioTranscription/BUILD b/submodules/Media/LocalAudioTranscription/BUILD
+index 0000000..0000000 100644
+--- a/submodules/Media/LocalAudioTranscription/BUILD
++++ b/submodules/Media/LocalAudioTranscription/BUILD
+@@ -11,6 +11,9 @@ swift_library(
+     ],
+     deps = [
+         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
++        "//submodules/TelegramCore:TelegramCore",
++        "//submodules/TelegramUIPreferences:TelegramUIPreferences",
++        "//submodules/Media/ConvertOpusToAAC:ConvertOpusToAAC",
+     ],
+     visibility = [
+         "//visibility:public",
+diff --git a/submodules/Media/LocalAudioTranscription/Sources/LocalAudioTranscription.swift b/submodules/Media/LocalAudioTranscription/Sources/LocalAudioTranscription.swift
+index 0000000..0000000 100644
+--- a/submodules/Media/LocalAudioTranscription/Sources/LocalAudioTranscription.swift
++++ b/submodules/Media/LocalAudioTranscription/Sources/LocalAudioTranscription.swift
+@@ -4,13 +4,13 @@ import Speech
+ 
+ private var sharedRecognizers: [String: NSObject] = [:]
+ 
+-private struct TranscriptionResult {
++struct TranscriptionResult {
+     var text: String
+     var confidence: Float
+     var isFinal: Bool
+ }
+ 
+-private func transcribeAudio(path: String, locale: String) -> Signal<TranscriptionResult?, NoError> {
++func transcribeAudio(path: String, locale: String) -> Signal<TranscriptionResult?, NoError> {
+     return Signal { subscriber in
+         let disposable = MetaDisposable()
+         
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveFileNode/Sources/ChatMessageInteractiveFileNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveFileNode/Sources/ChatMessageInteractiveFileNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveFileNode/Sources/ChatMessageInteractiveFileNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveFileNode/Sources/ChatMessageInteractiveFileNode.swift
+@@ -359,8 +359,10 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
+         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+         let premiumConfiguration = PremiumConfiguration.with(appConfiguration: arguments.context.currentAppConfiguration.with { $0 })
+         
++        let useLocalTranscription = context.sharedContext.immediateExperimentalUISettings.localTranscription
++
+         let transcriptionText = self.forcedAudioTranscriptionText ?? transcribedText(message: EngineMessage(message))
+-        if transcriptionText == nil && !arguments.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
++        if transcriptionText == nil && !useLocalTranscription && !arguments.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+             if premiumConfiguration.audioTransciptionTrialCount > 0 {
+                 if !arguments.associatedData.isPremium {
+                     if self.presentAudioTranscriptionTooltip(finished: false) {
+@@ -419,9 +421,7 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
+                 self.audioTranscriptionState = .inProgress
+                 self.requestUpdateLayout(true)
+                 
+-                if context.sharedContext.immediateExperimentalUISettings.localTranscription {
+-                    let appLocale = presentationData.strings.baseLanguageCode
+-                    
++                if useLocalTranscription {
+                     let signal: Signal<LocallyTranscribedAudio?, NoError> = context.engine.data.get(TelegramEngine.EngineData.Item.Messages.Message(id: message.id))
+                     |> mapToSignal { message -> Signal<String?, NoError> in
+                         guard let message = message else {
+@@ -451,7 +451,7 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
+                         guard let result = result else {
+                             return .single(nil)
+                         }
+-                        return transcribeAudio(path: result, appLocale: appLocale)
++                        return clearTranscribeAudio(path: result)
+                     }
+                     
+                     self.transcribeDisposable = (signal
+@@ -771,7 +771,7 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
+                     displayTranscribe = false
+                 } else if arguments.message.id.peerId.namespace != Namespaces.Peer.SecretChat && !isViewOnceMessage && !arguments.presentationData.isPreview {
+                     let premiumConfiguration = PremiumConfiguration.with(appConfiguration: arguments.context.currentAppConfiguration.with { $0 })
+-                    if arguments.associatedData.isPremium || arguments.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
++                    if arguments.associatedData.isPremium || arguments.context.sharedContext.immediateExperimentalUISettings.localTranscription || arguments.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+                         displayTranscribe = true
+                     } else if premiumConfiguration.audioTransciptionTrialCount > 0 {
+                         if arguments.incoming {
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/BUILD b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/BUILD
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/BUILD
+@@ -40,6 +40,7 @@ swift_library(
+         "//submodules/TelegramUI/Components/Chat/InstantVideoRadialStatusNode",
+         "//submodules/TelegramUI/Components/Chat/ChatInstantVideoMessageDurationNode",
+         "//submodules/TelegramUI/Components/ChatControllerInteraction",
++        "//submodules/Media/LocalAudioTranscription",
+     ],
+     visibility = [
+         "//visibility:public",
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/Sources/ChatMessageInteractiveInstantVideoNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/Sources/ChatMessageInteractiveInstantVideoNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/Sources/ChatMessageInteractiveInstantVideoNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode/Sources/ChatMessageInteractiveInstantVideoNode.swift
+@@ -30,6 +30,7 @@ import ChatControllerInteraction
+ import WallpaperBackgroundNode
+ import TelegramStringFormatting
+ import InvisibleInkDustNode
++import LocalAudioTranscription
+ 
+ public struct ChatMessageInstantVideoItemLayoutResult {
+     public let contentSize: CGSize
+@@ -840,7 +841,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
+                     var displayTranscribe = false
+                     if item.message.id.peerId.namespace != Namespaces.Peer.SecretChat && statusDisplayType == .free && !isViewOnceMessage && !item.presentationData.isPreview {
+                         let premiumConfiguration = PremiumConfiguration.with(appConfiguration: item.context.currentAppConfiguration.with { $0 })
+-                        if item.associatedData.isPremium || item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
++                        if item.associatedData.isPremium || item.context.sharedContext.immediateExperimentalUISettings.localTranscription || item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+                             displayTranscribe = true
+                         } else if premiumConfiguration.audioTransciptionTrialCount > 0 {
+                             if incoming {
+@@ -1831,8 +1832,10 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
+         let presentationData = item.context.sharedContext.currentPresentationData.with { $0 }
+         let premiumConfiguration = PremiumConfiguration.with(appConfiguration: item.context.currentAppConfiguration.with { $0 })
+         
++        let useLocalTranscription = item.context.sharedContext.immediateExperimentalUISettings.localTranscription
++
+         let transcriptionText = transcribedText(message: EngineMessage(item.message))
+-        if transcriptionText == nil && !item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
++        if transcriptionText == nil && !useLocalTranscription && !item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+             if premiumConfiguration.audioTransciptionTrialCount > 0 {
+                 if !item.associatedData.isPremium {
+                     if self.presentAudioTranscriptionTooltip(finished: false) {
+@@ -1891,21 +1894,42 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
+             if self.transcribeDisposable == nil {
+                 self.audioTranscriptionState = .inProgress
+                 self.requestUpdateLayout(true)
+-                
+-                self.transcribeDisposable = (item.context.engine.messages.transcribeAudio(messageId: item.message.id)
+-                |> deliverOnMainQueue).startStrict(next: { [weak self] result in
+-                    guard let strongSelf = self else {
+-                        return
+-                    }
+-                    strongSelf.transcribeDisposable?.dispose()
+-                    strongSelf.transcribeDisposable = nil
+-                    
+-                    if let item = strongSelf.item, !item.associatedData.isPremium && !item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+-                        Queue.mainQueue().after(0.1, {
+-                            let _ = strongSelf.presentAudioTranscriptionTooltip(finished: true)
+-                        })
+-                    }
+-                })
++
++                if useLocalTranscription {
++                    self.transcribeDisposable = (clearTranscribeMessageLocally(engine: item.context.engine, messageId: item.message.id)
++                    |> deliverOnMainQueue).startStrict(next: { [weak self] result in
++                        guard let strongSelf = self, let item = strongSelf.item else {
++                            return
++                        }
++                        if let result = result {
++                            let _ = item.context.engine.messages.storeLocallyTranscribedAudio(messageId: item.message.id, text: result.text, isFinal: result.isFinal, error: nil).startStandalone()
++                        } else {
++                            strongSelf.audioTranscriptionState = .collapsed
++                            strongSelf.requestUpdateLayout(true)
++                        }
++                    }, completed: { [weak self] in
++                        guard let strongSelf = self else {
++                            return
++                        }
++                        strongSelf.transcribeDisposable?.dispose()
++                        strongSelf.transcribeDisposable = nil
++                    })
++                } else {
++                    self.transcribeDisposable = (item.context.engine.messages.transcribeAudio(messageId: item.message.id)
++                    |> deliverOnMainQueue).startStrict(next: { [weak self] result in
++                        guard let strongSelf = self else {
++                            return
++                        }
++                        strongSelf.transcribeDisposable?.dispose()
++                        strongSelf.transcribeDisposable = nil
++
++                        if let item = strongSelf.item, !item.associatedData.isPremium && !item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
++                            Queue.mainQueue().after(0.1, {
++                                let _ = strongSelf.presentAudioTranscriptionTooltip(finished: true)
++                            })
++                        }
++                    })
++                }
+             }
+         }
+         

@@ -14,6 +14,10 @@ public enum ClearConfig {
         // fork strings follow the client language, mirrored from shared-data the same way
         ClearStrings.start(accountManager: accountManager)
 
+        // Last.fm credentials live in their own shared-data key (33), not in ClearConfigSettings —
+        // same mirroring, so the scrobbler can read them from any queue.
+        ClearLastFm.start(accountManager: accountManager)
+
         // keep the in-memory cache in sync with shared-data
         _ = clearConfigEntry(accountManager: accountManager).start(next: { value in
             _ = cache.swap(value)
@@ -121,5 +125,13 @@ public enum ClearConfig {
     public static var swipeActionsLeft: [String] { current().swipeActionsLeft }
     public static var swipeActionsRight: [String] { current().swipeActionsRight }
     public static var importSettingsFromChats: Bool { current().importSettingsFromChats }
+    public static var lastFmScrobbling: Bool { current().lastFmScrobbling }
+    public static var lastFmNowPlaying: Bool { current().lastFmNowPlaying }
+    public static var transcriptionLocales: [String] { current().transcriptionLocales }
+    // Every candidate language is another full recognition pass over the audio, paid on every
+    // voice message — so the picker caps the list and the transcriber trims to it. Lives here
+    // rather than next to the transcriber so the settings screen can read it without depending
+    // on the media modules.
+    public static let maxTranscriptionLocales = 3
 }
 

@@ -191,7 +191,7 @@ outside it.** So fork Swift code is **copied**, not symlinked:
   build seen on a device can be reconstructed with `git apply`. **That archive is also the
   undo for a wiped working tree** — if uncommitted work is lost, the newest stamp restores it
   (`git apply --exclude=<untracked file already on disk> build/dirty-stamps/<id>.diff`).
-- **A new area needs an entry in `forkSyncDirs` (`scripts/config.ts`)** or `pnpm sync` never copies it and Bazel never sees the file. Current areas: `TelegramUIPreferences`, `DebugSettingsUI`, `TextFormat`, `ChatListUI`, `LegacyMediaPickerUI`, `MediaPickerUI`, `PeerInfoScreen` (→ `submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/ClearGram`, a nested target path — that works, `copyForkDir` mkdir -p's it and adds the git-exclude).
+- **A new area needs an entry in `forkSyncDirs` (`scripts/config.ts`)** or `pnpm sync` never copies it and Bazel never sees the file. Current areas: `TelegramUIPreferences`, `DebugSettingsUI`, `TextFormat`, `ChatListUI`, `LegacyMediaPickerUI`, `MediaPickerUI`, `PeerInfoScreen` (→ `submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/ClearGram`, a nested target path — that works, `copyForkDir` mkdir -p's it and adds the git-exclude), `TelegramUI` (→ `submodules/TelegramUI/Sources/ClearGram`, for fork code that needs types only the app module has in scope — the media player state, for instance).
 
 ---
 
