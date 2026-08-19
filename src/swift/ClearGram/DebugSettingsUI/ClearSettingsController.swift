@@ -1028,8 +1028,8 @@ private func clearMediaScreen() -> ClearScreen {
         ClearSection(
             header: L("LAST.FM", "LAST.FM"),
             footer: L(
-                "Sends the music you play in Telegram to your Last.fm profile. Sign in under Last.fm Account.",
-                "Отправляет музыку, которую вы слушаете в Telegram, в ваш профиль Last.fm. Вход — в «Аккаунте Last.fm»."
+                "Scrobbling writes the music you play in Telegram into your Last.fm history — a track counts once it is half played. “Now Playing” adds a live label on your Last.fm profile while the track is playing; the history is written either way. Sign in under Last.fm Account.",
+                "Скробблинг записывает музыку, которую вы слушаете в Telegram, в историю Last.fm — трек засчитывается, когда проигран наполовину. «Сейчас играет» добавляет сверху живую надпись в профиле Last.fm, пока трек играет; история пишется в любом случае. Вход — в «Аккаунте Last.fm»."
             ),
             rows: [
                 .toggle(ClearToggle(
@@ -1045,7 +1045,7 @@ private func clearMediaScreen() -> ClearScreen {
                 .toggle(ClearToggle(
                     L("Send “Now Playing”", "Отправлять «Сейчас играет»"),
                     .config(\.lastFmNowPlaying),
-                    subtitle: { _ in L("Shows the current track on your profile", "Показывает текущий трек в профиле") },
+                    subtitle: { _ in L("On top of the history: a label on your Last.fm profile", "Вдобавок к истории: надпись в профиле Last.fm") },
                     isEnabled: { $0.lastFmScrobbling }
                 )),
                 .action(ClearAction(
