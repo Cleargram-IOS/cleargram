@@ -4,7 +4,7 @@ import TelegramCore
 import SwiftSignalKit
 
 // Minimal Last.fm client — everything the scrobbler and the account screen need and nothing
-// else: sign in (auth.getMobileSession), announce the current track (track.updateNowPlaying)
+// else: sign in (auth.getToken + auth.getSession), announce the current track (track.updateNowPlaying)
 // and submit played tracks (track.scrobble).
 //
 // The API credentials are the user's own. Cleargram does not ship an api key: the repository is
@@ -35,10 +35,27 @@ public enum ClearLastFmError: Error {
     }
 
     // A session that the server no longer accepts: keeping the queue is pointless until the
-    // user signs in again.
+    // user signs in again. Deliberately excludes the two token codes below — those belong to
+    // sign-in, where they are normal states rather than a dead session.
     public var isAuthenticationFailure: Bool {
         if case let .api(code, _) = self {
-            return code == 4 || code == 9 || code == 14
+            return code == 4 || code == 9
+        }
+        return false
+    }
+
+    // The user has not pressed "Yes, allow access" on the website yet. Expected while waiting.
+    public var isTokenNotAuthorized: Bool {
+        if case let .api(code, _) = self {
+            return code == 14
+        }
+        return false
+    }
+
+    // The request token went stale (they live about an hour) — start over with a fresh one.
+    public var isTokenExpired: Bool {
+        if case let .api(code, _) = self {
+            return code == 15
         }
         return false
     }
@@ -156,13 +173,54 @@ public enum ClearLastFm {
 
     // MARK: - Calls
 
-    // Trades a username + password for a session key. The password is used here and nowhere
-    // else — it is never written to shared data.
-    public static func signIn(
+    // Sign-in is Last.fm's desktop flow, in three steps: ask for a request token, send the user
+    // to the website to approve it, then trade the approved token for a session key. The
+    // password never reaches this app — that is the whole point of doing it this way.
+    //
+    // No callback URL is involved: that is the web-app variant of the flow, and it would mean
+    // registering a scheme and patching AppDelegate. Desktop clients poll instead, which here
+    // means retrying step three when the app comes back to the foreground.
+
+    // Step one. The token is temporary (about an hour) and useless until the user approves it.
+    public static func requestToken(
         apiKey: String,
         apiSecret: String,
-        username: String,
-        password: String,
+        completion: @escaping (Result<String, ClearLastFmError>) -> Void
+    ) {
+        guard !apiKey.isEmpty, !apiSecret.isEmpty else {
+            completion(.failure(.notConfigured))
+            return
+        }
+        post(["method": "auth.getToken", "api_key": apiKey], secret: apiSecret) { result in
+            switch result {
+            case let .success(object):
+                guard let token = object["token"] as? String, !token.isEmpty else {
+                    completion(.failure(.network(ClearStrings.tr("Unexpected reply from Last.fm.", "Неожиданный ответ от Last.fm."))))
+                    return
+                }
+                completion(.success(token))
+            case let .failure(error):
+                completion(.failure(error))
+            }
+        }
+    }
+
+    // Step two. Opened in the browser, where the user is usually already signed in, so approving
+    // is one tap.
+    public static func authorizationUrl(apiKey: String, token: String) -> String {
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~")
+        let encodedKey = apiKey.addingPercentEncoding(withAllowedCharacters: allowed) ?? apiKey
+        let encodedToken = token.addingPercentEncoding(withAllowedCharacters: allowed) ?? token
+        return "https://www.last.fm/api/auth/?api_key=\(encodedKey)&token=\(encodedToken)"
+    }
+
+    // Step three. Fails with `tokenNotAuthorized` until the user has approved it on the website,
+    // which is an expected state, not an error worth showing.
+    public static func completeSignIn(
+        apiKey: String,
+        apiSecret: String,
+        token: String,
         completion: @escaping (Result<String, ClearLastFmError>) -> Void
     ) {
         guard !apiKey.isEmpty, !apiSecret.isEmpty else {
@@ -170,10 +228,9 @@ public enum ClearLastFm {
             return
         }
         let params = [
-            "method": "auth.getMobileSession",
-            "username": username,
-            "password": password,
-            "api_key": apiKey
+            "method": "auth.getSession",
+            "api_key": apiKey,
+            "token": token
         ]
         post(params, secret: apiSecret) { result in
             switch result {
@@ -183,7 +240,7 @@ public enum ClearLastFm {
                     completion(.failure(.network(ClearStrings.tr("Unexpected reply from Last.fm.", "Неожиданный ответ от Last.fm."))))
                     return
                 }
-                let name = session["name"] as? String ?? username
+                let name = session["name"] as? String ?? ""
                 update { current in
                     var updated = current
                     updated.apiKey = apiKey

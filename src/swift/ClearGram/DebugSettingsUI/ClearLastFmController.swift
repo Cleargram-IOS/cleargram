@@ -36,6 +36,7 @@ private enum ClearLastFmEntry: ItemListNodeEntry {
     case credentialsFooter(String)
     case openApiPage(String)
     case signIn(String)
+    case completeSignIn(String)
     case signOut(String)
     case accountFooter(String)
     case queueHeader(String)
@@ -47,7 +48,7 @@ private enum ClearLastFmEntry: ItemListNodeEntry {
         switch self {
         case .credentialsHeader, .apiKey, .apiSecret, .credentialsFooter, .openApiPage:
             return ClearLastFmSection.credentials.rawValue
-        case .signIn, .signOut, .accountFooter:
+        case .signIn, .completeSignIn, .signOut, .accountFooter:
             return ClearLastFmSection.account.rawValue
         case .queueHeader, .sendQueue, .clearQueue, .queueFooter:
             return ClearLastFmSection.queue.rawValue
@@ -62,8 +63,9 @@ private enum ClearLastFmEntry: ItemListNodeEntry {
         case .openApiPage: return 3
         case .credentialsFooter: return 4
         case .signIn: return 10
-        case .signOut: return 11
-        case .accountFooter: return 12
+        case .completeSignIn: return 11
+        case .signOut: return 12
+        case .accountFooter: return 13
         case .queueHeader: return 20
         case .sendQueue: return 21
         case .clearQueue: return 22
@@ -81,6 +83,7 @@ private enum ClearLastFmEntry: ItemListNodeEntry {
         case let (.credentialsFooter(l), .credentialsFooter(r)): return l == r
         case let (.openApiPage(l), .openApiPage(r)): return l == r
         case let (.signIn(l), .signIn(r)): return l == r
+        case let (.completeSignIn(l), .completeSignIn(r)): return l == r
         case let (.signOut(l), .signOut(r)): return l == r
         case let (.accountFooter(l), .accountFooter(r)): return l == r
         case let (.queueHeader(l), .queueHeader(r)): return l == r
@@ -114,6 +117,10 @@ private enum ClearLastFmEntry: ItemListNodeEntry {
             return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: title, kind: .generic, alignment: .natural, sectionId: self.section, style: .blocks, action: {
                 args.signIn()
             })
+        case let .completeSignIn(title):
+            return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: title, kind: .generic, alignment: .natural, sectionId: self.section, style: .blocks, action: {
+                args.completeSignIn()
+            })
         case let .signOut(title):
             return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: title, kind: .destructive, alignment: .natural, sectionId: self.section, style: .blocks, action: {
                 args.signOut()
@@ -135,6 +142,7 @@ private struct ClearLastFmArguments {
     let editApiSecret: () -> Void
     let openApiPage: () -> Void
     let signIn: () -> Void
+    let completeSignIn: () -> Void
     let signOut: () -> Void
     let sendQueue: () -> Void
     let clearQueue: () -> Void
@@ -153,11 +161,29 @@ private func secretLabel(_ value: String) -> String {
     return value.isEmpty ? L("Not set", "Не указан") : "••••••"
 }
 
+// Sign-in state worth keeping only for the length of the flow: the request token expires in
+// about an hour and matters only between "Connect" and the user coming back from the browser.
+// Deliberately not persisted — a token left over from a previous session is useless.
+private struct ClearLastFmAuthState: Equatable {
+    var pendingToken: String?
+    var isBusy: Bool = false
+}
+
 public func clearLastFmController(context: AccountContext) -> ViewController {
     var presentImpl: ((ViewController) -> Void)?
     var presentNativeImpl: ((UIViewController) -> Void)?
+    // Takes `explicit`: the user tapped the row (say what went wrong) versus the automatic
+    // retry when the app returns to the foreground (stay quiet — they may be doing something
+    // else entirely, and "not authorized yet" is the normal state while waiting).
+    var attemptCompleteImpl: ((Bool) -> Void)?
 
     let accountManager = context.sharedContext.accountManager
+
+    let stateValue = Atomic<ClearLastFmAuthState>(value: ClearLastFmAuthState())
+    let statePromise = ValuePromise<ClearLastFmAuthState>(ClearLastFmAuthState(), ignoreRepeated: true)
+    let updateState: ((ClearLastFmAuthState) -> ClearLastFmAuthState) -> Void = { f in
+        statePromise.set(stateValue.modify(f))
+    }
 
     // One shared text-entry alert for both credential rows and for sign-in: UIAlertController is
     // what the other fork screens use for this, and it comes with secure entry for free.
@@ -236,41 +262,38 @@ public func clearLastFmController(context: AccountContext) -> ViewController {
                 ))
                 return
             }
-            let alert = UIAlertController(
-                title: L("Sign in to Last.fm", "Вход в Last.fm"),
-                message: L(
-                    "The password is sent once and not stored.",
-                    "Пароль отправляется один раз и не сохраняется."
-                ),
-                preferredStyle: .alert
-            )
-            alert.addTextField { textField in
-                textField.placeholder = L("Username", "Имя пользователя")
-                textField.text = settings.username
-                textField.autocapitalizationType = .none
-                textField.autocorrectionType = .no
+            updateState { current in
+                var updated = current
+                updated.isBusy = true
+                return updated
             }
-            alert.addTextField { textField in
-                textField.placeholder = L("Password", "Пароль")
-                textField.isSecureTextEntry = true
-            }
-            alert.addAction(UIAlertAction(title: L("Sign In", "Войти"), style: .default) { _ in
-                let username = (alert.textFields?.first?.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                let password = alert.textFields?.last?.text ?? ""
-                guard !username.isEmpty, !password.isEmpty else {
-                    return
-                }
-                ClearLastFm.signIn(apiKey: settings.apiKey, apiSecret: settings.apiSecret, username: username, password: password) { result in
-                    switch result {
-                    case let .success(name):
-                        showResult(L("Signed in as \(name).", "Вы вошли как \(name)."))
-                    case let .failure(error):
-                        showResult(L("Couldn't sign in: \(error.displayText)", "Не удалось войти: \(error.displayText)"))
+            ClearLastFm.requestToken(apiKey: settings.apiKey, apiSecret: settings.apiSecret) { result in
+                switch result {
+                case let .success(token):
+                    updateState { current in
+                        var updated = current
+                        updated.pendingToken = token
+                        updated.isBusy = false
+                        return updated
                     }
+                    context.sharedContext.applicationBindings.openUrl(
+                        ClearLastFm.authorizationUrl(apiKey: settings.apiKey, token: token)
+                    )
+                case let .failure(error):
+                    updateState { current in
+                        var updated = current
+                        updated.isBusy = false
+                        return updated
+                    }
+                    showResult(L(
+                        "Couldn't start sign-in: \(error.displayText)",
+                        "Не удалось начать вход: \(error.displayText)"
+                    ))
                 }
-            })
-            alert.addAction(UIAlertAction(title: L("Cancel", "Отмена"), style: .cancel))
-            presentNativeImpl?(alert)
+            }
+        },
+        completeSignIn: {
+            attemptCompleteImpl?(true)
         },
         signOut: {
             let presentationData = context.sharedContext.currentPresentationData.with { $0 }
@@ -297,11 +320,75 @@ public func clearLastFmController(context: AccountContext) -> ViewController {
         }
     )
 
+    attemptCompleteImpl = { explicit in
+        let settings = ClearLastFm.current()
+        let state = stateValue.with { $0 }
+        guard let token = state.pendingToken, settings.hasCredentials, !state.isBusy else {
+            return
+        }
+        updateState { current in
+            var updated = current
+            updated.isBusy = true
+            return updated
+        }
+        ClearLastFm.completeSignIn(apiKey: settings.apiKey, apiSecret: settings.apiSecret, token: token) { result in
+            switch result {
+            case let .success(name):
+                updateState { _ in ClearLastFmAuthState() }
+                showResult(L("Signed in as \(name).", "Вы вошли как \(name)."))
+            case let .failure(error):
+                // An expired token can never be approved, so drop it and let the row offer a
+                // fresh start. "Not authorized yet" keeps the token — that is just waiting.
+                updateState { current in
+                    var updated = current
+                    updated.isBusy = false
+                    if error.isTokenExpired {
+                        updated.pendingToken = nil
+                    }
+                    return updated
+                }
+                guard explicit else {
+                    return
+                }
+                if error.isTokenNotAuthorized {
+                    showResult(L(
+                        "Approve access on the Last.fm page first, then come back.",
+                        "Сначала подтвердите доступ на странице Last.fm, затем вернитесь."
+                    ))
+                } else if error.isTokenExpired {
+                    showResult(L(
+                        "The sign-in link expired. Tap Connect again.",
+                        "Ссылка для входа устарела. Нажмите «Подключить» ещё раз."
+                    ))
+                } else {
+                    showResult(L(
+                        "Couldn't sign in: \(error.displayText)",
+                        "Не удалось войти: \(error.displayText)"
+                    ))
+                }
+            }
+        }
+    }
+
+    // Coming back to the foreground is the only signal we get that the user is done on the
+    // website — Last.fm's desktop flow has no callback. Folded into the state signal so the
+    // subscription lives exactly as long as the screen does.
+    let applicationIsActive = context.sharedContext.applicationBindings.applicationIsActive
+    |> distinctUntilChanged
+    |> deliverOnMainQueue
+    |> beforeNext { isActive in
+        if isActive {
+            attemptCompleteImpl?(false)
+        }
+    }
+
     let signal = combineLatest(
         context.sharedContext.presentationData,
-        clearLastFmSettingsEntry(accountManager: accountManager)
+        clearLastFmSettingsEntry(accountManager: accountManager),
+        statePromise.get(),
+        applicationIsActive
     )
-    |> map { presentationData, settings -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    |> map { presentationData, settings, state, _ -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let itemListPresentationData = ItemListPresentationData(presentationData)
         var entries: [ClearLastFmEntry] = []
 
@@ -320,11 +407,21 @@ public func clearLastFmController(context: AccountContext) -> ViewController {
                 "Signed in as \(settings.username).",
                 "Выполнен вход: \(settings.username)."
             )))
-        } else {
-            entries.append(.signIn(L("Sign In", "Войти")))
+        } else if state.pendingToken != nil {
+            entries.append(.completeSignIn(state.isBusy
+                ? L("Checking…", "Проверяем…")
+                : L("Complete Sign-In", "Завершить вход")))
             entries.append(.accountFooter(L(
-                "The password is sent once and not stored.",
-                "Пароль отправляется один раз и не сохраняется."
+                "Approve access on the Last.fm page, then come back — this finishes by itself.",
+                "Подтвердите доступ на странице Last.fm и вернитесь — вход завершится сам."
+            )))
+        } else {
+            entries.append(.signIn(state.isBusy
+                ? L("Connecting…", "Подключаем…")
+                : L("Connect", "Подключить")))
+            entries.append(.accountFooter(L(
+                "Opens Last.fm in the browser to approve access. Your password is never entered here.",
+                "Откроет Last.fm в браузере для подтверждения доступа. Пароль здесь не вводится."
             )))
         }
 
