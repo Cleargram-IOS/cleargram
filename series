@@ -28,7 +28,7 @@ feature/hide-star-reaction-count.patch
 feature/time-on-service-messages.patch
 feature/warn-polls-revote.patch
 feature/confirm-internal-links.patch
-feature/visual-swiftgram.patch
+feature/visual-toggles.patch
 feature/settings-ui-fixes.patch
 feature/disable-contacts-calls.patch
 feature/biometric-confirmation.patch
@@ -53,3 +53,4 @@ feature/settings-transfer.patch
 bugfix/chat-list-debug-tap-crash.patch
 feature/lastfm-scrobbler.patch
 feature/local-transcription.patch
+feature/round-video-options.patch

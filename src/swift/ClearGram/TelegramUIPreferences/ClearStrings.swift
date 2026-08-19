@@ -71,6 +71,12 @@ public enum ClearStrings {
         return tr("Show Pack Owner", "Показать владельца набора")
     }
 
+    // Second save entry on a round video message. Sits next to the stock "Save to Gallery",
+    // which keeps the file exactly as the sender built it — corners, branding and all.
+    public static var contextMenuSaveRoundVideoUnmasked: String {
+        return tr("Save without Watermark", "Сохранить без водяного знака")
+    }
+
     // Shown when the pack owner is not a peer this device knows, so there is nothing to open.
     public static func packOwnerIdCopied(_ id: Int64) -> String {
         return tr("Owner ID \(id) copied", "ID владельца \(id) скопирован")

@@ -96,6 +96,21 @@ public struct ClearConfigSettings: Codable, Equatable {
     // thing it can use. Each entry costs another pass over the audio — see
     // ClearConfig.maxTranscriptionLocales.
     public var transcriptionLocales: [String]
+    // Round video messages ("кружки"). Stock records 640x480 @30fps, filters that into a
+    // 400x400 h264 frame and bakes the circular mask into the pixels before upload — see
+    // CameraRoundLegacyVideoFilter. These four relax that, each independently.
+    public var roundVideo60Fps: Bool
+    // Side of the recorded square, in pixels. 0 = stock (400). Not a free dial: the server
+    // refuses `round_message` above some ceiling and demotes the message to a plain video —
+    // 720 is already past it — so the options are a short list of sizes real clients use.
+    public var roundVideoSide: Int32
+    // Skip baking the circular mask, so the corners keep real picture. The message still
+    // carries `instantRoundVideo`, so every client draws it as an ordinary кружок — the
+    // corners only ever show up for whoever downloads the original file.
+    public var roundVideoKeepCorners: Bool
+    // Adds a second save entry to the message menu that re-encodes the кружок with everything
+    // outside the visible circle blacked out.
+    public var roundVideoSaveUnmasked: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -179,7 +194,11 @@ public struct ClearConfigSettings: Codable, Equatable {
             importSettingsFromChats: true,
             lastFmScrobbling: false,
             lastFmNowPlaying: false,
-            transcriptionLocales: []
+            transcriptionLocales: [],
+            roundVideo60Fps: false,
+            roundVideoSide: 0,
+            roundVideoKeepCorners: false,
+            roundVideoSaveUnmasked: false
         )
     }
 
@@ -264,7 +283,11 @@ public struct ClearConfigSettings: Codable, Equatable {
         importSettingsFromChats: Bool = true,
         lastFmScrobbling: Bool = false,
         lastFmNowPlaying: Bool = false,
-        transcriptionLocales: [String] = []
+        transcriptionLocales: [String] = [],
+        roundVideo60Fps: Bool = false,
+        roundVideoSide: Int32 = 0,
+        roundVideoKeepCorners: Bool = false,
+        roundVideoSaveUnmasked: Bool = false
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -347,6 +370,10 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.lastFmScrobbling = lastFmScrobbling
         self.lastFmNowPlaying = lastFmNowPlaying
         self.transcriptionLocales = transcriptionLocales
+        self.roundVideo60Fps = roundVideo60Fps
+        self.roundVideoSide = roundVideoSide
+        self.roundVideoKeepCorners = roundVideoKeepCorners
+        self.roundVideoSaveUnmasked = roundVideoSaveUnmasked
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -372,6 +399,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case swipeActionPin, swipeActionMute, swipeActionRead, swipeActionDelete, swipeActionArchive, swipeActionsLeft, swipeActionsRight
         case importSettingsFromChats
         case lastFmScrobbling, lastFmNowPlaying, transcriptionLocales
+        case roundVideo60Fps, roundVideoSide, roundVideoKeepCorners, roundVideoSaveUnmasked
     }
 
     public init(from decoder: Decoder) throws {
@@ -460,6 +488,10 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.lastFmScrobbling = try c.decodeIfPresent(Bool.self, forKey: .lastFmScrobbling) ?? false
         self.lastFmNowPlaying = try c.decodeIfPresent(Bool.self, forKey: .lastFmNowPlaying) ?? false
         self.transcriptionLocales = try c.decodeIfPresent([String].self, forKey: .transcriptionLocales) ?? []
+        self.roundVideo60Fps = try c.decodeIfPresent(Bool.self, forKey: .roundVideo60Fps) ?? false
+        self.roundVideoSide = try c.decodeIfPresent(Int32.self, forKey: .roundVideoSide) ?? 0
+        self.roundVideoKeepCorners = try c.decodeIfPresent(Bool.self, forKey: .roundVideoKeepCorners) ?? false
+        self.roundVideoSaveUnmasked = try c.decodeIfPresent(Bool.self, forKey: .roundVideoSaveUnmasked) ?? false
     }
 }
 

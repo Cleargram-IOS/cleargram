@@ -12,11 +12,16 @@ import TelegramCore
 // roundMessage=true. Stock only ever produces them from VideoMessageCameraScreen; this turns a
 // gallery video into one by reusing the conversion the share extension already performs
 // (ShareItems.swift): a centred square crop plus the videoMessage quality preset, which
-// FetchVideoMediaResource turns into a 400x400 / 1000 kbps h264 export at upload time. No new
+// FetchVideoMediaResource turns into an h264 export at upload time (400x400 / 1000 kbps, or
+// whatever `roundVideoHighQuality` raises the preset to). No new
 // encoder, no MediaEditorScreen.
 
 public let clearRoundVideoMaxDuration: Double = 60.0
-public let clearRoundVideoSide: CGFloat = 400.0
+// Follows the recording side, so the declared attribute dimensions match what
+// FetchVideoMediaResource actually exports once `roundVideoHighQuality` raises the preset.
+public var clearRoundVideoSide: CGFloat {
+    return CGFloat(clearRoundVideoRecordingSide())
+}
 
 public func clearRoundVideoAdjustments(originalSize: CGSize, existing: TGVideoEditAdjustments?) -> TGVideoEditAdjustments? {
     guard originalSize.width > 0.0, originalSize.height > 0.0 else {

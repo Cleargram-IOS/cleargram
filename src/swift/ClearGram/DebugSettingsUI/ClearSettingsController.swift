@@ -988,8 +988,8 @@ private func clearMediaScreen() -> ClearScreen {
         ClearSection(
             header: L("VIDEO", "ВИДЕО"),
             footer: L(
-                "A round-video button appears next to the GIF button while previewing a video in the media picker. It opens a circular crop-and-trim editor, then sends: the video is cropped to a square, re-encoded to 400×400 h.264 and trimmed to 60 seconds — the same conversion the round-video camera uses.",
-                "Кнопка кружка появляется рядом с кнопкой GIF при просмотре видео в выборе медиа. Она открывает круглый редактор обрезки и подрезки, а затем отправляет: видео обрезается в квадрат, перекодируется в 400×400 h.264 и укорачивается до 60 секунд — то же преобразование, что и у камеры кружков."
+                "A round-video button appears next to the GIF button while previewing a video in the media picker. It opens a circular crop-and-trim editor, then sends: the video is cropped to a square, re-encoded to h.264 and trimmed to 60 seconds — the same conversion the round-video camera uses, including the size set under Video Messages.",
+                "Кнопка кружка появляется рядом с кнопкой GIF при просмотре видео в выборе медиа. Она открывает круглый редактор обрезки и подрезки, а затем отправляет: видео обрезается в квадрат, перекодируется в h.264 и укорачивается до 60 секунд — то же преобразование, что и у камеры кружков, включая размер, заданный в разделе «Кружки»."
             ),
             rows: [
                 .toggle(ClearToggle(L("Send Video as Video Message", "Отправить видео как кружок"), .config(\.sendVideoAsCircle))),
@@ -1003,6 +1003,44 @@ private func clearMediaScreen() -> ClearScreen {
                 .toggle(ClearToggle.soon(
                     L("Original Video Quality", "Исходное качество видео"),
                     L("Planned: send a video as-is, skipping re-encoding.", "В планах: отправлять видео как есть, без перекодирования.")
+                ))
+            ]
+        ),
+        ClearSection(
+            header: L("VIDEO MESSAGES", "КРУЖКИ"),
+            footer: L(
+                "Stock records a video message at 400×400 and 30 fps, then bakes the circular mask into the pixels before uploading. The round shape itself is drawn by whoever reads the message, from a flag on it, so these change only what this device records. Quality is worth raising: while playing, a video message is blown up to about 404 pt — roughly 1200 px on a modern screen. It is not a free dial, though, because the server refuses to keep a video message round above some size and quietly turns it into an ordinary video; if that happens, step back down.",
+                "Обычный Telegram записывает кружок в 400×400 и 30 кадрах/с, после чего запекает круглую маску прямо в пиксели и только потом загружает. Сам круг рисует тот, кто читает сообщение, по флагу на нём, так что эти настройки меняют только то, что записывает это устройство. Качество поднять стоит: при проигрывании кружок раздувается примерно до 404 pt — около 1200 px на современном экране. Но это не свободная ручка: выше некоторого размера сервер отказывается держать сообщение кружком и молча превращает его в обычное видео — если так вышло, вернитесь на шаг назад."
+            ),
+            rows: [
+                .toggle(ClearToggle(
+                    L("60 FPS", "60 кадров/с"),
+                    .config(\.roundVideo60Fps),
+                    subtitle: { _ in L(
+                        "Turns off the two-camera mode while recording a video message, because 60 fps needs the single-camera session — so no live front/back switch mid-recording. In exchange the back camera becomes the full multi-lens one, so pinching in now reaches the ultra-wide. Costs more processing too; an older device may drop frames instead.",
+                        "Отключает двухкамерный режим при записи кружка: 60 кадров/с требуют одиночной сессии, поэтому переключаться между камерами на ходу больше не выйдет. Взамен задняя камера становится полной многолинзовой, так что щипком внутрь теперь доступен ультраширик. Требует и больше вычислений — старое устройство может вместо этого ронять кадры."
+                    ) }
+                )),
+                .select(ClearSelect(
+                    title: L("Quality", "Качество"),
+                    keyPath: \.roundVideoSide,
+                    options: [(0, L("Default (400)", "Стандартное (400)")), (512, "512×512"), (640, "640×640")]
+                )),
+                .toggle(ClearToggle(
+                    L("Square Video Message", "Квадратный кружок"),
+                    .config(\.roundVideoKeepCorners),
+                    subtitle: { _ in L(
+                        "Stops the circular mask from being baked in, so the corners keep real picture. It stays an ordinary video message for everyone — every client draws the circle itself. The corners only surface for whoever downloads the original file.",
+                        "Не запекает круглую маску, и углы сохраняют реальную картинку. Для всех это по-прежнему обычный кружок — круг каждый клиент рисует сам. Углы видит только тот, кто скачает оригинал файла."
+                    ) }
+                )),
+                .toggle(ClearToggle(
+                    L("Save without Watermark", "Сохранять без водяного знака"),
+                    .config(\.roundVideoSaveUnmasked),
+                    subtitle: { _ in L(
+                        "Adds a second save entry to a video message's menu. It re-encodes the file with everything outside the visible circle blacked out — which is where senders put branding. Note that this means it applies a circular mask of its own, so it is not the way to download a square video message at its full extent: use the plain Save to Gallery for that.",
+                        "Добавляет в меню кружка второй пункт сохранения. Он перекодирует файл, заливая чёрным всё, что вне видимого круга, — именно туда отправители помещают свои обозначения. Учтите, что тем самым он накладывает собственную круглую маску, поэтому скачать квадратный кружок целиком через него не выйдет: для этого используйте обычное «Сохранить в галерею»."
+                    ) }
                 ))
             ]
         ),

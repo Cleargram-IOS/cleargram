@@ -25,6 +25,11 @@ public enum ClearConfig {
             _ = ClearHooks.fasterFileLoad.swap(value.fasterFileLoad)
             _ = ClearHooks.hideStories.swap(value.hideStories)
             _ = ClearHooks.recentStickersLimit.swap(value.recentStickersLimit)
+            // The Camera submodule depends on TelegramCore but not on TelegramUIPreferences,
+            // so the round-video recording toggles can only reach it through ClearHooks.
+            _ = ClearHooks.roundVideo60Fps.swap(value.roundVideo60Fps)
+            _ = ClearHooks.roundVideoSide.swap(value.roundVideoSide)
+            _ = ClearHooks.roundVideoKeepCorners.swap(value.roundVideoKeepCorners)
         })
     }
 
@@ -128,6 +133,10 @@ public enum ClearConfig {
     public static var lastFmScrobbling: Bool { current().lastFmScrobbling }
     public static var lastFmNowPlaying: Bool { current().lastFmNowPlaying }
     public static var transcriptionLocales: [String] { current().transcriptionLocales }
+    public static var roundVideo60Fps: Bool { current().roundVideo60Fps }
+    public static var roundVideoSide: Int32 { current().roundVideoSide }
+    public static var roundVideoKeepCorners: Bool { current().roundVideoKeepCorners }
+    public static var roundVideoSaveUnmasked: Bool { current().roundVideoSaveUnmasked }
     // Every candidate language is another full recognition pass over the audio, paid on every
     // voice message — so the picker caps the list and the transcriber trims to it. Lives here
     // rather than next to the transcriber so the settings screen can read it without depending

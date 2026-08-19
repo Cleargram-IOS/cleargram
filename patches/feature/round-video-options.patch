@@ -1,0 +1,314 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Wed, 19 Aug 2026 23:22:47 +0800
+Subject: Add round video options
+
+---
+ submodules/Camera/Sources/Camera.swift        | 21 ++++++++++++++---
+ submodules/Camera/Sources/CameraDevice.swift  | 13 +++++++++++
+ submodules/Camera/Sources/CameraOutput.swift  | 23 +++++++++++++++----
+ .../CameraRoundLegacyVideoFilter.swift        | 17 +++++++++++---
+ .../Sources/CameraRoundVideoFilter.swift      |  7 +++++-
+ .../SynchronizeChatInputStateOperation.swift  | 14 +++++++++++
+ .../Sources/MediaEditorValues.swift           | 10 ++++++--
+ .../Sources/VideoMessageCameraScreen.swift    | 12 ++++++++--
+ .../ChatInterfaceStateContextMenus.swift      | 19 +++++++++++++++
+ 9 files changed, 120 insertions(+), 16 deletions(-)
+
+diff --git a/submodules/Camera/Sources/Camera.swift b/submodules/Camera/Sources/Camera.swift
+index 0000000..0000000 100644
+--- a/submodules/Camera/Sources/Camera.swift
++++ b/submodules/Camera/Sources/Camera.swift
+@@ -87,6 +87,14 @@ final class CameraDeviceContext {
+     
+     private func maxDimensions(additional: Bool, preferWide: Bool) -> CMVideoDimensions {
+         if self.isRoundVideo && self.exclusive {
++            // Cleargram: stock caps round-video capture at 640x480, which is only just enough
++            // for the 400x400 crop. A larger recorded side needs a larger source — and so does
++            // 60 fps at any size, because a 640x480 format that reaches 60 is not something
++            // every device has, whereas 720p60 is; without one in the candidate set the format
++            // search finds nothing to pin and `actualFPS` clamps back to 30.
++            if clearRoundVideoRecordingSide() > 400 || ClearHooks.roundVideo60Fps.with({ $0 }) {
++                return CMVideoDimensions(width: 1280, height: 720)
++            }
+             return CMVideoDimensions(width: 640, height: 480)
+         } else {
+             if additional || preferWide {
+@@ -98,6 +106,13 @@ final class CameraDeviceContext {
+     }
+     
+     private func preferredMaxFrameRate(useLower: Bool) -> Double {
++        // Cleargram: round video is pinned to 30 by stock, both here and via the
++        // `preferLowerFramerate` flag its callers force on. Lift both when the toggle is on —
++        // but only for the single-camera case, matching the ceiling in `maxDimensions` above:
++        // in dual-camera mode two capture devices run at once and stock's 30 is load-bearing.
++        if self.isRoundVideo && self.exclusive && ClearHooks.roundVideo60Fps.with({ $0 }) {
++            return 60.0
++        }
+         if !self.exclusive || self.isRoundVideo || useLower {
+             return 30.0
+         }
+@@ -279,7 +294,7 @@ private final class CameraContext {
+                 self.modeChange = .position
+                 
+                 let preferWide = self.initialConfiguration.preferWide || isRoundVideo
+-                let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || isRoundVideo
++                let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || (isRoundVideo && !ClearHooks.roundVideo60Fps.with({ $0 }))
+                 
+                 mainDeviceContext.configure(position: targetPosition, previewView: self.simplePreviewView, audio: self.initialConfiguration.audio, photo: self.initialConfiguration.photo, metadata: self.initialConfiguration.metadata, preferWide: preferWide, preferLowerFramerate: preferLowerFramerate, switchAudio: !isRoundVideo)
+                 if isRoundVideo {
+@@ -303,7 +318,7 @@ private final class CameraContext {
+             self.modeChange = .position
+             
+             let preferWide = self.initialConfiguration.preferWide || (self.positionValue == .front && self.initialConfiguration.isRoundVideo)
+-            let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || self.initialConfiguration.isRoundVideo
++            let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || (self.initialConfiguration.isRoundVideo && !ClearHooks.roundVideo60Fps.with({ $0 }))
+             
+             self.mainDeviceContext?.configure(position: position, previewView: self.simplePreviewView, audio: self.initialConfiguration.audio, photo: self.initialConfiguration.photo, metadata: self.initialConfiguration.metadata, preferWide: preferWide, preferLowerFramerate: preferLowerFramerate)
+                         
+@@ -380,7 +395,7 @@ private final class CameraContext {
+                 self.additionalDeviceContext = nil
+                 
+                 let preferWide = self.initialConfiguration.preferWide || self.initialConfiguration.isRoundVideo
+-                let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || self.initialConfiguration.isRoundVideo
++                let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || (self.initialConfiguration.isRoundVideo && !ClearHooks.roundVideo60Fps.with({ $0 }))
+                 
+                 self.mainDeviceContext = CameraDeviceContext(session: self.session, exclusive: true, additional: false, ciContext: self.ciContext, colorSpace: self.colorSpace, isRoundVideo: self.initialConfiguration.isRoundVideo)
+                 self.mainDeviceContext?.configure(position: self.positionValue, previewView: self.simplePreviewView, audio: self.initialConfiguration.audio, photo: self.initialConfiguration.photo, metadata: self.initialConfiguration.metadata, preferWide: preferWide, preferLowerFramerate: preferLowerFramerate)
+diff --git a/submodules/Camera/Sources/CameraDevice.swift b/submodules/Camera/Sources/CameraDevice.swift
+index 0000000..0000000 100644
+--- a/submodules/Camera/Sources/CameraDevice.swift
++++ b/submodules/Camera/Sources/CameraDevice.swift
+@@ -133,6 +133,19 @@ final class CameraDevice {
+                 if bestFormat == nil {
+                     bestFormat = candidates.last
+                 }
++                // Cleargram: stock takes the last candidate whose ranges all fit under
++                // maxFramerate, so 30fps formats stay eligible when the ceiling is raised and
++                // the pick is effectively arbitrary — `actualFPS` would then clamp back to 30
++                // and the toggle would silently do nothing. Above stock's 30, insist on a
++                // format that actually reaches the ceiling.
++                if maxFramerate > 30.0 {
++                    let reachesCeiling: (AVCaptureDevice.Format) -> Bool = { format in
++                        return format.videoSupportedFrameRateRanges.contains(where: { $0.maxFrameRate >= maxFramerate })
++                    }
++                    if let format = photoCandidates.last(where: reachesCeiling) ?? candidates.last(where: reachesCeiling) {
++                        bestFormat = format
++                    }
++                }
+                 device.activeFormat = bestFormat!
+                     
+                 Logger.shared.log("Camera", "Selected format:")
+diff --git a/submodules/Camera/Sources/CameraOutput.swift b/submodules/Camera/Sources/CameraOutput.swift
+index 0000000..0000000 100644
+--- a/submodules/Camera/Sources/CameraOutput.swift
++++ b/submodules/Camera/Sources/CameraOutput.swift
+@@ -370,8 +370,15 @@ final class CameraOutput: NSObject {
+             dimensions = videoMessageDimensions.cgSize
+             orientation = .landscapeRight
+             
++            // Cleargram: stock is a flat 1 Mbps at 400x400/30fps. Both a larger frame and a
++            // doubled frame rate need proportionally more bits or the toggle buys artefacts
++            // instead of detail, so scale the budget by pixels and by frame rate.
++            let frameRate = ClearHooks.roundVideo60Fps.with({ $0 }) ? 60 : 30
++            let pixelRatio = Double(dimensions.width * dimensions.height) / (400.0 * 400.0)
++            let bitRate = Int(1000.0 * 1000.0 * pixelRatio * (Double(frameRate) / 30.0))
+             let compressionProperties: [String: Any] = [
+-                AVVideoAverageBitRateKey: 1000 * 1000,
++                AVVideoAverageBitRateKey: bitRate,
++                AVVideoExpectedSourceFrameRateKey: frameRate,
+                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
+                 AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC
+             ]
+@@ -485,7 +492,13 @@ final class CameraOutput: NSObject {
+     private var lastSampleTimestamp: CMTime?
+     
+     private func roundVideoFormatDescription(for sourceFormatDescription: CMFormatDescription) -> CMFormatDescription? {
+-        if let entry = self.roundVideoFormatDescriptionCache.first(where: { CFEqual($0.sourceFormatDescription, sourceFormatDescription) }) {
++        // Cleargram: the output side is a setting now, so a cached entry can predate a change
++        // to it. Keyed on the source format alone it would be handed back at the wrong size.
++        let targetDimensions = videoMessageDimensions
++        if let entry = self.roundVideoFormatDescriptionCache.first(where: {
++            CFEqual($0.sourceFormatDescription, sourceFormatDescription)
++                && CMVideoFormatDescriptionGetDimensions($0.outputFormatDescription).width == targetDimensions.width
++        }) {
+             return entry.outputFormatDescription
+         }
+ 
+@@ -495,14 +508,14 @@ final class CameraOutput: NSObject {
+ 
+         let mediaSubType = CMFormatDescriptionGetMediaSubType(sourceFormatDescription)
+         var updatedExtensions = extensions
+-        updatedExtensions["CVBytesPerRow"] = videoMessageDimensions.width * 4
++        updatedExtensions["CVBytesPerRow"] = targetDimensions.width * 4
+ 
+         var outputFormatDescription: CMFormatDescription?
+         let status = CMVideoFormatDescriptionCreate(
+             allocator: nil,
+             codecType: mediaSubType,
+-            width: videoMessageDimensions.width,
+-            height: videoMessageDimensions.height,
++            width: targetDimensions.width,
++            height: targetDimensions.height,
+             extensions: updatedExtensions as CFDictionary,
+             formatDescriptionOut: &outputFormatDescription
+         )
+diff --git a/submodules/Camera/Sources/CameraRoundLegacyVideoFilter.swift b/submodules/Camera/Sources/CameraRoundLegacyVideoFilter.swift
+index 0000000..0000000 100644
+--- a/submodules/Camera/Sources/CameraRoundLegacyVideoFilter.swift
++++ b/submodules/Camera/Sources/CameraRoundLegacyVideoFilter.swift
+@@ -148,9 +148,20 @@ final class CameraRoundLegacyVideoFilter {
+             }
+         }
+         
+-        borderFilter.setValue(effectiveSourceImage, forKey: kCIInputBackgroundImageKey)
+-        
+-        let finalImage = borderFilter.outputImage
++        // Cleargram: stock composites a white plate with a circular hole over the frame, so
++        // everything outside the circle is destroyed before upload. Keeping it costs nothing on
++        // the wire — the message still carries `instantRoundVideo`, so every client masks it
++        // back to a circle on display, and the corners only surface for whoever downloads the
++        // original file. (Upstream also ships CameraRoundVideoFilter, which bakes a blurred
++        // backdrop plus two logos instead of white; it is unreferenced at this pin, so if a
++        // rebase wires it up it needs the same guard.)
++        let finalImage: CIImage?
++        if ClearHooks.roundVideoKeepCorners.with({ $0 }) {
++            finalImage = effectiveSourceImage
++        } else {
++            borderFilter.setValue(effectiveSourceImage, forKey: kCIInputBackgroundImageKey)
++            finalImage = borderFilter.outputImage
++        }
+         guard let finalImage else {
+             return nil
+         }
+diff --git a/submodules/Camera/Sources/CameraRoundVideoFilter.swift b/submodules/Camera/Sources/CameraRoundVideoFilter.swift
+index 0000000..0000000 100644
+--- a/submodules/Camera/Sources/CameraRoundVideoFilter.swift
++++ b/submodules/Camera/Sources/CameraRoundVideoFilter.swift
+@@ -11,7 +11,12 @@ import RLottieBinding
+ import GZip
+ import AppBundle
+ 
+-let videoMessageDimensions = PixelDimensions(width: 400, height: 400)
++// Cleargram: stock is a fixed 400x400. `roundVideoSide` can raise it — the size is purely a
++// recording constant, receiving clients scale whatever arrives into their own circle.
++var videoMessageDimensions: PixelDimensions {
++    let side = clearRoundVideoRecordingSide()
++    return PixelDimensions(width: side, height: side)
++}
+ 
+ func allocateOutputBufferPool(with inputFormatDescription: CMFormatDescription, outputRetainedBufferCountHint: Int) -> (
+     outputBufferPool: CVPixelBufferPool?,
+diff --git a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
++++ b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+@@ -9,6 +9,20 @@ public enum ClearHooks {
+     public static let hideStories = Atomic<Bool>(value: false)
+     // 0 = stock (Telegram's hardcoded recent-sticker cap of 20).
+     public static let recentStickersLimit = Atomic<Int32>(value: 0)
++    // Round video messages. The Camera submodule can't see TelegramUIPreferences, so these
++    // three mirror ClearConfig for it.
++    public static let roundVideo60Fps = Atomic<Bool>(value: false)
++    // Side of the recorded square, in pixels. 0 = stock (400).
++    public static let roundVideoSide = Atomic<Int32>(value: 0)
++    public static let roundVideoKeepCorners = Atomic<Bool>(value: false)
++}
++
++// Cleargram: stock records кружки as a 400x400 square. A larger side is only a recording
++// constant — nothing in the protocol fixes it, and receiving clients scale whatever arrives
++// into their own circle — so raising it just makes the кружок sharper on the other end.
++public func clearRoundVideoRecordingSide() -> Int32 {
++    let configured = ClearHooks.roundVideoSide.with({ $0 })
++    return configured > 0 ? configured : 400
+ }
+ 
+ // Cleargram: the cap passed to `removeTailIfCountExceeds` for the cloud recent-sticker list.
+diff --git a/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorValues.swift b/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorValues.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorValues.swift
++++ b/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorValues.swift
+@@ -165,7 +165,9 @@ public enum MediaQualityPreset: Int32 {
+         case .compressedVeryHigh:
+             return 1920.0
+         case .videoMessage:
+-            return 400.0
++            // Cleargram: has to track the recording side, or trimming a кружок before sending
++            // silently re-encodes it back down to stock's 400.
++            return CGFloat(clearRoundVideoRecordingSide())
+         case .profileLow:
+             return 720.0
+         case .profile, .profileHigh, .profileVeryHigh:
+@@ -190,7 +192,11 @@ public enum MediaQualityPreset: Int32 {
+         case .compressedVeryHigh:
+             return 6600
+         case .videoMessage:
+-            return 1000
++            // Cleargram: same budget the recorder uses — scaled by pixels and by frame rate,
++            // so a trimmed кружок is not re-encoded at a third of the bits it was shot with.
++            let side = Double(clearRoundVideoRecordingSide())
++            let frameRateRatio = ClearHooks.roundVideo60Fps.with({ $0 }) ? 2.0 : 1.0
++            return Int(1000.0 * (side * side) / (400.0 * 400.0) * frameRateRatio)
+         case .profileLow:
+             return 1100
+         case .profile:
+diff --git a/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift b/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
++++ b/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
+@@ -949,7 +949,12 @@ public class VideoMessageCameraScreen: ViewController {
+             self.previewContainerContentView.clipsToBounds = true
+             self.previewContainerView.addSubview(self.previewContainerContentView)
+                         
+-            let isDualCameraEnabled = Camera.isDualCameraSupported(forRoundVideo: true)
++            // Cleargram: 60 fps needs the single-camera session. Dual mode builds both device
++            // contexts as non-exclusive, and `Camera.preferredMaxFrameRate` returns 30 for those
++            // outright; even bypassing that, AVCaptureMultiCamSession's formats top out at 30 and
++            // `actualFPS` would clamp straight back — the toggle would silently do nothing. So the
++            // live front/back switch is what it costs.
++            let isDualCameraEnabled = Camera.isDualCameraSupported(forRoundVideo: true) && !ClearHooks.roundVideo60Fps.with({ $0 })
+             let isFrontPosition = controller.startWithFrontCamera
+             
+             self.mainPreviewView = CameraSimplePreviewView(frame: .zero, main: true, roundVideo: true)
+@@ -1911,7 +1916,10 @@ public class VideoMessageCameraScreen: ViewController {
+                 finalDuration = duration
+             }
+             
+-            let dimensions = PixelDimensions(width: 400, height: 400)
++            // Cleargram: was hardcoded 400x400. It feeds `MediaEditorValues.cropRect`, so with a
++            // larger recorded side a trimmed кружок would be cropped to the stock square instead
++            // of scaled. The recorder already reports what it actually wrote.
++            let dimensions = video.dimensions
+             
+             let thumbnailImage: Signal<UIImage, NoError>
+             if startTime > 0.0 {
+diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
++++ b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+@@ -1522,6 +1522,25 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+                     })
+                     f(.default)
+                 })))
++                // Cleargram: a кружок is a square file whose corners no client ever shows, so
++                // senders bake branding there. Offer a second save that blanks everything
++                // outside the visible circle — as a separate entry rather than a change to the
++                // one above, because with `roundVideoKeepCorners` those same corners can hold
++                // real picture that is exactly what the user wants to keep.
++                if ClearConfig.roundVideoSaveUnmasked, let file = mediaReference.media as? TelegramMediaFile, file.isInstantVideo {
++                    actions.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuSaveRoundVideoUnmasked, icon: { theme in
++                        return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Save"), color: theme.actionSheet.primaryTextColor)
++                    }, action: { _, f in
++                        let _ = (clearSaveRoundVideoUnmasked(context: context, userLocation: .peer(message.id.peerId), mediaReference: mediaReference)
++                                 |> deliverOnMainQueue).startStandalone(completed: {
++                            Queue.mainQueue().after(0.2) {
++                                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
++                                controllerInteraction.presentControllerInCurrent(UndoOverlayController(presentationData: presentationData, content: .mediaSaved(text: presentationData.strings.Gallery_VideoSaved), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return true }), nil)
++                            }
++                        })
++                        f(.default)
++                    })))
++                }
+             }
+         }
+         
