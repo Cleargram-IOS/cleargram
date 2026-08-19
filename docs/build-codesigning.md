@@ -224,7 +224,7 @@ git -C worktree update-index --skip-worktree build-system/template_minimal_devel
 
 Without this, `stg refresh` picks the file up and `pnpm export` bakes the credentials into
 a patch. The root `.gitignore` does not help: the file lives in `worktree/`, a separate
-clone. Upstream Telegram-iOS and Swiftgram both ship this file with placeholders only.
+clone. Upstream Telegram-iOS ships this file with placeholders only.
 
 The `skip-worktree` bit lives in `worktree/.git` — `pnpm setup --force` recreates the
 worktree and loses it. Re-apply after a fresh setup.

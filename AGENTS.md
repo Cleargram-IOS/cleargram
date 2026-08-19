@@ -103,10 +103,10 @@ it kills the build for everyone.
 That's why stgit patches edit them in a single tree — patchset works just like on Android.
 External submodules are touched only if a feature genuinely requires editing the lib (rare).
 
-### Bazel, not Gradle
+### Bazel
 
 Every new `.swift` file must be registered in `BUILD.bazel` (or the submodule's `BUILD`).
-This is the iOS analogue of inugram's `misc/` patches — fork-code registration via a patch.
+Fork-code registration therefore goes through a patch of its own.
 Convention: put fork files under `Sources/ClearGram/` inside an existing submodule and
 register them in its `BUILD`.
 
@@ -159,7 +159,7 @@ One-off for a single feature → keep inside the `feature/` patch.
 
 | case | where |
 | --- | --- |
-| Bugfix in a specific stock class | fix it **inline in that file** (like `EditTextCaption` in inugram). Don't detour through a helper. |
+| Bugfix in a specific stock class | fix it **inline in that file**. Don't detour through a helper. |
 | Helper of 5–7 lines | inline in the patch |
 | Larger logic | new `.swift` in `src/swift/ClearGram/<SubmoduleName>/`, **synced** (copied) into `worktree/submodules/<SubmoduleName>/Sources/ClearGram/` by `pnpm sync` |
 | Cross-cutting feature (several submodules) | a fork file in the submodule that owns the area (e.g. settings types in `TelegramUIPreferences`, management UI in `DebugSettingsUI`) |
@@ -169,9 +169,8 @@ Fork file/symbol naming convention: prefix `Clear` (e.g. `ClearConfig`,
 
 ### Fork source sync (copy, not symlink)
 
-Unlike inugram (where `src/kotlin` is symlinked into the Gradle project and Gradle follows
-it), **Bazel sandboxes its workspace (`worktree/`) and does not follow symlinks pointing
-outside it.** So fork Swift code is **copied**, not symlinked:
+**Bazel sandboxes its workspace (`worktree/`) and does not follow symlinks pointing outside
+it**, so fork Swift code is **copied** into the worktree rather than symlinked:
 
 - Edit fork code in `src/swift/ClearGram/<Submodule>/Foo.swift` (versioned in the cleargram repo).
 - `pnpm sync` (or `pnpm setup`) copies it into `worktree/submodules/<Submodule>/Sources/ClearGram/Foo.swift` as a real file.
@@ -197,7 +196,7 @@ outside it.** So fork Swift code is **copied**, not symlinked:
 
 ## `ClearConfig` pattern
 
-Analogue of inugram's `InuConfig`, but in Swift:
+One place to declare every toggle:
 
 ```swift
 public enum ClearConfig {
@@ -298,10 +297,8 @@ symbol, then Read with `offset` + small `limit`.
 
 ---
 
-## Java ↔ Kotlin gotchas (NOT APPLICABLE to iOS)
+## Swift gotchas
 
-Inugram's Java/Kotlin doc isn't relevant here. Cleargram is Swift-only (plus Bazel `BUILD`
-starlark). Swift-side gotchas:
 - `@testable import` in tests is normal; not needed in non-test fork code.
 - `public` for cross-submodule fork API; `internal` within a submodule.
 - Guard goes **before** stock, early-return when fork takes over; for extension, fork runs
@@ -337,7 +334,7 @@ pnpm export
 
 ---
 
-## Common pitfalls (ported from inugram sessions to iOS)
+## Common pitfalls
 
 1. **Running `stg`/`git`.** Don't. Read-only only.
 2. **Hand-editing `patches/*.patch`.** It's an export. Edit `worktree/`, the user re-exports.
@@ -356,9 +353,8 @@ pnpm export
 
 ## Fork tooling (`pnpm` scripts, not bash)
 
-Tooling is in TypeScript (tsx), mirroring inugram exactly. AI does not run `pnpm` scripts
-that mutate worktree state (`pnpm setup`, `pnpm export`, `pnpm rebase`) without explicit
-user request. Read-only `pnpm find-patches <path>` is fine.
+Tooling is in TypeScript (tsx). AI does not run `pnpm` scripts that mutate worktree state (`pnpm setup`, `pnpm export`, `pnpm rebase`)
+without explicit user request. Read-only `pnpm find-patches <path>` is fine.
 
 | script | purpose |
 | --- | --- |

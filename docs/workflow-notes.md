@@ -130,7 +130,7 @@ never lands in worktree → "Cannot find symbol" build error.
 Upstream `EmojiPagerContentComponent.panelItemGroups` is `public let`. Doing
 `var mut = emojiContent; mut.panelItemGroups = ...` fails ("Cannot assign to property").
 Two fixes:
-1. Change `let` → `var` in the struct (Swiftgram does this — invasive, touches a shared type).
+1. Change `let` → `var` in the struct — invasive, touches a shared type.
 2. Use the factory method `withUpdatedItemGroups(...)` (cleaner, no struct mutation, no
    shared-type edit). **Prefer this.**
 
@@ -168,4 +168,3 @@ for f in ct.get('frames', [])[:30]: print(' ', f.get('symbol',''), '+'+str(f.get
 - Don't add fork `.swift` files <20 lines — inline in stock.
 - Don't hand-edit `patches/*.patch` — edit worktree, user exports.
 - Don't run `stg`/`git` unless asked.
-- Don't assume a Swiftgram call site works without checking the property is `var` upstream.

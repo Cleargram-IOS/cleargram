@@ -92,6 +92,10 @@ service is not.
 Parts of this fork were written with AI assistance. Everything was reviewed by the
 maintainer before being committed, who takes full responsibility for its contents.
 
+## Credits
+
+Inspired by inugram and Swiftgram, two other unofficial Telegram clients.
+
 ## License
 
 Patches and fork code: MIT. Upstream Telegram-iOS remains under its own license (GPLv2).
