@@ -253,6 +253,24 @@ ClearStrings.plural(n, one: "параметр", few: "параметра", many:
   `strings.SponsoredMessageMenu_Hide`, `strings.Chat_NonContactUser_Registration`) — several
   patches already do, and those need no `ClearStrings` entry at all.
 
+### Tone of user-facing text
+
+**Write for someone who already knows what the thing is.** A settings footer, a screen footer
+or a row subtitle is not documentation: it earns its place only by saying something the reader
+could not have guessed from the title. Keep the mechanism and the catch; drop the rest.
+
+- Say what is **non-obvious**: what the option actually touches, a limitation, a side effect,
+  the reason a value is capped. "Applies to music played in Telegram" is worth a clause.
+  "An equalizer changes the tone of the sound" is not.
+- Two or three sentences is a long footer. If it runs to five, most of it is being explained
+  to somebody who did not need it. **No footer at all is the right answer whenever there is
+  nothing non-obvious to say** — a screen whose controls are self-evident needs no prose, and
+  a settings row often needs only where the thing lives, not what it is.
+- Don't restate the title, don't narrate the UI ("tap the button below to open…"), don't
+  justify the design.
+- This is about **UI copy only.** Code comments and `docs/features.md` go the other way —
+  they exist to record *why*, and they should stay as detailed as they are.
+
 ## Database / persistent state
 
 - Stock DB schema and `LAST_DB_VERSION` are off-limits.
