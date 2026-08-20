@@ -61,7 +61,8 @@ usage: ./build.sh (-r | -d) [-s] [-c] [-i] [-f]
   -f, --file      also copy the .ipa to ~/Downloads
 
 The .ipa always lands in worktree/build/artifacts-<config>/; -f puts a copy in
-~/Downloads under a friendlier name.
+~/Downloads named Cleargram-<flavour>-<build id>[-unsigned].ipa (the build id is
+what the app shows), replacing any older copy of the same flavour.
 
 Used alone, -i installs the most recent .ipa without rebuilding anything; it
 looks in ~/Downloads and in worktree/build/artifacts-*/.
@@ -337,11 +338,28 @@ echo "==> $OUT"
 ls -lh "$OUT"
 
 if [ "$COPY" = 1 ]; then
+    # Name the copy after the exact build id the app shows — ClearBuildInfo.cleargramCommit,
+    # written into the worktree by the sync above: the commit short sha, plus "+<id>" when the
+    # tree was dirty. So a .ipa in ~/Downloads is traceable to exactly what went into it. Fall
+    # back to HEAD if the generated file is missing for any reason.
+    BUILDINFO="$REPO/worktree/submodules/DebugSettingsUI/Sources/ClearGram/ClearBuildInfo.swift"
+    BUILD_ID="$(sed -n 's/.*cleargramCommit = "\(.*\)".*/\1/p' "$BUILDINFO" 2>/dev/null | head -1)"
+    [ -n "$BUILD_ID" ] || BUILD_ID="$(cd "$REPO" && git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    # The id in the name means a new build no longer overwrites the previous one, so drop older
+    # copies of this same flavour+signing first — otherwise stale .ipas pile up and `-i` could
+    # pick one of them.
     if [ "$SIGN" = 1 ]; then
-        DEST="$HOME/Downloads/Cleargram-$FLAVOUR.ipa"
+        find "$HOME/Downloads" -maxdepth 1 -name "Cleargram-$FLAVOUR-*.ipa" \
+            ! -name "Cleargram-$FLAVOUR-*-unsigned.ipa" -delete 2>/dev/null || true
+        DEST="$HOME/Downloads/Cleargram-$FLAVOUR-$BUILD_ID.ipa"
     else
-        DEST="$HOME/Downloads/Cleargram-$FLAVOUR-unsigned.ipa"
+        rm -f "$HOME/Downloads/Cleargram-$FLAVOUR"-*-unsigned.ipa
+        DEST="$HOME/Downloads/Cleargram-$FLAVOUR-$BUILD_ID-unsigned.ipa"
     fi
+    # cp onto an existing file overwrites it in place — macOS then keeps the old inode's
+    # creation date, so a rebuilt .ipa looks stale in Finder even though its bytes are new.
+    # Remove the target first so a genuinely new file, with a fresh creation date, is written.
+    rm -f "$DEST"
     cp "$OUT" "$DEST"
     echo "==> $DEST"
 fi
