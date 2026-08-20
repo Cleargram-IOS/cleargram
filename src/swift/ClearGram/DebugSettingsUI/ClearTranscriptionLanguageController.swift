@@ -243,8 +243,8 @@ func clearTranscriptionLanguageController(context: AccountContext) -> ViewContro
             checked: picked.isEmpty
         ))
         entries.append(.systemFooter(L(
-            "Pick one or more languages below and each voice message is recognized in all of them, keeping the result that came out best.",
-            "Выберите один или несколько языков ниже — каждое голосовое будет распознано на всех, а оставлен лучший результат."
+            "Each voice message is recognized in every language you pick, and the best result is kept.",
+            "Каждое голосовое распознаётся на всех выбранных языках, а лучший результат сохраняется."
         )))
 
         entries.append(.languagesHeader(L("LANGUAGES", "ЯЗЫКИ")))

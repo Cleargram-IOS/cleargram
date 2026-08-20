@@ -494,8 +494,8 @@ extension ClearSettingsTransfer {
                 )))
             case .replace:
                 entries.append(.modeFooter(L(
-                    "Everything Cleargram controls is reset to its default first, then the file is applied — so your current setup is replaced wholesale.",
-                    "Сначала все параметры Cleargram сбрасываются к значениям по умолчанию, затем применяется файл — то есть текущая настройка заменяется целиком."
+                    "Everything Cleargram controls is reset to default first, then the file is applied.",
+                    "Сначала всё, чем управляет Cleargram, сбрасывается к умолчанию, затем применяется файл."
                 )))
             }
 
