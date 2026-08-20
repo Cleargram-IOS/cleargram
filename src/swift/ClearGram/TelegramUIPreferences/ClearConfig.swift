@@ -26,9 +26,7 @@ public enum ClearConfig {
             _ = ClearHooks.hideStories.swap(value.hideStories)
             _ = ClearHooks.recentStickersLimit.swap(value.recentStickersLimit)
             // The Camera submodule depends on TelegramCore but not on TelegramUIPreferences,
-            // so the round-video recording toggles can only reach it through ClearHooks.
-            _ = ClearHooks.roundVideo60Fps.swap(value.roundVideo60Fps)
-            _ = ClearHooks.roundVideoSide.swap(value.roundVideoSide)
+            // so the square-video-message toggle can only reach it through ClearHooks.
             _ = ClearHooks.roundVideoKeepCorners.swap(value.roundVideoKeepCorners)
             // The equalizer is read from the audio renderer's own queue, so it gets its own
             // mirror rather than a ClearConfig lookup — and `update` notifies every live renderer,
@@ -137,10 +135,7 @@ public enum ClearConfig {
     public static var lastFmScrobbling: Bool { current().lastFmScrobbling }
     public static var lastFmNowPlaying: Bool { current().lastFmNowPlaying }
     public static var transcriptionLocales: [String] { current().transcriptionLocales }
-    public static var roundVideo60Fps: Bool { current().roundVideo60Fps }
-    public static var roundVideoSide: Int32 { current().roundVideoSide }
     public static var roundVideoKeepCorners: Bool { current().roundVideoKeepCorners }
-    public static var roundVideoSaveUnmasked: Bool { current().roundVideoSaveUnmasked }
     public static var equalizerEnabled: Bool { current().equalizerEnabled }
     public static var equalizerPreamp: Int32 { current().equalizerPreamp }
     public static var equalizerGains: [Int32] { current().equalizerGains }

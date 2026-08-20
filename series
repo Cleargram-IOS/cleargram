@@ -53,5 +53,5 @@ feature/settings-transfer.patch
 bugfix/chat-list-debug-tap-crash.patch
 feature/lastfm-scrobbler.patch
 feature/local-transcription.patch
-feature/round-video-options.patch
+feature/square-video-messages.patch
 feature/equalizer.patch

@@ -87,12 +87,6 @@ export const forkSyncDirs: ForkSyncDir[] = [
     source: 'src/swift/ClearGram/LocalAudioTranscription',
     target: 'submodules/Media/LocalAudioTranscription/Sources/ClearGram',
   },
-  // The round-video unmasking save sits next to the stock save it parallels — that module
-  // already owns the Photos write and the media-box fetch it reuses.
-  {
-    source: 'src/swift/ClearGram/SaveToCameraRoll',
-    target: 'submodules/SaveToCameraRoll/Sources/ClearGram',
-  },
 ]
 
 // Build stamp: `pnpm sync` copies the placeholder from src/ like any other fork source, then

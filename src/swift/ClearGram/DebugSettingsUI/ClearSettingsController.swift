@@ -631,8 +631,8 @@ private func clearRootScreen() -> ClearScreen {
     return ClearScreen(title: "Cleargram", sections: [
         ClearSection(
             footer: L(
-                "Every option is off by default — with nothing enabled Cleargram behaves exactly like stock Telegram.",
-                "Все параметры по умолчанию выключены — пока ничего не включено, Cleargram ведёт себя ровно как обычный Telegram."
+                "Everything is off by default — Cleargram starts out identical to stock Telegram.",
+                "Всё выключено по умолчанию — вначале Cleargram ничем не отличается от обычного Telegram."
             ),
             rows: [
                 .screen(clearAppearanceScreen()),
@@ -665,8 +665,8 @@ private func clearRootScreen() -> ClearScreen {
         ClearSection(
             header: L("BACKUP", "РЕЗЕРВНАЯ КОПИЯ"),
             footer: L(
-                "Exports every Cleargram option you've changed into a small .cleargram file you can keep or send to someone. Opening one — from Files or from a chat — shows exactly what it would change before anything is applied. Hidden chats, hidden messages and Telegram's own settings are never included.",
-                "Сохраняет все изменённые параметры Cleargram в небольшой файл .cleargram — его можно оставить себе или отправить кому-то. При открытии такого файла (из «Файлов» или из чата) сначала показывается, что именно он изменит. Скрытые чаты, скрытые сообщения и собственные настройки Telegram в него не попадают."
+                "Opening a .cleargram file — from Files or a chat — shows what it will change before applying. Hidden chats, hidden messages and Telegram's own settings are never included.",
+                "При открытии файла .cleargram (из «Файлов» или из чата) сначала видно, что он изменит. Скрытые чаты, скрытые сообщения и собственные настройки Telegram в него не входят."
             ),
             rows: [
                 .action(ClearAction(title: L("Export Settings", "Экспорт настроек"), perform: { context, present, push in
@@ -707,8 +707,8 @@ private func clearAppearanceScreen() -> ClearScreen {
         ClearSection(
             header: L("GLASS", "СТЕКЛО"),
             footer: L(
-                "Two of Telegram's own experimental options, surfaced here. Fake Glass draws the iOS 26 glass look on devices that don't support the real thing; Force Clear Glass drops the tint from glass surfaces so they stay fully transparent.",
-                "Два экспериментальных параметра самого Telegram, вынесенных сюда. «Имитация стекла» рисует внешний вид iOS 26 на устройствах, где настоящего эффекта нет; «Прозрачное стекло» убирает подкраску стеклянных поверхностей, оставляя их полностью прозрачными."
+                "Telegram's own experimental options. Fake Glass draws the iOS 26 glass look on devices without it; Force Clear Glass drops the tint so glass surfaces stay fully transparent.",
+                "Экспериментальные параметры самого Telegram. «Имитация стекла» рисует вид iOS 26 на устройствах, где его нет; «Прозрачное стекло» убирает подкраску, оставляя поверхности прозрачными."
             ),
             rows: [
                 .toggle(ClearToggle(L("Fake Glass", "Имитация стекла"), .experimental(\.fakeGlass))),
@@ -718,8 +718,8 @@ private func clearAppearanceScreen() -> ClearScreen {
         ClearSection(
             header: L("TEXT", "ТЕКСТ"),
             footer: L(
-                "Uses the largest message font (19 pt) in chats, leaving the chat list and Settings at their normal size. Requires a restart.",
-                "Использует самый крупный шрифт сообщений (19 pt) в чатах, оставляя список чатов и настройки прежнего размера. Требуется перезапуск."
+                "The largest message font (19 pt), in chats only. Requires a restart.",
+                "Самый крупный шрифт сообщений (19 pt), только в чатах. Требуется перезапуск."
             ),
             rows: [
                 .toggle(ClearToggle(L("Larger Text in Chats", "Крупный текст в чатах"), .config(\.fontSizeOverride), requiresRestart: true))
@@ -733,8 +733,8 @@ private func clearChatListScreen() -> ClearScreen {
         ClearSection(
             header: L("ROWS", "СТРОКИ"),
             footer: L(
-                "Compact rows use a smaller avatar and tighter spacing, so more chats fit on screen. Requires a restart.",
-                "Компактные строки используют аватар поменьше и плотные отступы, поэтому на экран помещается больше чатов. Требуется перезапуск."
+                "Smaller avatars and tighter spacing. Requires a restart.",
+                "Аватары меньше, отступы плотнее. Требуется перезапуск."
             ),
             rows: [
                 .toggle(ClearToggle(L("Compact Rows", "Компактные строки"), .config(\.compactChatList), requiresRestart: true))
@@ -743,8 +743,8 @@ private func clearChatListScreen() -> ClearScreen {
         ClearSection(
             header: L("FOLDER TABS", "ВКЛАДКИ ПАПОК"),
             footer: L(
-                "Shrinks the folder tabs above the chat list and lets you drop the “All Chats” tab — swiping right from the first folder still gets you there. Requires a restart.",
-                "Уменьшает вкладки папок над списком чатов и позволяет убрать вкладку «Все чаты» — свайп вправо с первой папки всё равно открывает её. Требуется перезапуск."
+                "Hiding “All Chats” doesn't lose it — swiping right from the first folder still gets you there. Requires a restart.",
+                "Скрытие «Все чаты» не убирает её совсем — свайп вправо с первой папки всё равно откроет её. Требуется перезапуск."
             ),
             rows: [
                 .toggle(ClearToggle(L("Compact Folder Names", "Компактные названия папок"), .config(\.compactFolderNames), requiresRestart: true)),
@@ -758,8 +758,8 @@ private func clearChatListScreen() -> ClearScreen {
         ClearSection(
             header: L("STORIES", "ИСТОРИИ"),
             footer: L(
-                "Removes stories everywhere: the strip above the chat list, the coloured ring around avatars, the Stories tab in profiles and the story camera buttons. Requires a restart.",
-                "Убирает истории везде: ленту над списком чатов, цветное кольцо вокруг аватаров, вкладку «Истории» в профилях и кнопки камеры историй. Требуется перезапуск."
+                "Removes stories everywhere — the chat-list strip, the ring around avatars, the profile tab and the camera buttons. Requires a restart.",
+                "Убирает истории везде — ленту над списком чатов, кольцо вокруг аватаров, вкладку в профиле и кнопки камеры. Требуется перезапуск."
             ),
             rows: [
                 .toggle(ClearToggle(L("Hide Stories", "Скрыть истории"), .config(\.hideStories), requiresRestart: true)),
@@ -775,8 +775,8 @@ private func clearChatListScreen() -> ClearScreen {
         ClearSection(
             header: L("NOTICES", "УВЕДОМЛЕНИЯ"),
             footer: L(
-                "The banner above the chat list. Promotional notices are Premium offers, gift and profile-photo prompts and whatever link Telegram decides to push there; birthday notices are your contacts' birthdays. New-login reviews, account freeze, password setup and a low Stars balance are always shown — those are the ones you can't afford to miss.",
-                "Плашка над списком чатов. Рекламные уведомления — это предложения Premium, напоминания про подарки и фото профиля и любые ссылки, которые Telegram решит туда показать; уведомления о днях рождения — дни рождения ваших контактов. Проверка нового входа, заморозка аккаунта, настройка пароля и низкий баланс звёзд показываются всегда — их пропускать нельзя."
+                "Promotional notices are Premium offers, gift and photo prompts, and links Telegram pushes there. Security and balance warnings are always shown.",
+                "Рекламные уведомления — это предложения Premium, напоминания про подарки и фото и ссылки, которые шлёт Telegram. Уведомления о безопасности и балансе показываются всегда."
             ),
             rows: [
                 .toggle(ClearToggle(L("Hide Promotional Notices", "Скрыть рекламные уведомления"), .config(\.hideChatListPromoNotices))),
@@ -791,8 +791,8 @@ private func clearSwipeActionsScreen() -> ClearScreen {
         ClearSection(
             header: L("SWIPE LEFT", "СВАЙП ВЛЕВО"),
             footer: L(
-                "Actions revealed when you drag a chat to the left. A full swipe fires the last one — with Archive on that is Archive, exactly like stock. An action only ever appears where Telegram already offered it; turning one off never moves it somewhere else.",
-                "Действия, которые появляются, если потянуть чат влево. Полный свайп срабатывает на последнем из них — при включённом «Архивировать» это архивация, ровно как в оригинале. Действие появляется только там, где его уже предлагал Telegram; выключение никогда не переносит его в другое место."
+                "A full swipe fires the last action. An action only appears where Telegram already offered it.",
+                "Полный свайп срабатывает на последнем действии. Действие появляется только там, где его уже предлагал Telegram."
             ),
             rows: [
                 .toggle(ClearToggle(L("Mute", "Без звука"), .config(\.swipeActionMute), requiresRestart: true)),
@@ -803,8 +803,8 @@ private func clearSwipeActionsScreen() -> ClearScreen {
         ClearSection(
             header: L("SWIPE RIGHT", "СВАЙП ВПРАВО"),
             footer: L(
-                "Actions revealed when you drag a chat to the right. A full swipe fires the first one. Turning both off disables that swipe direction entirely.",
-                "Действия, которые появляются, если потянуть чат вправо. Полный свайп срабатывает на первом из них. Если выключить оба, свайп в эту сторону отключается совсем."
+                "A full swipe fires the first action. Turning both off disables the right swipe.",
+                "Полный свайп срабатывает на первом действии. Если выключить оба, свайп вправо отключается."
             ),
             rows: [
                 .toggle(ClearToggle(L("Mark as Read / Unread", "Отметить как прочитанное"), .config(\.swipeActionRead), requiresRestart: true)),
@@ -821,13 +821,13 @@ private func clearTabBarScreen() -> ClearScreen {
             dynamicFooter: { settings in
                 if settings.hideTabBar {
                     return L(
-                        "The bar at the bottom of the screen is gone; Settings and Contacts stay reachable from the chat list. The options below apply only while the bar is visible. Requires a restart.",
-                        "Панель внизу экрана убрана; настройки и контакты по-прежнему доступны из списка чатов. Параметры ниже действуют, только пока панель видна. Требуется перезапуск."
+                        "Settings and Contacts stay reachable from the chat list. The options below apply only while the bar is visible. Requires a restart.",
+                        "Настройки и контакты остаются доступны из списка чатов. Параметры ниже действуют, только пока панель видна. Требуется перезапуск."
                     )
                 } else {
                     return L(
-                        "Hiding the bar frees the bottom of the screen — Settings and Contacts stay reachable from the chat list. Narrow shrinks the bar when you have fewer than four tabs, so it hugs the icons instead of stretching across the screen. Requires a restart.",
-                        "Скрытие панели освобождает низ экрана — настройки и контакты остаются доступны из списка чатов. «Узкая панель» сжимает её, когда вкладок меньше четырёх, и панель облегает значки вместо того, чтобы растягиваться на всю ширину. Требуется перезапуск."
+                        "With the bar hidden, Settings and Contacts stay reachable from the chat list. Narrow shrinks the bar when you have fewer than four tabs. Requires a restart.",
+                        "При скрытой панели настройки и контакты доступны из списка чатов. «Узкая панель» сжимает её при менее чем четырёх вкладках. Требуется перезапуск."
                     )
                 }
             },
@@ -840,8 +840,8 @@ private func clearTabBarScreen() -> ClearScreen {
         ClearSection(
             header: L("TABS", "ВКЛАДКИ"),
             footer: L(
-                "Turning the Search tab off removes search from the tab bar entirely — there is no other entry point for it yet. Hiding the Contacts tab requires a restart.",
-                "Выключение вкладки «Поиск» убирает поиск из панели вкладок целиком — другого входа в него пока нет. Скрытие вкладки «Контакты» требует перезапуска."
+                "Turning off the Search tab removes search entirely — there's no other entry point yet. Hiding Contacts requires a restart.",
+                "Выключение вкладки «Поиск» убирает поиск совсем — другого входа пока нет. Скрытие «Контактов» требует перезапуска."
             ),
             rows: [
                 .toggle(ClearToggle(L("Search Tab", "Вкладка «Поиск»"), .config(\.tabBarSearchEnabled), isEnabled: { !$0.hideTabBar })),
@@ -855,10 +855,6 @@ private func clearChatsScreen() -> ClearScreen {
     return ClearScreen(title: L("Chats", "Чаты"), icon: ClearIcon.chats, sections: [
         ClearSection(
             header: L("MESSAGES", "СООБЩЕНИЯ"),
-            footer: L(
-                "Very long messages get a “Show more” button instead of filling the whole screen. Forwarded messages can show when the original was sent, next to who sent it.",
-                "Очень длинные сообщения получают кнопку «Показать ещё» вместо того, чтобы занимать весь экран. У пересланных сообщений рядом с автором может показываться время отправки оригинала."
-            ),
             rows: [
                 .toggle(ClearToggle(L("Collapse Long Messages", "Сворачивать длинные сообщения"), .config(\.collapseLongMessages))),
                 .toggle(ClearToggle(L("Original Time on Forwards", "Время оригинала у пересланных"), .config(\.showForwardedTime)))
@@ -867,8 +863,8 @@ private func clearChatsScreen() -> ClearScreen {
         ClearSection(
             header: L("VOICE & VIDEO MESSAGES", "ГОЛОСОВЫЕ И ВИДЕОСООБЩЕНИЯ"),
             footer: L(
-                "Transcribes voice and video messages on this device with Apple's speech recognition. The audio is never sent anywhere. Requires a restart.",
-                "Расшифровывает голосовые и видеосообщения на устройстве через распознавание речи Apple. Звук никуда не отправляется. Требуется перезапуск."
+                "On-device transcription with Apple's speech recognition — the audio never leaves the device. Requires a restart.",
+                "Расшифровка на устройстве через распознавание Apple — звук не покидает устройство. Требуется перезапуск."
             ),
             rows: [
                 .toggle(ClearToggle(
@@ -891,8 +887,8 @@ private func clearChatsScreen() -> ClearScreen {
             dynamicFooter: { settings in
                 let sample = settings.secondsInMessages ? "12:30:45" : "12:30"
                 return L(
-                    "Timestamps under messages look like \(sample). Service messages (“X added Y”) normally carry no time at all.",
-                    "Время под сообщениями выглядит так: \(sample). У служебных сообщений («X добавил Y») времени обычно нет вообще."
+                    "Timestamps under messages look like \(sample).",
+                    "Время под сообщениями выглядит так: \(sample)."
                 )
             },
             rows: [
@@ -902,10 +898,6 @@ private func clearChatsScreen() -> ClearScreen {
         ),
         ClearSection(
             header: L("REACTIONS", "РЕАКЦИИ"),
-            footer: L(
-                "Removes the paid Star reaction from the reaction bar, and its counter from messages that already have one.",
-                "Убирает платную реакцию-звезду из панели реакций, а её счётчик — из сообщений, где она уже стоит."
-            ),
             rows: [
                 .toggle(ClearToggle(L("Hide Star Reaction", "Скрыть реакцию-звезду"), .config(\.hideStarReactionButton))),
                 .toggle(ClearToggle(L("Hide Star Reaction Count", "Скрыть счётчик звёзд"), .config(\.hideStarReactionCount)))
@@ -914,8 +906,8 @@ private func clearChatsScreen() -> ClearScreen {
         ClearSection(
             header: L("EDITING & DRAFTS", "РЕДАКТИРОВАНИЕ И ЧЕРНОВИКИ"),
             footer: L(
-                "Double-tap your own message to open the editor, instead of holding it and picking Edit. With cloud drafts off, text you started typing stays on this device and is never uploaded — it won't follow you to another device either.",
-                "Двойное нажатие по своему сообщению открывает редактор — не нужно удерживать его и выбирать «Изменить». Если облачные черновики выключены, начатый текст остаётся на этом устройстве и никуда не отправляется — но и на другом устройстве не появится."
+                "Drafts kept on this device are never uploaded — and won't follow you to another device.",
+                "Черновики на этом устройстве никуда не отправляются — но и на другом устройстве не появятся."
             ),
             rows: [
                 .toggle(ClearToggle(L("Double-Tap to Edit", "Двойное нажатие для правки"), .config(\.doubleTapToEdit))),
@@ -925,8 +917,8 @@ private func clearChatsScreen() -> ClearScreen {
         ClearSection(
             header: L("POLLS", "ОПРОСЫ"),
             footer: L(
-                "Warns before you vote in a poll that cannot be revoted — a quiz, or one whose author disabled changing the vote — because that tap is final and nothing in the poll says so. Also asks before changing a vote you already cast, which the poll's author can see.",
-                "Предупреждает перед голосованием в опросе, где нельзя переголосовать — в викторине или там, где автор запретил менять голос, — потому что нажатие окончательное, а в самом опросе об этом ничего не сказано. Также спрашивает перед сменой уже отданного голоса, которую видит автор опроса."
+                "Warns before a vote you can't change — a quiz, or a poll with revoting disabled — since that tap is final. Also warns before changing a vote the author can see.",
+                "Предупреждает перед голосованием, которое нельзя изменить — в викторине или где запрещено переголосование, — ведь нажатие окончательное. Также предупреждает перед сменой голоса, которую видит автор."
             ),
             rows: [
                 .toggle(ClearToggle(L("Confirm Poll Votes", "Подтверждать голосование"), .config(\.warnPollsRevote)))
@@ -935,8 +927,8 @@ private func clearChatsScreen() -> ClearScreen {
         ClearSection(
             header: L("BOT KEYBOARDS", "КЛАВИАТУРЫ БОТОВ"),
             footer: L(
-                "Hold a bot keyboard button to copy what it carries: the URL for link buttons — login buttons carry a fallback URL that stock Telegram never shows, web-app buttons the mini-app URL — and the payload the bot receives for callback buttons. Plain link buttons already offer Copy on hold and are left alone.\n\nCallback buttons need a longer hold (0.8s) so that a slow tap still presses the button.",
-                "Удержание кнопки бота копирует то, что в ней зашито: URL у кнопок со ссылкой (у кнопок входа это запасной URL, который обычный Telegram нигде не показывает, у кнопок мини-приложений — адрес самого приложения) и данные, которые получает бот, — у callback-кнопок. Обычные кнопки-ссылки и так предлагают «Копировать» по удержанию, их это не касается.\n\nCallback-кнопки требуют удержания подольше (0,8 с), чтобы медленное нажатие всё же срабатывало как нажатие кнопки."
+                "Hold a bot keyboard button to copy what it carries — a URL, a mini-app address, or a callback payload. Callback buttons need a longer hold so a tap still presses them.",
+                "Удержание кнопки бота копирует то, что в ней зашито — URL, адрес мини-приложения или данные callback-кнопки. Callback-кнопки требуют удержания подольше, чтобы нажатие всё же срабатывало."
             ),
             rows: [
                 .toggle(ClearToggle(L("Copy Button Data on Hold", "Копировать данные кнопки по удержанию"), .config(\.copyBotButtonUrl)))
@@ -945,7 +937,7 @@ private func clearChatsScreen() -> ClearScreen {
         ClearSection(
             header: L("EMOJI KEYBOARD", "КЛАВИАТУРА ЭМОДЗИ"),
             footer: L(
-                "Opens the emoji keyboard on the standard emoji tab instead of recent or custom sets.",
+                "Opens the emoji keyboard on the standard tab, not recent or custom sets.",
                 "Открывает клавиатуру эмодзи на вкладке обычных эмодзи, а не на недавних или своих наборах."
             ),
             rows: [
@@ -958,8 +950,8 @@ private func clearChatsScreen() -> ClearScreen {
                 .toggle(ClearToggle.soon(
                     L("Search by User ID", "Поиск по ID пользователя"),
                     L(
-                        "Planned: find a member's messages by numeric id in groups that hide their member list, where searching by @username fails.",
-                        "В планах: искать сообщения участника по числовому id в группах со скрытым списком участников, где поиск по @имени не работает."
+                        "Planned: find a member's messages by numeric id where searching by @username doesn't work.",
+                        "В планах: искать сообщения участника по числовому id там, где поиск по @имени не работает."
                     )
                 ))
             ]
@@ -971,20 +963,12 @@ private func clearChannelsScreen() -> ClearScreen {
     return ClearScreen(title: L("Channels", "Каналы"), icon: ClearIcon.channels, sections: [
         ClearSection(
             header: L("POSTS", "ПОСТЫ"),
-            footer: L(
-                "Full-width posts drop the bubble and stretch channel messages across the screen.",
-                "Посты во всю ширину убирают пузырь и растягивают сообщения канала на весь экран."
-            ),
             rows: [
                 .toggle(ClearToggle(L("Full-Width Posts", "Посты во всю ширину"), .config(\.wideChannelPosts)))
             ]
         ),
         ClearSection(
             header: L("NAVIGATION", "НАВИГАЦИЯ"),
-            footer: L(
-                "Scrolling past the last post no longer pulls you into the next channel.",
-                "Прокрутка за последний пост больше не перебрасывает в следующий канал."
-            ),
             rows: [
                 .toggle(ClearToggle(L("Disable Scroll to Next Channel", "Не переходить к следующему каналу"), .config(\.disableScrollToNextChannel)))
             ]
@@ -992,8 +976,8 @@ private func clearChannelsScreen() -> ClearScreen {
         ClearSection(
             header: L("BOTTOM BAR", "НИЖНЯЯ ПАНЕЛЬ"),
             footer: L(
-                "Removes the bar under a channel's posts — Mute / Unmute once you've joined, Join before that. Selecting messages and in-chat search still get their panels. Joining a channel then needs an invite link or the search result.",
-                "Убирает панель под постами канала — «Вкл./Выкл. звук» после подписки и «Подписаться» до неё. Панели выбора сообщений и поиска по чату остаются. Подписаться после этого можно по ссылке-приглашению или из результатов поиска."
+                "Removes the Mute/Join bar under a channel's posts. Joining then needs an invite link or a search result.",
+                "Убирает панель «Без звука / Подписаться» под постами канала. Подписаться после этого можно по ссылке-приглашению или из поиска."
             ),
             rows: [
                 .toggle(ClearToggle(L("Hide Bottom Action Bar", "Скрыть нижнюю панель действий"), .config(\.hideChannelBottomButton)))
@@ -1005,8 +989,8 @@ private func clearChannelsScreen() -> ClearScreen {
                 .toggle(ClearToggle.soon(
                     L("Better Recent Actions", "Улучшенные недавние действия"),
                     L(
-                        "Planned: show edited messages as a diff in the admin log, instead of truncating the original.",
-                        "В планах: показывать изменённые сообщения в журнале администратора как различия, а не обрезать оригинал."
+                        "Planned: show edited messages as a diff in the admin log.",
+                        "В планах: показывать изменённые сообщения в журнале администратора как различия."
                     )
                 ))
             ]
@@ -1019,8 +1003,8 @@ private func clearMediaScreen() -> ClearScreen {
         ClearSection(
             header: L("PHOTOS", "ФОТО"),
             footer: L(
-                "Adds Copy to the “⋯” menu of the fullscreen viewer. Stock Telegram only copies from the message menu, and only when the message holds a single photo without a caption.",
-                "Добавляет «Копировать» в меню «⋯» полноэкранного просмотра. Обычный Telegram копирует только из меню сообщения и только если в сообщении одно фото без подписи."
+                "Adds Copy to the “⋯” menu of the fullscreen viewer.",
+                "Добавляет «Копировать» в меню «⋯» полноэкранного просмотра."
             ),
             rows: [
                 .toggle(ClearToggle(L("Copy Image in Gallery", "Копировать фото в галерее"), .config(\.copyImageInGallery)))
@@ -1031,18 +1015,18 @@ private func clearMediaScreen() -> ClearScreen {
             dynamicFooter: { settings in
                 if settings.disableGalleryCamera {
                     return L(
-                        "The camera tile is gone from the attachment picker; the grid starts with your photos. Also lets you pick the front or back camera before recording a video message.",
-                        "Плитка камеры убрана из меню вложений, сетка начинается сразу с ваших фото. Также позволяет выбрать фронтальную или основную камеру перед записью видеосообщения."
+                        "The camera tile is gone; the picker opens on your photos.",
+                        "Плитка камеры убрана; меню вложений открывается на ваших фото."
                     )
                 } else if settings.compactGalleryCamera {
                     return L(
-                        "The camera tile in the attachment picker is one square cell with a plain icon instead of two cells of live preview — no capture session runs while you browse, so no battery drain and no camera-in-use indicator. Tapping it still opens the camera. Also lets you pick the front or back camera before recording a video message.",
-                        "Плитка камеры в меню вложений — одна квадратная ячейка со значком вместо двух ячеек живого предпросмотра: пока вы листаете, камера не запускается, а значит нет ни расхода батареи, ни индикатора использования камеры. Нажатие по-прежнему открывает камеру. Также позволяет выбрать фронтальную или основную камеру перед записью видеосообщения."
+                        "The camera tile becomes a static icon — no live preview, so no capture session or battery drain. Tapping it still opens the camera.",
+                        "Плитка камеры становится статичным значком — без живого предпросмотра, а значит без запуска камеры и расхода батареи. Нажатие по-прежнему открывает камеру."
                     )
                 } else {
                     return L(
-                        "The attachment picker normally runs a live camera preview two cells tall. Hide it entirely, or shrink it to a single cell with a static icon and no capture session. Also lets you pick the front or back camera before recording a video message.",
-                        "В меню вложений обычно работает живой предпросмотр камеры высотой в две ячейки. Его можно убрать совсем или сжать до одной ячейки со статичным значком и без запуска камеры. Также позволяет выбрать фронтальную или основную камеру перед записью видеосообщения."
+                        "The picker's live camera preview can be hidden, or shrunk to a static icon with no capture session.",
+                        "Живой предпросмотр камеры можно убрать или сжать до статичного значка без запуска камеры."
                     )
                 }
             },
@@ -1055,58 +1039,33 @@ private func clearMediaScreen() -> ClearScreen {
         ClearSection(
             header: L("VIDEO", "ВИДЕО"),
             footer: L(
-                "A round-video button appears next to the GIF button while previewing a video in the media picker. It opens a circular crop-and-trim editor, then sends: the video is cropped to a square, re-encoded to h.264 and trimmed to 60 seconds — the same conversion the round-video camera uses, including the size set under Video Messages.",
-                "Кнопка кружка появляется рядом с кнопкой GIF при просмотре видео в выборе медиа. Она открывает круглый редактор обрезки и подрезки, а затем отправляет: видео обрезается в квадрат, перекодируется в h.264 и укорачивается до 60 секунд — то же преобразование, что и у камеры кружков, включая размер, заданный в разделе «Кружки»."
+                "A round-video button appears next to the GIF button in the media picker. It opens a crop-and-trim editor, then sends a square h.264 video capped at 60 seconds.",
+                "Кнопка кружка появляется рядом с кнопкой GIF в выборе медиа. Она открывает редактор обрезки, затем отправляет квадратное видео h.264 длиной до 60 секунд."
             ),
             rows: [
                 .toggle(ClearToggle(L("Send Video as Video Message", "Отправить видео как кружок"), .config(\.sendVideoAsCircle))),
                 .toggle(ClearToggle.soon(
                     L("Audio Source for Video Messages", "Источник звука для видеосообщений"),
                     L(
-                        "Planned: record a video message through a Bluetooth or external mic instead of the built-in one.",
-                        "В планах: записывать видеосообщение через Bluetooth- или внешний микрофон вместо встроенного."
+                        "Planned: record through a Bluetooth or external mic.",
+                        "В планах: запись через Bluetooth- или внешний микрофон."
                     )
                 )),
                 .toggle(ClearToggle.soon(
                     L("Original Video Quality", "Исходное качество видео"),
-                    L("Planned: send a video as-is, skipping re-encoding.", "В планах: отправлять видео как есть, без перекодирования.")
+                    L("Planned: send a video without re-encoding.", "В планах: отправлять видео без перекодирования.")
                 ))
             ]
         ),
         ClearSection(
             header: L("VIDEO MESSAGES", "КРУЖКИ"),
-            footer: L(
-                "Stock records a video message at 400×400 and 30 fps, then bakes the circular mask into the pixels before uploading. The round shape itself is drawn by whoever reads the message, from a flag on it, so these change only what this device records. Quality is worth raising: while playing, a video message is blown up to about 404 pt — roughly 1200 px on a modern screen. It is not a free dial, though, because the server refuses to keep a video message round above some size and quietly turns it into an ordinary video; if that happens, step back down.",
-                "Обычный Telegram записывает кружок в 400×400 и 30 кадрах/с, после чего запекает круглую маску прямо в пиксели и только потом загружает. Сам круг рисует тот, кто читает сообщение, по флагу на нём, так что эти настройки меняют только то, что записывает это устройство. Качество поднять стоит: при проигрывании кружок раздувается примерно до 404 pt — около 1200 px на современном экране. Но это не свободная ручка: выше некоторого размера сервер отказывается держать сообщение кружком и молча превращает его в обычное видео — если так вышло, вернитесь на шаг назад."
-            ),
             rows: [
-                .toggle(ClearToggle(
-                    L("60 FPS", "60 кадров/с"),
-                    .config(\.roundVideo60Fps),
-                    subtitle: { _ in L(
-                        "Turns off the two-camera mode while recording a video message, because 60 fps needs the single-camera session — so no live front/back switch mid-recording. In exchange the back camera becomes the full multi-lens one, so pinching in now reaches the ultra-wide. Costs more processing too; an older device may drop frames instead.",
-                        "Отключает двухкамерный режим при записи кружка: 60 кадров/с требуют одиночной сессии, поэтому переключаться между камерами на ходу больше не выйдет. Взамен задняя камера становится полной многолинзовой, так что щипком внутрь теперь доступен ультраширик. Требует и больше вычислений — старое устройство может вместо этого ронять кадры."
-                    ) }
-                )),
-                .select(ClearSelect(
-                    title: L("Quality", "Качество"),
-                    keyPath: \.roundVideoSide,
-                    options: [(0, L("Default (400)", "Стандартное (400)")), (512, "512×512"), (640, "640×640")]
-                )),
                 .toggle(ClearToggle(
                     L("Square Video Message", "Квадратный кружок"),
                     .config(\.roundVideoKeepCorners),
                     subtitle: { _ in L(
-                        "Stops the circular mask from being baked in, so the corners keep real picture. It stays an ordinary video message for everyone — every client draws the circle itself. The corners only surface for whoever downloads the original file.",
-                        "Не запекает круглую маску, и углы сохраняют реальную картинку. Для всех это по-прежнему обычный кружок — круг каждый клиент рисует сам. Углы видит только тот, кто скачает оригинал файла."
-                    ) }
-                )),
-                .toggle(ClearToggle(
-                    L("Save without Watermark", "Сохранять без водяного знака"),
-                    .config(\.roundVideoSaveUnmasked),
-                    subtitle: { _ in L(
-                        "Adds a second save entry to a video message's menu. It re-encodes the file with everything outside the visible circle blacked out — which is where senders put branding. Note that this means it applies a circular mask of its own, so it is not the way to download a square video message at its full extent: use the plain Save to Gallery for that.",
-                        "Добавляет в меню кружка второй пункт сохранения. Он перекодирует файл, заливая чёрным всё, что вне видимого круга, — именно туда отправители помещают свои обозначения. Учтите, что тем самым он накладывает собственную круглую маску, поэтому скачать квадратный кружок целиком через него не выйдет: для этого используйте обычное «Сохранить в галерею»."
+                        "Keeps the corners instead of baking in the circular mask. Still an ordinary round video for everyone — the corners only show in the downloaded original.",
+                        "Сохраняет углы вместо запекания круглой маски. Для всех это по-прежнему обычный кружок — углы видны только в скачанном оригинале."
                     ) }
                 ))
             ]
@@ -1121,8 +1080,8 @@ private func clearMediaScreen() -> ClearScreen {
                     )
                 } else {
                     return L(
-                        "Shows the codec and bitrate of a track next to the artist in the music player. ALAC is told apart from AAC by reading the container once the file has finished downloading — while it is still streaming, anything above 500 kbps is taken as lossless.",
-                        "Показывает кодек и битрейт трека рядом с исполнителем в плеере. ALAC отличается от AAC по контейнеру, который читается после полной загрузки файла; пока идёт потоковое воспроизведение, всё выше 500 kbps считается lossless."
+                        "Shows a track's codec and bitrate next to the artist. ALAC is told from AAC after the file downloads; while streaming, above 500 kbps is guessed lossless.",
+                        "Показывает кодек и битрейт трека рядом с исполнителем. ALAC отличается от AAC после загрузки файла; при потоковом — выше 500 kbps считается lossless."
                     )
                 }
             },
@@ -1143,8 +1102,8 @@ private func clearMediaScreen() -> ClearScreen {
         ClearSection(
             header: L("LAST.FM", "LAST.FM"),
             footer: L(
-                "Scrobbling writes the music you play in Telegram into your Last.fm history — a track counts once it is half played. “Now Playing” adds a live label on your Last.fm profile while the track is playing; the history is written either way. Sign in under Last.fm Account.",
-                "Скробблинг записывает музыку, которую вы слушаете в Telegram, в историю Last.fm — трек засчитывается, когда проигран наполовину. «Сейчас играет» добавляет сверху живую надпись в профиле Last.fm, пока трек играет; история пишется в любом случае. Вход — в «Аккаунте Last.fm»."
+                "Scrobbling writes what you play into your Last.fm history once a track is half done. “Now Playing” shows a live label on your profile. Sign in under Last.fm Account.",
+                "Скробблинг записывает прослушанное в историю Last.fm, когда трек проигран наполовину. «Сейчас играет» показывает живую надпись в профиле. Вход — в «Аккаунте Last.fm»."
             ),
             rows: [
                 .toggle(ClearToggle(
@@ -1160,7 +1119,6 @@ private func clearMediaScreen() -> ClearScreen {
                 .toggle(ClearToggle(
                     L("Send “Now Playing”", "Отправлять «Сейчас играет»"),
                     .config(\.lastFmNowPlaying),
-                    subtitle: { _ in L("On top of the history: a label on your Last.fm profile", "Вдобавок к истории: надпись в профиле Last.fm") },
                     isEnabled: { $0.lastFmScrobbling }
                 )),
                 .action(ClearAction(
@@ -1177,8 +1135,8 @@ private func clearMediaScreen() -> ClearScreen {
         ClearSection(
             header: L("TRANSFERS", "ПЕРЕДАЧА ФАЙЛОВ"),
             footer: L(
-                "Downloads and uploads in larger chunks (1 MB down, 512 KB up instead of 512/256 KB). Faster on a stable connection; on a flaky one a failed chunk costs more to retry.",
-                "Скачивает и отправляет файлы более крупными кусками (1 МБ на приём и 512 КБ на отправку вместо 512/256 КБ). На стабильном соединении быстрее; на плохом повторная отправка сорвавшегося куска обходится дороже."
+                "Larger download and upload chunks. Faster on a stable connection; on a flaky one a failed chunk costs more to retry.",
+                "Более крупные куски при скачивании и отправке. На стабильном соединении быстрее; на плохом повторить сорвавшийся кусок дороже."
             ),
             rows: [
                 .toggle(ClearToggle(L("Faster File Transfer", "Ускоренная передача файлов"), .config(\.fasterFileLoad)))
@@ -1187,8 +1145,8 @@ private func clearMediaScreen() -> ClearScreen {
         ClearSection(
             header: L("STICKERS", "СТИКЕРЫ"),
             footer: L(
-                "Save to Photos appears in the context menu of static stickers. Square Sticker Corners drops the 12.5% rounding from the sticker editor's frame, from a photo you insert into it and from the exported file — a cut-out subject has no corners to square, so it looks the same either way. Show Pack Owner adds an entry to a sticker pack's “⋯” menu that opens the profile of whoever uploaded it.",
-                "«Сохранить в фото» появляется в контекстном меню статичных стикеров. «Квадратные углы стикеров» убирают скругление в 12,5% у рамки редактора стикеров, у вставленного в неё фото и у готового файла — у вырезанного объекта углов нет, поэтому он выглядит одинаково в обоих случаях. «Владелец набора» добавляет в меню «⋯» набора стикеров пункт, открывающий профиль того, кто его загрузил."
+                "Save to Photos covers static stickers only. Square Sticker Corners has no effect on a cut-out subject, which has no corners. Show Pack Owner opens the uploader's profile from a pack's “⋯” menu.",
+                "«Сохранить в фото» работает только со статичными стикерами. «Квадратные углы» не влияют на вырезанный объект — у него нет углов. «Владелец набора» открывает профиль загрузившего из меню «⋯» набора."
             ),
             rows: [
                 .toggle(ClearToggle(L("Save Sticker to Photos", "Сохранять стикер в фото"), .config(\.saveStickerToPhotos))),
@@ -1199,8 +1157,8 @@ private func clearMediaScreen() -> ClearScreen {
         ClearSection(
             header: L("RECENT STICKERS", "НЕДАВНИЕ СТИКЕРЫ"),
             footer: L(
-                "Telegram keeps the last 20 stickers you used, and the cloud copy gets trimmed back to that on every sync. Cleargram keeps the ones the server drops, so the Recent row can grow past it. The list fills up as you use stickers — nothing is restored retroactively, the extras live on this device only, and clearing recent stickers still clears everything.",
-                "Telegram хранит последние 20 использованных стикеров и при каждой синхронизации обрезает облачную копию до этого числа. Cleargram сохраняет те, что сервер отбрасывает, поэтому ряд недавних может стать длиннее. Список наполняется по мере использования — задним числом ничего не восстанавливается, лишние стикеры живут только на этом устройстве, а очистка недавних по-прежнему стирает всё."
+                "Telegram caps recent stickers at 20; Cleargram keeps the extras locally. They fill in as you use stickers and don't sync to other devices.",
+                "Telegram держит не больше 20 недавних стикеров; Cleargram сохраняет лишние локально. Они набираются по мере использования и не синхронизируются на другие устройства."
             ),
             rows: [
                 .select(ClearSelect(
@@ -1262,8 +1220,8 @@ private func clearMessageMenuScreen() -> ClearScreen {
         ClearSection(
             header: L("HIDE ACTIONS", "СКРЫТЬ ДЕЙСТВИЯ"),
             footer: L(
-                "Removes entries from the menu that appears when you hold a message. What you hide here stays reachable elsewhere — swipe still replies, and selection still starts from the chat's own menu.",
-                "Убирает пункты из меню, которое появляется при удержании сообщения. Скрытое здесь остаётся доступным в других местах: свайп по-прежнему отвечает, а выбор сообщений запускается из меню самого чата."
+                "Hidden actions stay reachable elsewhere — swipe still replies, and selection starts from the chat's own menu.",
+                "Скрытые действия остаются доступны в других местах — свайп по-прежнему отвечает, а выбор запускается из меню чата."
             ),
             rows: [
                 .toggle(ClearToggle(L("Reply", "Ответить"), .config(\.hideContextMenuReply))),
@@ -1281,8 +1239,8 @@ private func clearProfileScreen() -> ClearScreen {
         ClearSection(
             header: L("PROFILES", "ПРОФИЛИ"),
             footer: L(
-                "Adds the numeric id and the datacenter under the profile header — for users, bots, groups, supergroups and channels alike. Tap the row to copy it; hold a group or channel id to copy the bot-API form (-100…) instead. The datacenter roughly tells you which region the account was registered in.",
-                "Добавляет под шапкой профиля числовой ID и датацентр — для пользователей, ботов, групп, супергрупп и каналов одинаково. Нажатие копирует значение; удержание ID группы или канала копирует его в формате Bot API (-100…). Датацентр примерно показывает, в каком регионе был зарегистрирован аккаунт."
+                "Tap the row to copy the value; hold a group or channel id to copy the bot-API form (-100…).",
+                "Нажатие копирует значение; удержание ID группы или канала копирует форму Bot API (-100…)."
             ),
             rows: [
                 .toggle(ClearToggle(L("Show ID", "Показывать ID"), .config(\.showProfileId))),
@@ -1292,8 +1250,8 @@ private func clearProfileScreen() -> ClearScreen {
         ClearSection(
             header: L("ACCOUNT ORIGIN", "ПРОИСХОЖДЕНИЕ АККАУНТА"),
             footer: L(
-                "Registration month and the country the account's phone number belongs to. Telegram sends this only with the first message from someone who isn't your contact, so it's available when the client cached it back then — for everyone else the rows simply don't appear. Month precision; there is no exact date in the API.",
-                "Месяц регистрации и страна, которой принадлежит номер аккаунта. Telegram присылает это только с первым сообщением от человека, которого нет у вас в контактах, поэтому данные есть лишь там, где клиент их тогда сохранил — у остальных строки просто не появятся. Точность — до месяца, точной даты в API нет."
+                "Telegram sends this only with the first message from a non-contact, so the rows often don't appear. Month precision only.",
+                "Telegram присылает это только с первым сообщением от не-контакта, поэтому строки часто не появляются. Точность — до месяца."
             ),
             rows: [
                 .toggle(ClearToggle(L("Show Registration Date", "Показывать дату регистрации"), .config(\.showRegistrationDate))),
@@ -1303,8 +1261,8 @@ private func clearProfileScreen() -> ClearScreen {
         ClearSection(
             header: L("YOUR PROFILE", "ВАШ ПРОФИЛЬ"),
             footer: L(
-                "Hides your phone number in Settings, so it isn't exposed when someone glances at your screen. It stays visible to whoever you already share it with. Requires a restart.",
-                "Скрывает ваш номер телефона в настройках, чтобы он не попадался на глаза тому, кто заглянул в экран. Для тех, кому вы его уже показываете, номер остаётся видимым. Требуется перезапуск."
+                "Hides your number in Settings only — it stays visible to whoever you share it with. Requires a restart.",
+                "Скрывает номер только в настройках — тем, кому вы его показываете, он остаётся виден. Требуется перезапуск."
             ),
             rows: [
                 .toggle(ClearToggle(L("Hide My Phone Number", "Скрыть мой номер телефона"), .config(\.hidePhoneInSettings), requiresRestart: true))
@@ -1312,10 +1270,6 @@ private func clearProfileScreen() -> ClearScreen {
         ),
         ClearSection(
             header: L("ACTIONS", "ДЕЙСТВИЯ"),
-            footer: L(
-                "Removes the call button from profiles, so you can't ring someone by mistake.",
-                "Убирает кнопку звонка из профилей, чтобы нельзя было позвонить по ошибке."
-            ),
             rows: [
                 .toggle(ClearToggle(L("Hide Call Button", "Скрыть кнопку звонка"), .config(\.disableCallsButton)))
             ]
@@ -1327,10 +1281,6 @@ private func clearPrivacyScreen() -> ClearScreen {
     return ClearScreen(title: L("Privacy", "Конфиденциальность"), icon: ClearIcon.privacy, sections: [
         ClearSection(
             header: L("CONFIRMATIONS", "ПОДТВЕРЖДЕНИЯ"),
-            footer: L(
-                "Asks before placing a call, so a misplaced tap doesn't ring someone.",
-                "Спрашивает перед звонком, чтобы случайное нажатие никому не позвонило."
-            ),
             rows: [
                 .toggle(ClearToggle(L("Confirm Calls", "Подтверждать звонки"), .config(\.confirmCalls)))
             ]
@@ -1338,8 +1288,8 @@ private func clearPrivacyScreen() -> ClearScreen {
         ClearSection(
             header: L("FACE ID / TOUCH ID", "FACE ID / TOUCH ID"),
             footer: L(
-                "These actions run only after a successful check. If biometry is unavailable — locked out, denied or not enrolled — the device passcode is asked for instead; on a device with no passcode at all the action is blocked.",
-                "Эти действия выполняются только после успешной проверки. Если биометрия недоступна — заблокирована, запрещена или не настроена — запрашивается код-пароль устройства; если и его нет, действие не выполняется."
+                "If biometry is unavailable, the device passcode is asked instead; with no passcode, the action is blocked.",
+                "Если биометрия недоступна, запрашивается код-пароль устройства; если его нет — действие не выполняется."
             ),
             rows: [
                 .toggle(ClearToggle(L("Confirm Delete Chat", "Подтверждать удаление чата"), .config(\.biometricConfirmDeleteChat))),
@@ -1353,8 +1303,8 @@ private func clearPrivacyScreen() -> ClearScreen {
                 .toggle(ClearToggle.soon(
                     L("Paranoia Mode", "Режим паранойи"),
                     L(
-                        "Planned: keep hidden chats out of contacts, recent calls, search and the share sheet too — not just the chat list.",
-                        "В планах: убирать скрытые чаты не только из списка чатов, но и из контактов, недавних звонков, поиска и меню «Поделиться»."
+                        "Planned: keep hidden chats out of contacts, recent calls, search and the share sheet too.",
+                        "В планах: убирать скрытые чаты также из контактов, недавних звонков, поиска и меню «Поделиться»."
                     )
                 ))
             ]
@@ -1377,8 +1327,8 @@ private func clearDebloatScreen() -> ClearScreen {
         ClearSection(
             header: L("AI", "ИИ"),
             footer: L(
-                "Removes the summarize button on messages, the AI compose buttons in the input panels and the AI entry in the attachment menu.",
-                "Убирает кнопку пересказа у сообщений, кнопки ИИ-набора в панелях ввода и пункт ИИ в меню вложений."
+                "Removes the summarize button, the AI compose buttons and the AI entry in the attachment menu.",
+                "Убирает кнопку пересказа, кнопки ИИ-набора и пункт ИИ в меню вложений."
             ),
             rows: [
                 .toggle(ClearToggle(L("Hide AI Features", "Скрыть функции ИИ"), .config(\.hideAiFeatures)))
@@ -1390,8 +1340,8 @@ private func clearDebloatScreen() -> ClearScreen {
                 .toggle(ClearToggle.soon(
                     L("Hide Premium, Stars & Gifts", "Скрыть Premium, звёзды и подарки"),
                     L(
-                        "Planned: strip the Premium upsell, Stars balance, gifts, boosts and collectibles out of the interface.",
-                        "В планах: убрать из интерфейса рекламу Premium, баланс звёзд, подарки, бусты и коллекционные предметы."
+                        "Planned: strip the Premium upsell, Stars, gifts, boosts and collectibles from the interface.",
+                        "В планах: убрать из интерфейса рекламу Premium, звёзды, подарки, бусты и коллекционные предметы."
                     )
                 ))
             ]
@@ -1399,8 +1349,8 @@ private func clearDebloatScreen() -> ClearScreen {
         ClearSection(
             header: L("ADMIN", "АДМИНИСТРИРОВАНИЕ"),
             footer: L(
-                "Hides the “N people want to join” banner admins see at the top of a channel. The requests themselves are untouched.",
-                "Скрывает плашку «N человек хотят вступить», которую администраторы видят вверху канала. Сами заявки не затрагиваются."
+                "Hides the “N want to join” banner admins see. The requests themselves are untouched.",
+                "Скрывает плашку «N хотят вступить» для админов. Сами заявки не затрагиваются."
             ),
             rows: [
                 .toggle(ClearToggle(L("Hide Join Requests Banner", "Скрыть плашку заявок на вступление"), .config(\.hideChannelJoinRequests)))

@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Wed, 19 Aug 2026 23:22:47 +0800
+Subject: Add round video options
+
+---
+ .../Sources/CameraRoundLegacyVideoFilter.swift  | 17 ++++++++++++++---
+ .../SynchronizeChatInputStateOperation.swift    |  4 ++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/submodules/Camera/Sources/CameraRoundLegacyVideoFilter.swift b/submodules/Camera/Sources/CameraRoundLegacyVideoFilter.swift
+index 0000000..0000000 100644
+--- a/submodules/Camera/Sources/CameraRoundLegacyVideoFilter.swift
++++ b/submodules/Camera/Sources/CameraRoundLegacyVideoFilter.swift
+@@ -148,9 +148,20 @@ final class CameraRoundLegacyVideoFilter {
+             }
+         }
+         
+-        borderFilter.setValue(effectiveSourceImage, forKey: kCIInputBackgroundImageKey)
+-        
+-        let finalImage = borderFilter.outputImage
++        // Cleargram: stock composites a white plate with a circular hole over the frame, so
++        // everything outside the circle is destroyed before upload. Keeping it costs nothing on
++        // the wire — the message still carries `instantRoundVideo`, so every client masks it
++        // back to a circle on display, and the corners only surface for whoever downloads the
++        // original file. (Upstream also ships CameraRoundVideoFilter, which bakes a blurred
++        // backdrop plus two logos instead of white; it is unreferenced at this pin, so if a
++        // rebase wires it up it needs the same guard.)
++        let finalImage: CIImage?
++        if ClearHooks.roundVideoKeepCorners.with({ $0 }) {
++            finalImage = effectiveSourceImage
++        } else {
++            borderFilter.setValue(effectiveSourceImage, forKey: kCIInputBackgroundImageKey)
++            finalImage = borderFilter.outputImage
++        }
+         guard let finalImage else {
+             return nil
+         }
+diff --git a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
++++ b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+@@ -9,6 +9,10 @@ public enum ClearHooks {
+     public static let hideStories = Atomic<Bool>(value: false)
+     // 0 = stock (Telegram's hardcoded recent-sticker cap of 20).
+     public static let recentStickersLimit = Atomic<Int32>(value: 0)
++    // Square video message: skip baking the circular mask into the recorded frame, so the corners
++    // keep real picture. The Camera submodule can't see TelegramUIPreferences, so it reads this
++    // mirror of ClearConfig.roundVideoKeepCorners (via CameraRoundLegacyVideoFilter).
++    public static let roundVideoKeepCorners = Atomic<Bool>(value: false)
+ }
+ 
+ // Cleargram: the cap passed to `removeTailIfCountExceeds` for the cloud recent-sticker list.
