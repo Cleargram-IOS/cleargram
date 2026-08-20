@@ -15,9 +15,14 @@ adding/removing/materially changing a patch, update `docs/features.md` in the sa
 
 1. **Edit `worktree/` directly.** Never hand-edit `patches/*.patch` or `series` — they're
    exports.
-2. **Don't run `stg`/`git`** unless explicitly asked. Read-only `stg -C worktree top` /
-   `stg -C worktree show <name>` is fine. `stg export`/`refresh`/`new`/`rebase` — only on
-   user request.
+2. **Don't run `stg`/`git`** unless explicitly asked — with one exception. Read-only
+   `stg -C worktree top` / `stg -C worktree show <name>` is fine. `stg export`/`refresh`/
+   `rebase` — only on user request. **The exception is `stg new <patch>` before the first
+   edit to a stock file, which is expected rather than asked for:** `stg push`/`pop` fold an
+   uncommitted worktree into whatever patch is on top before moving the stack, so edits left
+   loose in the tree get swallowed by the next build. (`build.sh` passes `-k` for exactly
+   this reason — but a bare `stg` command from anywhere else still does it.) Create the patch
+   first and the edits land where they belong; `refresh` still waits for the user.
 3. **Stock patches stay tiny.** Only guard/wiring/hooks/field-visibility. Real logic lives
    in fork files (new `.swift` next to stock, or `src/swift/ClearGram/`). A patch that only
    touches `src/**` is usually wrong.
@@ -324,9 +329,10 @@ symbol, then Read with `offset` + small `limit`.
 
 ---
 
-## stgit workflow (user-initiated only)
+## stgit workflow (mostly user-initiated)
 
-Documented so you can answer questions / suggest commands. AI doesn't run these.
+Documented so you can answer questions / suggest commands. AI runs only `stg new` (golden
+rule 2); everything else below waits for the user.
 
 ```bash
 # create a new patch
@@ -354,7 +360,9 @@ pnpm export
 
 ## Common pitfalls
 
-1. **Running `stg`/`git`.** Don't. Read-only only.
+1. **Running `stg`/`git`.** Don't — read-only, plus `stg new` before the first stock edit
+   (golden rule 2). Leaving stock edits loose in the tree is the other half of this pitfall:
+   the next stack move folds them into whoever is on top.
 2. **Hand-editing `patches/*.patch`.** It's an export. Edit `worktree/`, the user re-exports.
 3. **Oversized stock patch.** Logic beyond guard + helper-call → fork file.
 4. **Helper of 2–5 lines.** Inline. Extract only when >5–7 lines or genuinely reused.
