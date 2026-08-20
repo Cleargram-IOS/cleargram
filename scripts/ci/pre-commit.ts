@@ -1,104 +1,21 @@
-import fs from 'node:fs/promises'
-import { join, relative } from 'node:path'
-import { parallelMap } from '@fuman/utils'
 import { chalk } from 'zx'
-import { patchesDir, worktreeDir } from '../config.js'
-import {
-  generateStablePatchFromCommit,
-  getAllPatchCommitIds,
-  getAppliedPatchNames,
-  parsePatchName,
-} from '../lib.js'
+import { checkPatches, printReport } from '../check-patches.js'
+
+// patches/ must match the stgit stack at commit time, or the commit records an export that no
+// longer describes the stack. The check itself lives in scripts/check-patches.ts, which build.sh
+// also runs before building — the difference is that this one leaves `local__*` patches alone:
+// they are never exported, so on a commit there is nothing about them to be out of sync.
 
 if (process.env.SKIP_PATCH_CHECK) {
   process.exit(0)
 }
 
-async function listExportedPatchFiles(): Promise<string[]> {
-  const out: string[] = []
-  const walk = async (dir: string) => {
-    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => [])
-    for (const entry of entries) {
-      const full = join(dir, entry.name)
-      if (entry.isDirectory()) {
-        await walk(full)
-      } else if (entry.name.endsWith('.patch')) {
-        out.push(full)
-      }
-    }
-  }
-  await walk(patchesDir)
-  return out
-}
-
-// `local__*` patches hold machine-specific build tweaks and are deliberately never exported, so
-// they sit outside this check on both sides. Without this, any commit made while one is applied
-// would fail on a patch that is missing from patches/ by design.
-const isLocal = (seriesEntry: string) => seriesEntry.startsWith('local/')
-
-const [applied, commitIds] = await Promise.all([
-  getAppliedPatchNames(worktreeDir),
-  getAllPatchCommitIds(worktreeDir),
-])
-const expected = new Map<string, { patchName: string, commitId: string }>()
-for (const name of applied) {
-  const { seriesEntry } = parsePatchName(name)
-  if (isLocal(seriesEntry)) continue
-  const commitId = commitIds.get(name)
-  if (!commitId) throw new Error(`No commit id for applied patch ${name}`)
-  expected.set(seriesEntry, { patchName: name, commitId })
-}
-
-const exportedFiles = await listExportedPatchFiles()
-const exportedEntries = new Set(
-  exportedFiles
-    .map(f => relative(patchesDir, f).replaceAll('\\', '/'))
-    .filter(entry => !isLocal(entry)),
-)
-
-const missing: string[] = []
-const orphaned: string[] = []
-const drifted: string[] = []
-
-const checks = await parallelMap(
-  [...expected],
-  async ([entry, { patchName, commitId }]): Promise<{ kind: 'missing' | 'drift' | 'ok', entry: string, patchName: string }> => {
-    if (!exportedEntries.has(entry)) {
-      return { kind: 'missing', entry, patchName }
-    }
-    const [actual, stable] = await Promise.all([
-      fs.readFile(join(patchesDir, entry), 'utf8'),
-      generateStablePatchFromCommit(worktreeDir, commitId),
-    ])
-    return { kind: actual === stable ? 'ok' : 'drift', entry, patchName }
-  },
-)
-
-for (const r of checks) {
-  if (r.kind === 'missing') missing.push(`${r.patchName} (expected patches/${r.entry})`)
-  else if (r.kind === 'drift') drifted.push(`${r.patchName} (patches/${r.entry})`)
-}
-
-for (const entry of exportedEntries) {
-  if (!expected.has(entry)) {
-    orphaned.push(`patches/${entry}`)
-  }
-}
-
-if (missing.length === 0 && orphaned.length === 0 && drifted.length === 0) {
+const report = await checkPatches({ includeLocal: false })
+if (report.ok) {
   process.exit(0)
 }
 
-function print(label: string, items: string[]) {
-  if (items.length === 0) return
-  console.error(chalk.red(`${label}:`))
-  for (const item of items) console.error(`  - ${item}`)
-}
-
-console.error(chalk.red('patches/ is out of sync with the stgit stack:'))
-print('missing from patches/', missing)
-print('not in stgit stack', orphaned)
-print('content drift', drifted)
+printReport(report)
 console.error()
 console.error(chalk.yellow('hint: run `pnpm export` to refresh,'))
 console.error(chalk.yellow('      or skip this check entirely via --no-verify'))

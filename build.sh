@@ -196,6 +196,27 @@ esac
 SERIES="$(stg -C "$REPO/worktree" series 2>/dev/null || true)"
 APPLIED="$(stg -C "$REPO/worktree" series --applied 2>/dev/null || true)"
 
+# Before anything moves the stack: does patches/ still describe it, and do the local patches
+# still hold only what they should? A stack move over a dirty worktree folds the uncommitted
+# work into whichever patch is on top, and if that is a `local__*` one the next `pnpm export`
+# drops it — silently, because local patches are never exported. This is the last point at
+# which that is still visible. CLEARGRAM_SKIP_PATCH_CHECK=1 skips it; `pnpm check-patches
+# --accept-local` re-baselines a local patch you changed on purpose.
+if [ -z "${CLEARGRAM_SKIP_PATCH_CHECK:-}" ] && [ -f "$REPO/package.json" ]; then
+    if ! (cd "$REPO" && $PNPM run --silent check-patches:quiet); then
+        if [ -t 0 ]; then
+            printf 'build anyway? [y/N] ' >&2
+            read -r PATCH_CHECK_REPLY
+            case "$PATCH_CHECK_REPLY" in
+                [yY]*) ;;
+                *) echo "aborted" >&2; exit 1 ;;
+            esac
+        else
+            echo "warning: patch check failed, building anyway (no terminal to ask)" >&2
+        fi
+    fi
+fi
+
 if patch_exists "$PATCH_NO_EXTENSIONS" && \
    ! printf '%s\n' "$APPLIED" | grep -qF -- "$PATCH_NO_EXTENSIONS"; then
     echo "==> applying $PATCH_NO_EXTENSIONS"

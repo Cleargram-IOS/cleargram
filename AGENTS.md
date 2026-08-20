@@ -380,7 +380,8 @@ pnpm export
 ## Fork tooling (`pnpm` scripts, not bash)
 
 Tooling is in TypeScript (tsx). AI does not run `pnpm` scripts that mutate worktree state (`pnpm setup`, `pnpm export`, `pnpm rebase`)
-without explicit user request. Read-only `pnpm find-patches <path>` is fine.
+without explicit user request. Read-only `pnpm find-patches <path>` and `pnpm check-patches`
+are fine.
 
 | script | purpose |
 | --- | --- |
@@ -389,9 +390,20 @@ without explicit user request. Read-only `pnpm find-patches <path>` is fine.
 | `pnpm export` | rewrite `patches/` + `series` from the stgit stack |
 | `pnpm rebase <commit\|latest>` | rebase stgit stack onto a new upstream commit |
 | `pnpm find-patches <path>` | list which applied patches touch a file |
+| `pnpm check-patches` | is `patches/` still what the stack says, and do the `local__*` patches still hold only their own files |
 
 Pre-commit (`scripts/ci/pre-commit.ts`) verifies `patches/` is in sync with the stgit stack
-— skips with `SKIP_PATCH_CHECK=1` or `--no-verify`.
+— skips with `SKIP_PATCH_CHECK=1` or `--no-verify`. It is a thin wrapper over
+`scripts/check-patches.ts`, which `build.sh` also runs before every build with `--include-local`
+(skip: `CLEARGRAM_SKIP_PATCH_CHECK=1`).
+
+The two differ in what they look at, because the two kinds of patch have different ground truth.
+A real patch is exported, so `patches/` is the answer and any difference is drift. A `local__*`
+patch is deliberately never exported, so there is nothing in the repo to compare it against — the
+check keeps its own baseline of their file lists under `build/local-patch-baseline.json`
+(gitignored) and reports what changed since it last ran clean. That is the case worth catching:
+work folded into a local patch by a stack move is **dropped by the next `pnpm export`**, silently.
+A local patch you changed on purpose is re-baselined with `pnpm check-patches --accept-local`.
 
 ---
 

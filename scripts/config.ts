@@ -104,6 +104,12 @@ export const forkSyncDirs: ForkSyncDir[] = [
 // depends on the preferences one, so that placement would invalidate the whole tree.
 export const buildInfoTarget = 'submodules/DebugSettingsUI/Sources/ClearGram/ClearBuildInfo.swift'
 
+// Applied `local__*` patches never reach patches/, so the drift check has no ground truth for
+// them in the repo. It keeps one here instead: the file list each of them had when the check
+// last ran clean. A local patch that suddenly grows a .swift file is work that got folded into
+// it by a stack move, and it is silently dropped at export time — see check-patches.ts.
+export const localPatchBaselineFile = 'build/local-patch-baseline.json'
+
 // Where a dirty build's working-tree patch is archived, named after the `+<id>` suffix the app
 // shows. Repo-relative and under the gitignored build/, so the archive can never feed back into
 // the id it is named after.

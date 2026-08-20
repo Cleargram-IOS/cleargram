@@ -9,6 +9,8 @@
     "rebase": "tsx scripts/rebase.ts",
     "sync": "tsx scripts/sync.ts",
     "find-patches": "tsx scripts/find-patches.ts",
+    "check-patches": "tsx scripts/check-patches.ts --include-local",
+    "check-patches:quiet": "tsx scripts/check-patches.ts --include-local --quiet",
     "prepare": "husky"
   },
   "dependencies": {
