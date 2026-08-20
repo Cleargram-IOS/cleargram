@@ -30,6 +30,10 @@ public enum ClearConfig {
             _ = ClearHooks.roundVideo60Fps.swap(value.roundVideo60Fps)
             _ = ClearHooks.roundVideoSide.swap(value.roundVideoSide)
             _ = ClearHooks.roundVideoKeepCorners.swap(value.roundVideoKeepCorners)
+            // The equalizer is read from the audio renderer's own queue, so it gets its own
+            // mirror rather than a ClearConfig lookup — and `update` notifies every live renderer,
+            // which is what makes a change audible on the track already playing.
+            ClearEqualizer.update(equalizerState(value))
         })
     }
 
@@ -137,6 +141,14 @@ public enum ClearConfig {
     public static var roundVideoSide: Int32 { current().roundVideoSide }
     public static var roundVideoKeepCorners: Bool { current().roundVideoKeepCorners }
     public static var roundVideoSaveUnmasked: Bool { current().roundVideoSaveUnmasked }
+    public static var equalizerEnabled: Bool { current().equalizerEnabled }
+    public static var equalizerPreamp: Int32 { current().equalizerPreamp }
+    public static var equalizerGains: [Int32] { current().equalizerGains }
+    // What the audio renderer actually consumes. Kept next to the raw accessors so the screen and
+    // the renderer can never disagree about how the three fields combine.
+    public static func equalizerState(_ settings: ClearConfigSettings) -> ClearEqualizer.State {
+        return ClearEqualizer.State(enabled: settings.equalizerEnabled, preamp: settings.equalizerPreamp, gains: settings.equalizerGains)
+    }
     // Every candidate language is another full recognition pass over the audio, paid on every
     // voice message — so the picker caps the list and the transcriber trims to it. Lives here
     // rather than next to the transcriber so the settings screen can read it without depending

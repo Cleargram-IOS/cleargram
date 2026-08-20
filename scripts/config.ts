@@ -38,6 +38,14 @@ export interface ForkSyncDir {
 }
 
 export const forkSyncDirs: ForkSyncDir[] = [
+  // Fork code with readers on both sides of the module graph — the equalizer state is read by
+  // the audio renderer (UniversalMediaPlayer) and written by the settings (TelegramUIPreferences),
+  // and neither can see the other. Same reasoning as ClearHooks, which lives in this module too.
+  // TelegramCore's BUILD globs Sources/**, so nothing extra is registered.
+  {
+    source: 'src/swift/ClearGram/TelegramCore',
+    target: 'submodules/TelegramCore/Sources/ClearGram',
+  },
   {
     source: 'src/swift/ClearGram/TelegramUIPreferences',
     target: 'submodules/TelegramUIPreferences/Sources/ClearGram',

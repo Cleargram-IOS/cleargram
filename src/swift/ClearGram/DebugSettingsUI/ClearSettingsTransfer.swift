@@ -95,6 +95,12 @@ public enum ClearSettingsTransfer {
         if let l = lhs as? [String], let r = rhs as? [String] {
             return l == r
         }
+        // The equalizer's per-band gains. JSONSerialization hands an [Int32] back as [NSNumber],
+        // which neither branch above catches — without this every export would report a flat
+        // equalizer as changed, and every import would drop the band gains on the floor.
+        if let l = lhs as? [NSNumber], let r = rhs as? [NSNumber] {
+            return l == r
+        }
         return lhs == nil && rhs == nil
     }
 
@@ -139,7 +145,7 @@ public enum ClearSettingsTransfer {
         let known = knownKeys
         var values: [String: Any] = [:]
         for (key, value) in raw where known.contains(key) {
-            if value is NSNumber || value is [String] {
+            if value is NSNumber || value is [String] || value is [NSNumber] {
                 values[key] = value
             }
         }
@@ -189,9 +195,18 @@ public enum ClearSettingsTransfer {
         return result.prefix(1).uppercased() + result.dropFirst()
     }
 
-    static func describe(_ value: Any?) -> String {
+    static func describe(_ value: Any?, key: String? = nil) -> String {
         guard let value else {
             return "—"
+        }
+        // Equalizer gains are stored in tenths of a decibel, which is not something to show a
+        // reader as a bare list of integers.
+        if key == "equalizerGains", let list = value as? [NSNumber] {
+            let text = list.map({ ClearEqualizer.formatGain(Int32(truncating: $0), withUnit: false) }).joined(separator: " ")
+            return text.isEmpty ? L("Flat", "Ровно") : text
+        }
+        if key == "equalizerPreamp", let number = value as? NSNumber {
+            return ClearEqualizer.formatGain(Int32(truncating: number), withUnit: true)
         }
         if let number = value as? NSNumber {
             if CFGetTypeID(number) == CFBooleanGetTypeID() {
@@ -201,6 +216,9 @@ public enum ClearSettingsTransfer {
         }
         if let list = value as? [String] {
             return list.isEmpty ? "—" : list.joined(separator: ", ")
+        }
+        if let list = value as? [NSNumber] {
+            return list.isEmpty ? "—" : list.map({ "\($0.intValue)" }).joined(separator: ", ")
         }
         return "\(value)"
     }
@@ -224,8 +242,8 @@ public enum ClearSettingsTransfer {
             result.append(ClearSettingsChange(
                 key: key,
                 title: humanize(key),
-                fromText: describe(before[key]),
-                toText: describe(after[key])
+                fromText: describe(before[key], key: key),
+                toText: describe(after[key], key: key)
             ))
         }
         return result

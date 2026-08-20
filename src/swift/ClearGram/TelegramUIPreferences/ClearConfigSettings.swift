@@ -111,6 +111,12 @@ public struct ClearConfigSettings: Codable, Equatable {
     // Adds a second save entry to the message menu that re-encodes the кружок with everything
     // outside the visible circle blacked out.
     public var roundVideoSaveUnmasked: Bool
+    // Ten-band equalizer for the music player. Gains and the preamp are tenths of a decibel,
+    // capped at ClearEqualizer.gainLimit; `equalizerGains` is allowed to be empty (flat) or a
+    // different length than the current band count — ClearEqualizer.State.gain(at:) reads it.
+    public var equalizerEnabled: Bool
+    public var equalizerPreamp: Int32
+    public var equalizerGains: [Int32]
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -198,7 +204,10 @@ public struct ClearConfigSettings: Codable, Equatable {
             roundVideo60Fps: false,
             roundVideoSide: 0,
             roundVideoKeepCorners: false,
-            roundVideoSaveUnmasked: false
+            roundVideoSaveUnmasked: false,
+            equalizerEnabled: false,
+            equalizerPreamp: 0,
+            equalizerGains: []
         )
     }
 
@@ -287,7 +296,10 @@ public struct ClearConfigSettings: Codable, Equatable {
         roundVideo60Fps: Bool = false,
         roundVideoSide: Int32 = 0,
         roundVideoKeepCorners: Bool = false,
-        roundVideoSaveUnmasked: Bool = false
+        roundVideoSaveUnmasked: Bool = false,
+        equalizerEnabled: Bool = false,
+        equalizerPreamp: Int32 = 0,
+        equalizerGains: [Int32] = []
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -374,6 +386,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.roundVideoSide = roundVideoSide
         self.roundVideoKeepCorners = roundVideoKeepCorners
         self.roundVideoSaveUnmasked = roundVideoSaveUnmasked
+        self.equalizerEnabled = equalizerEnabled
+        self.equalizerPreamp = equalizerPreamp
+        self.equalizerGains = equalizerGains
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -400,6 +415,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case importSettingsFromChats
         case lastFmScrobbling, lastFmNowPlaying, transcriptionLocales
         case roundVideo60Fps, roundVideoSide, roundVideoKeepCorners, roundVideoSaveUnmasked
+        case equalizerEnabled, equalizerPreamp, equalizerGains
     }
 
     public init(from decoder: Decoder) throws {
@@ -492,6 +508,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.roundVideoSide = try c.decodeIfPresent(Int32.self, forKey: .roundVideoSide) ?? 0
         self.roundVideoKeepCorners = try c.decodeIfPresent(Bool.self, forKey: .roundVideoKeepCorners) ?? false
         self.roundVideoSaveUnmasked = try c.decodeIfPresent(Bool.self, forKey: .roundVideoSaveUnmasked) ?? false
+        self.equalizerEnabled = try c.decodeIfPresent(Bool.self, forKey: .equalizerEnabled) ?? false
+        self.equalizerPreamp = try c.decodeIfPresent(Int32.self, forKey: .equalizerPreamp) ?? 0
+        self.equalizerGains = try c.decodeIfPresent([Int32].self, forKey: .equalizerGains) ?? []
     }
 }
 

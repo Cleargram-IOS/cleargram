@@ -1,0 +1,172 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Thu, 20 Aug 2026 18:33:34 +0800
+Subject: Add music equalizer
+
+---
+ .../Sources/MediaPlayerAudioRenderer.swift    | 18 ++++++++++++
+ .../OverlayAudioPlayerController.swift        |  4 ++-
+ .../OverlayAudioPlayerControlsNode.swift      | 29 +++++++++++++++++++
+ 3 files changed, 50 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/MediaPlayer/Sources/MediaPlayerAudioRenderer.swift b/submodules/MediaPlayer/Sources/MediaPlayerAudioRenderer.swift
+index 0000000..0000000 100644
+--- a/submodules/MediaPlayer/Sources/MediaPlayerAudioRenderer.swift
++++ b/submodules/MediaPlayer/Sources/MediaPlayerAudioRenderer.swift
+@@ -236,6 +236,8 @@ private final class AudioPlayerRendererContext {
+     var timePitchAudioUnit: AudioComponentInstance?
+     var mixerAudioUnit: AudioComponentInstance?
+     var equalizerAudioUnit: AudioComponentInstance?
++    // Cleargram: the ten-band equalizer's hold on `equalizerAudioUnit`. Music renderers only.
++    var clearEqualizerUnit: ClearEqualizerUnit?
+     var outputAudioUnit: AudioComponentInstance?
+     
+     var bufferContextId: Int32!
+@@ -602,6 +604,16 @@ private final class AudioPlayerRendererContext {
+                 AudioUnitSetParameter(equalizerAudioUnit, kAUNBandEQParam_GlobalGain, kAudioUnitScope_Global, 0, 0.0, 0)
+             }
+             
++            // Cleargram: for music this unit becomes the equalizer. It has to be laid out here
++            // rather than once the graph is up, because AUNBandEQ only takes a band count while
++            // the unit is uninitialized. Voice messages keep the global-gain boost above.
++            var clearEqualizerUnit: ClearEqualizerUnit?
++            if !self.forAudioVideoMessage && !self.ambient {
++                clearEqualizerUnit = ClearEqualizerUnit(audioUnit: equalizerAudioUnit, dispatch: { f in
++                    audioPlayerRendererQueue.async(f)
++                })
++            }
++            
+             var maybeOutputAudioUnit: AudioComponentInstance?
+             guard AUGraphNodeInfo(audioGraph, outputNode, &outputDesc, &maybeOutputAudioUnit) == noErr, let outputAudioUnit = maybeOutputAudioUnit else {
+                 return
+@@ -649,6 +661,7 @@ private final class AudioPlayerRendererContext {
+             self.timePitchAudioUnit = timePitchAudioUnit
+             self.mixerAudioUnit = mixerAudioUnit
+             self.equalizerAudioUnit = equalizerAudioUnit
++            self.clearEqualizerUnit = clearEqualizerUnit
+             self.outputAudioUnit = outputAudioUnit
+         }
+     }
+@@ -674,6 +687,11 @@ private final class AudioPlayerRendererContext {
+         assert(audioPlayerRendererQueue.isCurrent())
+         
+         if let audioGraph = self.audioGraph {
++            // Cleargram: let the equalizer go before the unit it writes to is disposed. Both run
++            // on this queue, so nothing it has already scheduled can outlive the graph.
++            self.clearEqualizerUnit?.invalidate()
++            self.clearEqualizerUnit = nil
++            
+             var status = noErr
+             
+             self.bufferContext.with { context in
+diff --git a/submodules/TelegramUI/Sources/OverlayAudioPlayerController.swift b/submodules/TelegramUI/Sources/OverlayAudioPlayerController.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/OverlayAudioPlayerController.swift
++++ b/submodules/TelegramUI/Sources/OverlayAudioPlayerController.swift
+@@ -11,7 +11,9 @@ import LegacyMediaPickerUI
+ import ICloudResources
+ 
+ final class OverlayAudioPlayerControllerImpl: ViewController, OverlayAudioPlayerController {
+-    private let context: AccountContext
++    // Cleargram: read by clearOpenEqualizer, which the controls node calls from the equalizer
++    // button — that node holds an account and an engine, but no context.
++    let context: AccountContext
+     let chatLocation: ChatLocation
+     let type: MediaManagerPlayerType
+     let initialMessageId: EngineMessage.Id
+diff --git a/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift b/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
++++ b/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
+@@ -154,6 +154,9 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+     private let title: ComponentView<Empty>
+     private let descriptionNode: TextNode
+     private let shareNode: HighlightableButtonNode
++    // Cleargram: opens the equalizer, mirroring the rate button across the scrubber. It cannot
++    // live in the rate button's menu, which stock only offers for tracks over ten minutes.
++    private let clearEqualizerButton: HighlightableButtonNode
+     private let artistButton: HighlightTrackingButtonNode
+     
+     private var profileAudio: ComponentView<Empty>?
+@@ -263,6 +266,11 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         self.shareNode = HighlightableButtonNode()
+         self.shareNode.setImage(generateTintedImage(image: UIImage(bundleImageName: "GlobalMusicPlayer/Share"), color: presentationData.theme.list.itemPrimaryTextColor), for: [])
+         
++        self.clearEqualizerButton = HighlightableButtonNode()
++        self.clearEqualizerButton.setImage(clearEqualizerButtonIcon(color: presentationData.theme.list.itemSecondaryTextColor), for: [])
++        self.clearEqualizerButton.hitTestSlop = UIEdgeInsets(top: -8.0, left: -4.0, bottom: -8.0, right: -4.0)
++        self.clearEqualizerButton.isHidden = true
++        
+         self.scrubberNode = MediaPlayerScrubbingNode(content: .standard(lineHeight: 7.0, lineCap: .round, scrubberHandle: .none, backgroundColor: presentationData.theme.list.controlSecondaryColor.withMultipliedAlpha(0.5), foregroundColor: presentationData.theme.list.itemPrimaryTextColor, bufferingColor: presentationData.theme.list.itemPrimaryTextColor.withAlphaComponent(0.4), chapters: []))
+         self.leftDurationLabel = MediaPlayerTimeTextNode(textColor: presentationData.theme.list.itemSecondaryTextColor, textFont: Font.medium(12.0))
+         self.leftDurationLabel.displaysAsynchronously = false
+@@ -328,6 +336,10 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         self.addSubnode(self.playPauseButton)
+         self.playPauseButton.addSubnode(self.playPauseIconNode)
+         self.addSubnode(self.rateButton)
++        // Cleargram: added last, like the rate button it mirrors. The elapsed-time label is laid
++        // out 100pt wide and the scrubber spans the row, so both overlap this slot — added any
++        // earlier, the button is under them and the taps land on a label instead.
++        self.addSubnode(self.clearEqualizerButton)
+         
+         //self.addSubnode(self.separatorNode)
+         
+@@ -436,6 +448,14 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+                 }
+                 
+                 strongSelf.rateButton.isHidden = rateButtonIsHidden
++                // Cleargram: the speed control is reserved for long tracks; the equalizer is
++                // offered for any music, which is all it applies to anyway. Default-off, so with
++                // ClearConfig.equalizerEnabled unset the player is stock.
++                if let displayData = displayData, case .music = displayData, ClearConfig.equalizerEnabled {
++                    strongSelf.clearEqualizerButton.isHidden = false
++                } else {
++                    strongSelf.clearEqualizerButton.isHidden = true
++                }
+                 
+                 strongSelf.currentPosition = value.status.timestamp
+             } else {
+@@ -443,6 +463,7 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+                 strongSelf.backwardButton.isEnabled = false
+                 strongSelf.forwardButton.isEnabled = false
+                 strongSelf.rateButton.isHidden = true
++                strongSelf.clearEqualizerButton.isHidden = true
+                 displayData = nil
+             }
+             
+@@ -534,6 +555,7 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         }
+         
+         self.shareNode.addTarget(self, action: #selector(self.sharePressed), forControlEvents: .touchUpInside)
++        self.clearEqualizerButton.addTarget(self, action: #selector(self.clearEqualizerPressed), forControlEvents: .touchUpInside)
+         self.orderButton.addTarget(self, action: #selector(self.orderPressed), forControlEvents: .touchUpInside)
+         self.loopingButton.addTarget(self, action: #selector(self.loopingPressed), forControlEvents: .touchUpInside)
+         self.backwardButton.addTarget(self, action: #selector(self.backwardPressed), forControlEvents: .touchUpInside)
+@@ -673,6 +695,7 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         
+         self.backgroundNode.image = self.hasPlainBackground ? generatePlainBackground(theme: presentationData.theme) : generateBackground(theme: presentationData.theme)
+         self.shareNode.setImage(generateTintedImage(image: UIImage(bundleImageName: "GlobalMusicPlayer/Share"), color: presentationData.theme.list.itemPrimaryTextColor), for: [])
++        self.clearEqualizerButton.setImage(clearEqualizerButtonIcon(color: presentationData.theme.list.itemSecondaryTextColor), for: [])
+         self.scrubberNode.updateColors(backgroundColor: presentationData.theme.list.controlSecondaryColor.withMultipliedAlpha(0.5), foregroundColor: presentationData.theme.list.itemPrimaryTextColor)
+         self.leftDurationLabel.textColor = presentationData.theme.list.itemSecondaryTextColor
+         self.rightDurationLabel.textColor = presentationData.theme.list.itemSecondaryTextColor
+@@ -888,6 +911,8 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         
+         let rateRightOffset = timestampLabelWidthForDuration(self.currentDuration)
+         transition.updateFrame(node: self.rateButton, frame: CGRect(origin: CGPoint(x: width - sideInset - rightInset - rateRightOffset - 38.0, y: scrubberVerticalOrigin + 10.0 + rightLabelVerticalOffset - 6.0 + UIScreenPixel), size: CGSize(width: 24.0, height: 44.0)))
++        // Cleargram: the same slot on the other side of the scrubber, past the elapsed-time label.
++        transition.updateFrame(node: self.clearEqualizerButton, frame: CGRect(origin: CGPoint(x: leftInset + sideInset + rateRightOffset + 14.0, y: scrubberVerticalOrigin + 10.0 + leftLabelVerticalOffset - 6.0 + UIScreenPixel), size: CGSize(width: 24.0, height: 44.0)))
+         
+         transition.updateFrame(node: self.backgroundNode, frame: CGRect(origin: CGPoint(x: 0.0, y: -8.0), size: CGSize(width: width, height: finalPanelHeight + 8.0)))
+         
+@@ -990,6 +1015,10 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         self.requestCollapse?()
+     }
+     
++    @objc private func clearEqualizerPressed() {
++        clearOpenEqualizer(parentController: self.getParentController())
++    }
++    
+     @objc func sharePressed() {
+         if let itemId = self.currentItemId as? PeerMessagesMediaPlaylistItemId {
+             if itemId.messageId.namespace == Namespaces.Message.Cloud {

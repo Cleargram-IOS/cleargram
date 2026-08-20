@@ -5,13 +5,13 @@ Subject: New app icon
 
 ---
  .../Telegram.icon/Assets/Oval.svg             |   7 -
+ .../Telegram.icon/Assets/Placeholder.svg      |   7 +
  .../Telegram.icon/Assets/Plane.svg            |   7 -
- .../Telegram.icon/Assets/ico 3.png            | Bin 0 -> 25435 bytes
- Telegram/Telegram-iOS/Telegram.icon/icon.json | 143 ++++++------------
- 4 files changed, 48 insertions(+), 109 deletions(-)
+ Telegram/Telegram-iOS/Telegram.icon/icon.json | 138 +++++-------------
+ 4 files changed, 43 insertions(+), 116 deletions(-)
  delete mode 100644 Telegram/Telegram-iOS/Telegram.icon/Assets/Oval.svg
+ create mode 100644 Telegram/Telegram-iOS/Telegram.icon/Assets/Placeholder.svg
  delete mode 100644 Telegram/Telegram-iOS/Telegram.icon/Assets/Plane.svg
- create mode 100644 Telegram/Telegram-iOS/Telegram.icon/Assets/ico 3.png
 
 diff --git a/Telegram/Telegram-iOS/Telegram.icon/Assets/Oval.svg b/Telegram/Telegram-iOS/Telegram.icon/Assets/Oval.svg
 deleted file mode 100644
@@ -27,6 +27,19 @@ index 0000000..0000000
 -    </g>
 -</svg>
 \ No newline at end of file
+diff --git a/Telegram/Telegram-iOS/Telegram.icon/Assets/Placeholder.svg b/Telegram/Telegram-iOS/Telegram.icon/Assets/Placeholder.svg
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/Telegram/Telegram-iOS/Telegram.icon/Assets/Placeholder.svg
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<svg width="1024px" height="1024px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
++    <title>Placeholder</title>
++    <g id="Placeholder" stroke="none" fill="none" fill-rule="nonzero">
++        <path d="M704.8,282.2 A300,300 0 1 0 704.8,741.8" stroke="#FFFFFF" stroke-width="96" stroke-linecap="round" fill="none"></path>
++    </g>
++</svg>
 diff --git a/Telegram/Telegram-iOS/Telegram.icon/Assets/Plane.svg b/Telegram/Telegram-iOS/Telegram.icon/Assets/Plane.svg
 deleted file mode 100644
 index 0000000..0000000
@@ -41,197 +54,11 @@ index 0000000..0000000
 -    </g>
 -</svg>
 \ No newline at end of file
-diff --git a/Telegram/Telegram-iOS/Telegram.icon/Assets/ico 3.png b/Telegram/Telegram-iOS/Telegram.icon/Assets/ico 3.png
-new file mode 100644
-index 0000000000000000000000000000000000000000..c150c0ba52a5a0c858175c1a60a8a4b3c2a5efca
-GIT binary patch
-literal 25435
-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
-
-literal 0
-HcmV?d00001
-
 diff --git a/Telegram/Telegram-iOS/Telegram.icon/icon.json b/Telegram/Telegram-iOS/Telegram.icon/icon.json
 index 0000000..0000000 100644
 --- a/Telegram/Telegram-iOS/Telegram.icon/icon.json
 +++ b/Telegram/Telegram-iOS/Telegram.icon/icon.json
-@@ -1,115 +1,68 @@
+@@ -1,115 +1,49 @@
  {
 -  "fill" : "system-light",
 +  "fill" : "system-dark",
@@ -257,7 +84,7 @@ index 0000000..0000000 100644
 -              "value" : "automatic"
 -            }
 -          ],
-           "glass" : true,
+-          "glass" : true,
 -          "image-name" : "Plane.svg",
 -          "name" : "Plane",
 -          "position-specializations" : [
@@ -272,17 +99,8 @@ index 0000000..0000000 100644
 -              }
 -            }
 -          ]
-+          "image-name" : "ico 3.png",
-+          "name" : "ico 3",
-+          "position" : {
-+            "scale" : 0.75,
-+            "translation-in-points" : [
-+              85,
-+              0
-+            ]
-+          }
-         },
-         {
+-        },
+-        {
 -          "blend-mode-specializations" : [
 -            {
 -              "value" : "normal"
@@ -332,29 +150,23 @@ index 0000000..0000000 100644
 -              }
 -            }
 -          ]
--        }
--      ],
++          "image-name" : "Placeholder.svg",
++          "name" : "Placeholder"
+         }
+       ],
 -      "lighting" : "combined",
 -      "position-specializations" : [
 -        {
 -          "idiom" : "watchOS",
 -          "value" : {
 -            "scale" : 1,
-+          "image-name" : "ico 3.png",
-+          "name" : "ico 3",
-+          "position" : {
-+            "scale" : 0.75,
-             "translation-in-points" : [
+-            "translation-in-points" : [
 -              0,
-+              -85,
-               0
-             ]
-           }
-         }
-       ],
-       "shadow" : {
--        "kind" : "layer-color",
--        "opacity" : 1
+-              0
+-            ]
+-          }
+-        }
++      "shadow" : {
 +        "kind" : "neutral",
 +        "opacity" : 0.5
 +      },
@@ -381,8 +193,10 @@ index 0000000..0000000 100644
 +    {
 +      "layers" : [
 +
-+      ],
-+      "shadow" : {
+       ],
+       "shadow" : {
+-        "kind" : "layer-color",
+-        "opacity" : 1
 +        "kind" : "neutral",
 +        "opacity" : 0.5
        },
@@ -395,3 +209,10 @@ index 0000000..0000000 100644
        }
      }
    ],
+@@ -119,4 +53,4 @@
+     ],
+     "squares" : "shared"
+   }
+-}
+\ No newline at end of file
++}

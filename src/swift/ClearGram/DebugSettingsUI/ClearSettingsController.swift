@@ -108,10 +108,23 @@ private struct ClearAction {
     }
 }
 
+// A row that opens a URL. `t.me` links are handed to the app's own resolver, so the channel
+// opens as a chat rather than in a browser.
+//
+// Rendered like the rows that open a screen — tinted glyph on the left, destination on the right —
+// so the hub reads as one list rather than a list with a plain button stapled to it.
+private struct ClearLink {
+    let title: String
+    let label: String
+    let icon: UIImage?
+    let url: String
+}
+
 private enum ClearRow {
     case toggle(ClearToggle)
     case select(ClearSelect)
     case action(ClearAction)
+    case link(ClearLink)
     case screen(ClearScreen)
     case reset(title: String)
 }
@@ -173,6 +186,7 @@ private enum ClearEntry: ItemListNodeEntry {
     case select(section: Int, index: Int, title: String, label: String)
     case action(section: Int, index: Int, title: String, label: String?)
     case disclosure(section: Int, index: Int, title: String)
+    case link(section: Int, index: Int, title: String, label: String)
     case reset(section: Int, index: Int, title: String)
     case footer(section: Int, text: String)
 
@@ -183,6 +197,7 @@ private enum ClearEntry: ItemListNodeEntry {
              let .select(section, _, _, _),
              let .action(section, _, _, _),
              let .disclosure(section, _, _),
+             let .link(section, _, _, _),
              let .reset(section, _, _),
              let .footer(section, _):
             return ItemListSectionId(section)
@@ -202,6 +217,8 @@ private enum ClearEntry: ItemListNodeEntry {
         case let .action(section, index, _, _):
             return section * 1000 + 10 + index
         case let .disclosure(section, index, _):
+            return section * 1000 + 10 + index
+        case let .link(section, index, _, _):
             return section * 1000 + 10 + index
         case let .reset(section, index, _):
             return section * 1000 + 10 + index
@@ -224,6 +241,8 @@ private enum ClearEntry: ItemListNodeEntry {
             return ls == rs && li == ri && lt == rt && ll == rl
         case let (.disclosure(ls, li, lt), .disclosure(rs, ri, rt)):
             return ls == rs && li == ri && lt == rt
+        case let (.link(ls, li, lt, ll), .link(rs, ri, rt, rl)):
+            return ls == rs && li == ri && lt == rt && ll == rl
         case let (.reset(ls, li, lt), .reset(rs, ri, rt)):
             return ls == rs && li == ri && lt == rt
         case let (.footer(ls, lt), .footer(rs, rt)):
@@ -314,6 +333,23 @@ private enum ClearEntry: ItemListNodeEntry {
                     args.openRow(section, index)
                 }
             )
+        case let .link(section, index, title, label):
+            var icon: UIImage?
+            if case let .link(link) = args.screen.sections[section].rows[index] {
+                icon = link.icon
+            }
+            return ItemListDisclosureItem(
+                presentationData: presentationData,
+                systemStyle: .glass,
+                icon: icon,
+                title: title,
+                label: label,
+                sectionId: self.section,
+                style: .blocks,
+                action: {
+                    args.openRow(section, index)
+                }
+            )
         case let .reset(_, _, title):
             return ItemListActionItem(
                 presentationData: presentationData,
@@ -380,6 +416,8 @@ private func clearEntries(screen: ClearScreen, settings: ClearConfigSettings, ex
                 entries.append(.select(section: sectionIndex, index: rowIndex, title: select.title, label: select.label(settings)))
             case let .action(action):
                 entries.append(.action(section: sectionIndex, index: rowIndex, title: action.title, label: action.label?(settings)))
+            case let .link(link):
+                entries.append(.link(section: sectionIndex, index: rowIndex, title: link.title, label: link.label))
             case let .screen(child):
                 entries.append(.disclosure(section: sectionIndex, index: rowIndex, title: child.title))
             case let .reset(title):
@@ -398,6 +436,7 @@ private func clearEntries(screen: ClearScreen, settings: ClearConfigSettings, ex
 private func clearScreenController(context: AccountContext, screen: ClearScreen) -> ViewController {
     var pushImpl: ((ViewController) -> Void)?
     var presentImpl: ((ViewController) -> Void)?
+    var openUrlImpl: ((String) -> Void)?
     var askForRestartImpl: (() -> Void)?
 
     let accountManager = context.sharedContext.accountManager
@@ -461,6 +500,8 @@ private func clearScreenController(context: AccountContext, screen: ClearScreen)
                 }, { controller in
                     pushImpl?(controller)
                 })
+            case let .link(link):
+                openUrlImpl?(link.url)
             case .toggle, .reset:
                 break
             }
@@ -521,6 +562,18 @@ private func clearScreenController(context: AccountContext, screen: ClearScreen)
     presentImpl = { [weak controller] alert in
         controller?.present(alert, in: .window(.root))
     }
+    openUrlImpl = { [weak controller] url in
+        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        context.sharedContext.openExternalUrl(
+            context: context,
+            urlContext: .generic,
+            url: url,
+            forceExternal: false,
+            presentationData: presentationData,
+            navigationController: controller?.navigationController as? NavigationController,
+            dismissInput: {}
+        )
+    }
     askForRestartImpl = { [weak controller] in
         guard let controller else {
             return
@@ -566,9 +619,13 @@ private enum ClearIcon {
     static let profile = renderSettingsIcon(name: "Item List/Icons/Profile", backgroundColors: [UIColor(rgb: 0xFF453A)])
     static let privacy = renderSettingsIcon(name: "Item List/Icons/Privacy", backgroundColors: [UIColor(rgb: 0x8E8E93)])
     static let debloat = renderSettingsIcon(name: "Item List/Icons/NoAds", backgroundColors: [UIColor(rgb: 0xFFCC02)])
+    static let channel = renderSettingsIcon(name: "Item List/Icons/Channel", backgroundColors: [UIColor(rgb: 0x0088CC)])
 }
 
 // MARK: - The settings tree
+
+private let clearChannelUsername = "@cleargramios"
+private let clearChannelUrl = "https://t.me/cleargramios"
 
 private func clearRootScreen() -> ClearScreen {
     return ClearScreen(title: "Cleargram", sections: [
@@ -593,6 +650,16 @@ private func clearRootScreen() -> ClearScreen {
                 .screen(clearProfileScreen()),
                 .screen(clearPrivacyScreen()),
                 .screen(clearDebloatScreen())
+            ]
+        ),
+        ClearSection(
+            rows: [
+                .link(ClearLink(
+                    title: L("Open Channel", "Перейти в канал"),
+                    label: clearChannelUsername,
+                    icon: ClearIcon.channel,
+                    url: clearChannelUrl
+                ))
             ]
         ),
         ClearSection(
@@ -1061,6 +1128,16 @@ private func clearMediaScreen() -> ClearScreen {
             },
             rows: [
                 .toggle(ClearToggle(L("Show Codec & Bitrate", "Показывать кодек и битрейт"), .config(\.showAudioFormatBitrate)))
+            ]
+        ),
+        ClearSection(
+            header: L("EQUALIZER", "ЭКВАЛАЙЗЕР"),
+            footer: L(
+                "Opens with a button in the music player.",
+                "Открывается кнопкой в плеере."
+            ),
+            rows: [
+                .toggle(ClearToggle(L("Equalizer", "Эквалайзер"), .config(\.equalizerEnabled)))
             ]
         ),
         ClearSection(
