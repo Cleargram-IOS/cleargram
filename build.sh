@@ -35,6 +35,12 @@ PNPM="${CLEARGRAM_PNPM:-pnpm}"
 
 # Optional local stgit patches, flipped around the build (see below). Each one is skipped
 # when it is not in the stack, so a checkout without them just builds.
+#
+# Every flip below passes -k (--keep). Without it stg push/pop fold an uncommitted worktree
+# into whatever patch happens to be on top before moving the stack, so a build started while
+# work is in progress silently rewrites someone else's patch — and the build/dirty-stamps
+# archive, which runs after the flip, then records an empty diff and cannot undo it. With -k
+# the changes stay in the tree, and a genuine conflict fails loudly instead. Keep the -k.
 PATCH_SIGNING="${CLEARGRAM_SIGNING_PATCH:-local__signing}"
 PATCH_NO_EXTENSIONS="${CLEARGRAM_NO_EXTENSIONS_PATCH:-local__disable-extensions}"
 PATCH_UNSIGNED_DIST="${CLEARGRAM_UNSIGNED_DIST_PATCH:-local__unsigned-dist}"
@@ -193,7 +199,7 @@ APPLIED="$(stg -C "$REPO/worktree" series --applied 2>/dev/null || true)"
 if patch_exists "$PATCH_NO_EXTENSIONS" && \
    ! printf '%s\n' "$APPLIED" | grep -qF -- "$PATCH_NO_EXTENSIONS"; then
     echo "==> applying $PATCH_NO_EXTENSIONS"
-    stg -C "$REPO/worktree" push "$PATCH_NO_EXTENSIONS" || {
+    stg -C "$REPO/worktree" push -k "$PATCH_NO_EXTENSIONS" || {
         echo "error: could not apply $PATCH_NO_EXTENSIONS" >&2; exit 1; }
 fi
 
@@ -207,18 +213,18 @@ cleanup() {
     [ -n "$STAGE" ] && rm -rf "$STAGE"
     if [ "$DIST_FLIPPED" = 1 ]; then
         if [ "$DIST_WAS_APPLIED" = 1 ]; then
-            stg -C "$REPO/worktree" push "$PATCH_UNSIGNED_DIST" >/dev/null 2>&1 || true
+            stg -C "$REPO/worktree" push -k "$PATCH_UNSIGNED_DIST" >/dev/null 2>&1 || true
         else
-            stg -C "$REPO/worktree" pop "$PATCH_UNSIGNED_DIST" >/dev/null 2>&1 || true
+            stg -C "$REPO/worktree" pop -k "$PATCH_UNSIGNED_DIST" >/dev/null 2>&1 || true
         fi
     fi
     if [ "$SIGNING_FLIPPED" = 1 ]; then
         echo "==> restoring $PATCH_SIGNING"
         if [ "$SIGNING_WAS_APPLIED" = 1 ]; then
-            stg -C "$REPO/worktree" push "$PATCH_SIGNING" >/dev/null || \
+            stg -C "$REPO/worktree" push -k "$PATCH_SIGNING" >/dev/null || \
                 echo "warning: could not re-apply $PATCH_SIGNING — do it by hand" >&2
         else
-            stg -C "$REPO/worktree" pop "$PATCH_SIGNING" >/dev/null || \
+            stg -C "$REPO/worktree" pop -k "$PATCH_SIGNING" >/dev/null || \
                 echo "warning: could not pop $PATCH_SIGNING — do it by hand" >&2
         fi
     fi
@@ -236,12 +242,12 @@ NEED_SIGNING_PATCH=0
 if patch_exists "$PATCH_SIGNING"; then
     if [ "$NEED_SIGNING_PATCH" = 1 ] && [ "$SIGNING_WAS_APPLIED" = 0 ]; then
         echo "==> applying $PATCH_SIGNING (ad-hoc signing needs the app group)"
-        stg -C "$REPO/worktree" push "$PATCH_SIGNING" || {
+        stg -C "$REPO/worktree" push -k "$PATCH_SIGNING" || {
             echo "error: could not apply $PATCH_SIGNING" >&2; exit 1; }
         SIGNING_FLIPPED=1
     elif [ "$NEED_SIGNING_PATCH" = 0 ] && [ "$SIGNING_WAS_APPLIED" = 1 ]; then
         echo "==> popping $PATCH_SIGNING (this build must not hardcode the app group)"
-        stg -C "$REPO/worktree" pop "$PATCH_SIGNING" || {
+        stg -C "$REPO/worktree" pop -k "$PATCH_SIGNING" || {
             echo "error: could not pop $PATCH_SIGNING — is the worktree dirty?" >&2; exit 1; }
         SIGNING_FLIPPED=1
     fi
@@ -250,12 +256,12 @@ fi
 if patch_exists "$PATCH_UNSIGNED_DIST"; then
     if [ "$SIGN" = 0 ] && [ "$DIST_WAS_APPLIED" = 0 ]; then
         echo "==> applying $PATCH_UNSIGNED_DIST"
-        stg -C "$REPO/worktree" push "$PATCH_UNSIGNED_DIST" || {
+        stg -C "$REPO/worktree" push -k "$PATCH_UNSIGNED_DIST" || {
             echo "error: could not apply $PATCH_UNSIGNED_DIST" >&2; exit 1; }
         DIST_FLIPPED=1
     elif [ "$SIGN" = 1 ] && [ "$DIST_WAS_APPLIED" = 1 ]; then
         echo "==> popping $PATCH_UNSIGNED_DIST"
-        stg -C "$REPO/worktree" pop "$PATCH_UNSIGNED_DIST" || {
+        stg -C "$REPO/worktree" pop -k "$PATCH_UNSIGNED_DIST" || {
             echo "error: could not pop $PATCH_UNSIGNED_DIST" >&2; exit 1; }
         DIST_FLIPPED=1
     fi
