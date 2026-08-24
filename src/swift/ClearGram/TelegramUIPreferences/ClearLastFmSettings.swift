@@ -62,9 +62,10 @@ public struct ClearLastFmSettings: Codable, Equatable {
     // Scrobbles that failed to reach Last.fm, oldest first. See ClearLastFmSettings.maxPending.
     public var pendingRaw: [String]
 
-    // Last.fm accepts at most 50 scrobbles per request; two batches is a sane ceiling for a
-    // queue that only fills up while offline.
-    public static let maxPending = 100
+    // Last.fm accepts at most 50 scrobbles per request; four batches is a sane ceiling for a queue
+    // that only fills up while offline. Larger buys little: Last.fm ignores scrobbles older than
+    // two weeks, and the whole queue is rewritten on every scrobble (it's a shared-data blob).
+    public static let maxPending = 200
 
     public static var defaultSettings: ClearLastFmSettings {
         return ClearLastFmSettings(apiKey: "", apiSecret: "", sessionKey: "", username: "", pendingRaw: [])

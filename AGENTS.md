@@ -293,9 +293,11 @@ could not have guessed from the title. Keep the mechanism and the catch; drop th
 - `ClearSettingsController` (`src/swift/ClearGram/DebugSettingsUI/`) is the real home. The screen
   tree is **data** — `clearRootScreen()` at the bottom of the file. Row kinds: `.toggle`
   (`ClearToggle`, a `WritableKeyPath<…, Bool>` into `ClearConfigSettings` or
-  `ExperimentalUISettings`, or `.soon(title:plan:)` for a disabled placeholder), `.select`
-  (`ClearSelect`, a `WritableKeyPath<…, Int32>` + a fixed option list, rendered as a disclosure row
-  with an action sheet), `.action` (`ClearAction`, a plain tappable row that runs code — used by
+  `ExperimentalUISettings`, or `.soon(title:plan:)` for a disabled placeholder), `.slider`
+  (`ClearSlider`, a `WritableKeyPath<…, Int32>` + min/max/step + a value `format` closure, rendered
+  by the fork `ClearSliderItem` around a system `UISlider` — native iOS 26 look, snaps to the step,
+  persists on drag-end only, and takes an optional `isEnabled` to grey out when its feature is off),
+  `.action` (`ClearAction`, a plain tappable row that runs code — used by
   the settings export/import), `.screen` (nested `ClearScreen`) and `.reset`. Adding an option is
   normally one line; the ids, equality and `ItemList` plumbing are generic.
 - Any toggle that needs a restart → show a "Restart required" alert in the click handler.

@@ -16,7 +16,8 @@ import TelegramUIPreferences
 // Last.fm's own submission rules are what decide when a track counts as played:
 //   - the track must be longer than 30 seconds;
 //   - it must have been played for at least half its length, or four minutes, whichever comes
-//     first.
+//     first. The half is configurable (ClearConfig.scrobbleThresholdPercent, 25–100%); the
+//     four-minute cap is not.
 // Playtime is accumulated from the player's own position, so seeking backwards to replay a
 // chorus doesn't count twice and skipping forward doesn't count at all.
 //
@@ -159,7 +160,10 @@ public final class ClearScrobbler {
         guard self.trackDuration > ClearScrobbler.minimumTrackDuration else {
             return false
         }
-        let required = min(self.trackDuration / 2.0, ClearScrobbler.maximumRequiredPlayback)
+        // Configurable share of the track (ClearConfig.scrobbleThresholdPercent, default 50%), still
+        // capped at four minutes so a long track never has to be played out in full.
+        let percent = max(25, min(100, ClearConfig.scrobbleThresholdPercent))
+        let required = min(self.trackDuration * Double(percent) / 100.0, ClearScrobbler.maximumRequiredPlayback)
         return self.accumulatedDuration >= required
     }
 

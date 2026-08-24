@@ -91,6 +91,9 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var importSettingsFromChats: Bool
     public var lastFmScrobbling: Bool
     public var lastFmNowPlaying: Bool
+    // Fraction of a track (25–100%) that must be played before it is scrobbled. Last.fm's own rule
+    // is 50% or four minutes; ClearScrobbler keeps the four-minute cap and only swaps the fraction.
+    public var scrobbleThresholdPercent: Int32
     // Candidate speech-recognition locales for on-device transcription ("ru-RU", "en-US"…),
     // in priority order. Empty = the system language, which is what stock uses and the only
     // thing it can use. Each entry costs another pass over the audio — see
@@ -190,6 +193,7 @@ public struct ClearConfigSettings: Codable, Equatable {
             importSettingsFromChats: true,
             lastFmScrobbling: false,
             lastFmNowPlaying: false,
+            scrobbleThresholdPercent: 50,
             transcriptionLocales: [],
             roundVideoKeepCorners: false,
             equalizerEnabled: false,
@@ -279,6 +283,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         importSettingsFromChats: Bool = true,
         lastFmScrobbling: Bool = false,
         lastFmNowPlaying: Bool = false,
+        scrobbleThresholdPercent: Int32 = 50,
         transcriptionLocales: [String] = [],
         roundVideoKeepCorners: Bool = false,
         equalizerEnabled: Bool = false,
@@ -365,6 +370,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.importSettingsFromChats = importSettingsFromChats
         self.lastFmScrobbling = lastFmScrobbling
         self.lastFmNowPlaying = lastFmNowPlaying
+        self.scrobbleThresholdPercent = scrobbleThresholdPercent
         self.transcriptionLocales = transcriptionLocales
         self.roundVideoKeepCorners = roundVideoKeepCorners
         self.equalizerEnabled = equalizerEnabled
@@ -394,7 +400,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case recentStickersLimit
         case swipeActionPin, swipeActionMute, swipeActionRead, swipeActionDelete, swipeActionArchive, swipeActionsLeft, swipeActionsRight
         case importSettingsFromChats
-        case lastFmScrobbling, lastFmNowPlaying, transcriptionLocales
+        case lastFmScrobbling, lastFmNowPlaying, scrobbleThresholdPercent, transcriptionLocales
         case roundVideoKeepCorners
         case equalizerEnabled, equalizerPreamp, equalizerGains
     }
@@ -484,6 +490,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.importSettingsFromChats = try c.decodeIfPresent(Bool.self, forKey: .importSettingsFromChats) ?? true
         self.lastFmScrobbling = try c.decodeIfPresent(Bool.self, forKey: .lastFmScrobbling) ?? false
         self.lastFmNowPlaying = try c.decodeIfPresent(Bool.self, forKey: .lastFmNowPlaying) ?? false
+        self.scrobbleThresholdPercent = try c.decodeIfPresent(Int32.self, forKey: .scrobbleThresholdPercent) ?? 50
         self.transcriptionLocales = try c.decodeIfPresent([String].self, forKey: .transcriptionLocales) ?? []
         self.roundVideoKeepCorners = try c.decodeIfPresent(Bool.self, forKey: .roundVideoKeepCorners) ?? false
         self.equalizerEnabled = try c.decodeIfPresent(Bool.self, forKey: .equalizerEnabled) ?? false

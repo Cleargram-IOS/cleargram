@@ -134,6 +134,7 @@ public enum ClearConfig {
     public static var importSettingsFromChats: Bool { current().importSettingsFromChats }
     public static var lastFmScrobbling: Bool { current().lastFmScrobbling }
     public static var lastFmNowPlaying: Bool { current().lastFmNowPlaying }
+    public static var scrobbleThresholdPercent: Int32 { current().scrobbleThresholdPercent }
     public static var transcriptionLocales: [String] { current().transcriptionLocales }
     public static var roundVideoKeepCorners: Bool { current().roundVideoKeepCorners }
     public static var equalizerEnabled: Bool { current().equalizerEnabled }

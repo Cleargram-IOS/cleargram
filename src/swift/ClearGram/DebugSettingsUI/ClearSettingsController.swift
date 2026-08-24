@@ -73,17 +73,30 @@ private struct ClearToggle {
     }
 }
 
-// A row that picks one of a fixed set of Int32 values, shown as a disclosure row with the current
-// value as its label and an action sheet with the options.
-private struct ClearSelect {
+// A row with a horizontal slider for an Int32 value (see ClearSliderItem). `format` renders the
+// current value into the label on the right and updates live while dragging; `isEnabled` greys the
+// row out (e.g. a threshold that only matters while its feature is on).
+private struct ClearSlider {
     let title: String
     let keyPath: WritableKeyPath<ClearConfigSettings, Int32>
-    // (value, row title). The first entry should be the stock default.
-    let options: [(Int32, String)]
+    let minValue: Int32
+    let maxValue: Int32
+    let step: Int32
+    let format: (Int32) -> String
+    let isEnabled: ((ClearConfigSettings) -> Bool)?
 
-    func label(_ settings: ClearConfigSettings) -> String {
-        let current = settings[keyPath: self.keyPath]
-        return self.options.first(where: { $0.0 == current })?.1 ?? "\(current)"
+    init(title: String, keyPath: WritableKeyPath<ClearConfigSettings, Int32>, minValue: Int32, maxValue: Int32, step: Int32, format: @escaping (Int32) -> String, isEnabled: ((ClearConfigSettings) -> Bool)? = nil) {
+        self.title = title
+        self.keyPath = keyPath
+        self.minValue = minValue
+        self.maxValue = maxValue
+        self.step = step
+        self.format = format
+        self.isEnabled = isEnabled
+    }
+
+    func value(_ settings: ClearConfigSettings) -> Int32 {
+        return min(self.maxValue, max(self.minValue, settings[keyPath: self.keyPath]))
     }
 }
 
@@ -122,7 +135,7 @@ private struct ClearLink {
 
 private enum ClearRow {
     case toggle(ClearToggle)
-    case select(ClearSelect)
+    case slider(ClearSlider)
     case action(ClearAction)
     case link(ClearLink)
     case screen(ClearScreen)
@@ -157,11 +170,11 @@ private final class ClearSection {
         return toggle
     }
 
-    func select(at index: Int) -> ClearSelect? {
-        guard index < self.rows.count, case let .select(select) = self.rows[index] else {
+    func slider(at index: Int) -> ClearSlider? {
+        guard index < self.rows.count, case let .slider(slider) = self.rows[index] else {
             return nil
         }
-        return select
+        return slider
     }
 }
 
@@ -183,7 +196,7 @@ private final class ClearScreen {
 private enum ClearEntry: ItemListNodeEntry {
     case header(section: Int, text: String)
     case toggle(section: Int, index: Int, title: String, subtitle: String?, value: Bool, enabled: Bool)
-    case select(section: Int, index: Int, title: String, label: String)
+    case slider(section: Int, index: Int, title: String, value: Int32, minValue: Int32, maxValue: Int32, step: Int32, enabled: Bool)
     case action(section: Int, index: Int, title: String, label: String?)
     case disclosure(section: Int, index: Int, title: String)
     case link(section: Int, index: Int, title: String, label: String)
@@ -194,7 +207,7 @@ private enum ClearEntry: ItemListNodeEntry {
         switch self {
         case let .header(section, _),
              let .toggle(section, _, _, _, _, _),
-             let .select(section, _, _, _),
+             let .slider(section, _, _, _, _, _, _, _),
              let .action(section, _, _, _),
              let .disclosure(section, _, _),
              let .link(section, _, _, _),
@@ -212,7 +225,7 @@ private enum ClearEntry: ItemListNodeEntry {
             return section * 1000
         case let .toggle(section, index, _, _, _, _):
             return section * 1000 + 10 + index
-        case let .select(section, index, _, _):
+        case let .slider(section, index, _, _, _, _, _, _):
             return section * 1000 + 10 + index
         case let .action(section, index, _, _):
             return section * 1000 + 10 + index
@@ -235,8 +248,8 @@ private enum ClearEntry: ItemListNodeEntry {
             return ls == rs && lt == rt
         case let (.toggle(ls, li, lt, lsub, lv, le), .toggle(rs, ri, rt, rsub, rv, re)):
             return ls == rs && li == ri && lt == rt && lsub == rsub && lv == rv && le == re
-        case let (.select(ls, li, lt, ll), .select(rs, ri, rt, rl)):
-            return ls == rs && li == ri && lt == rt && ll == rl
+        case let (.slider(ls, li, lt, lv, lmin, lmax, lstep, le), .slider(rs, ri, rt, rv, rmin, rmax, rstep, re)):
+            return ls == rs && li == ri && lt == rt && lv == rv && lmin == rmin && lmax == rmax && lstep == rstep && le == re
         case let (.action(ls, li, lt, ll), .action(rs, ri, rt, rl)):
             return ls == rs && li == ri && lt == rt && ll == rl
         case let (.disclosure(ls, li, lt), .disclosure(rs, ri, rt)):
@@ -276,17 +289,22 @@ private enum ClearEntry: ItemListNodeEntry {
                     }
                 }
             )
-        case let .select(section, index, title, label):
-            return ItemListDisclosureItem(
-                presentationData: presentationData,
-                systemStyle: .glass,
-                icon: nil,
+        case let .slider(section, index, title, value, minValue, maxValue, step, enabled):
+            let slider = args.screen.sections[section].slider(at: index)
+            return ClearSliderItem(
+                theme: presentationData.theme,
                 title: title,
-                label: label,
+                value: value,
+                minValue: minValue,
+                maxValue: maxValue,
+                step: step,
+                isEnabled: enabled,
+                format: slider?.format ?? { "\($0)" },
                 sectionId: self.section,
-                style: .blocks,
-                action: {
-                    args.openRow(section, index)
+                updated: { newValue, finished in
+                    if finished, let slider {
+                        args.updateSlider(slider, newValue)
+                    }
                 }
             )
         case let .action(section, index, title, label):
@@ -371,6 +389,7 @@ private final class ClearArguments {
     let context: AccountContext
     let screen: ClearScreen
     let updateToggle: (ClearToggle, Bool) -> Void
+    let updateSlider: (ClearSlider, Int32) -> Void
     let openRow: (Int, Int) -> Void
     let reset: () -> Void
 
@@ -378,12 +397,14 @@ private final class ClearArguments {
         context: AccountContext,
         screen: ClearScreen,
         updateToggle: @escaping (ClearToggle, Bool) -> Void,
+        updateSlider: @escaping (ClearSlider, Int32) -> Void,
         openRow: @escaping (Int, Int) -> Void,
         reset: @escaping () -> Void
     ) {
         self.context = context
         self.screen = screen
         self.updateToggle = updateToggle
+        self.updateSlider = updateSlider
         self.openRow = openRow
         self.reset = reset
     }
@@ -412,8 +433,17 @@ private func clearEntries(screen: ClearScreen, settings: ClearConfigSettings, ex
                     value: toggle.value(settings, experimental),
                     enabled: enabled
                 ))
-            case let .select(select):
-                entries.append(.select(section: sectionIndex, index: rowIndex, title: select.title, label: select.label(settings)))
+            case let .slider(slider):
+                entries.append(.slider(
+                    section: sectionIndex,
+                    index: rowIndex,
+                    title: slider.title,
+                    value: slider.value(settings),
+                    minValue: slider.minValue,
+                    maxValue: slider.maxValue,
+                    step: slider.step,
+                    enabled: slider.isEnabled?(settings) ?? true
+                ))
             case let .action(action):
                 entries.append(.action(section: sectionIndex, index: rowIndex, title: action.title, label: action.label?(settings)))
             case let .link(link):
@@ -467,33 +497,17 @@ private func clearScreenController(context: AccountContext, screen: ClearScreen)
                 askForRestartImpl?()
             }
         },
+        updateSlider: { slider, value in
+            let _ = ClearConfig.update(accountManager: accountManager) { current in
+                var updated = current
+                updated[keyPath: slider.keyPath] = value
+                return updated
+            }.start()
+        },
         openRow: { sectionIndex, rowIndex in
             switch screen.sections[sectionIndex].rows[rowIndex] {
             case let .screen(child):
                 pushImpl?(clearScreenController(context: context, screen: child))
-            case let .select(select):
-                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-                let actionSheet = ActionSheetController(presentationData: presentationData)
-                var items: [ActionSheetButtonItem] = []
-                for (value, optionTitle) in select.options {
-                    items.append(ActionSheetButtonItem(title: optionTitle, color: .accent, action: { [weak actionSheet] in
-                        actionSheet?.dismissAnimated()
-                        let _ = ClearConfig.update(accountManager: accountManager) { current in
-                            var updated = current
-                            updated[keyPath: select.keyPath] = value
-                            return updated
-                        }.start()
-                    }))
-                }
-                actionSheet.setItemGroups([
-                    ActionSheetItemGroup(items: items),
-                    ActionSheetItemGroup(items: [
-                        ActionSheetButtonItem(title: presentationData.strings.Common_Cancel, color: .accent, font: .bold, action: { [weak actionSheet] in
-                            actionSheet?.dismissAnimated()
-                        })
-                    ])
-                ])
-                presentImpl?(actionSheet)
             case let .action(action):
                 action.perform(context, { controller, _ in
                     presentImpl?(controller)
@@ -502,7 +516,7 @@ private func clearScreenController(context: AccountContext, screen: ClearScreen)
                 })
             case let .link(link):
                 openUrlImpl?(link.url)
-            case .toggle, .reset:
+            case .toggle, .slider, .reset:
                 break
             }
         },
@@ -1102,8 +1116,8 @@ private func clearMediaScreen() -> ClearScreen {
         ClearSection(
             header: L("LAST.FM", "LAST.FM"),
             footer: L(
-                "Scrobbling writes what you play into your Last.fm history once a track is half done. “Now Playing” shows a live label on your profile. Sign in under Last.fm Account.",
-                "Скробблинг записывает прослушанное в историю Last.fm, когда трек проигран наполовину. «Сейчас играет» показывает живую надпись в профиле. Вход — в «Аккаунте Last.fm»."
+                "Scrobbling writes what you play into your Last.fm history once you've played enough of a track. “Now Playing” shows a live label on your profile. Sign in under Last.fm Account.",
+                "Скробблинг записывает прослушанное в историю Last.fm, когда трек проигран достаточно. «Сейчас играет» показывает живую надпись в профиле. Вход — в «Аккаунте Last.fm»."
             ),
             rows: [
                 .toggle(ClearToggle(
@@ -1129,6 +1143,24 @@ private func clearMediaScreen() -> ClearScreen {
                     perform: { context, _, push in
                         push(clearLastFmController(context: context))
                     }
+                ))
+            ]
+        ),
+        ClearSection(
+            header: L("SCROBBLE THRESHOLD", "ПОРОГ СКРОББЛА"),
+            footer: L(
+                "How much of a track must play before it counts.",
+                "Сколько трека нужно проиграть, чтобы он засчитался."
+            ),
+            rows: [
+                .slider(ClearSlider(
+                    title: L("Track Played", "Прослушано трека"),
+                    keyPath: \.scrobbleThresholdPercent,
+                    minValue: 25,
+                    maxValue: 100,
+                    step: 5,
+                    format: { "\($0)%" },
+                    isEnabled: { $0.lastFmScrobbling }
                 ))
             ]
         ),
@@ -1161,10 +1193,13 @@ private func clearMediaScreen() -> ClearScreen {
                 "Telegram держит не больше 20 недавних стикеров; Cleargram сохраняет лишние локально. Они набираются по мере использования и не синхронизируются на другие устройства."
             ),
             rows: [
-                .select(ClearSelect(
+                .slider(ClearSlider(
                     title: L("Keep", "Хранить"),
                     keyPath: \.recentStickersLimit,
-                    options: [(0, L("Default (20)", "По умолчанию (20)")), (30, "30"), (50, "50"), (100, "100"), (200, "200")]
+                    minValue: 20,
+                    maxValue: 200,
+                    step: 10,
+                    format: { "\($0)" }
                 ))
             ]
         )
