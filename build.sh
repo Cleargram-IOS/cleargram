@@ -302,7 +302,21 @@ if [ "$CLEAN" = 1 ]; then
         --overrideXcodeVersion --cacheDir "$CACHE_DIR" clean
 fi
 
-echo "==> building $CONFIG$([ "$SIGN" = 1 ] && echo ' (signed)' || echo ' (unsigned)')"
+# Persistent, monotonically increasing build number. Bumps CFBundleVersion every build so the
+# device installs it as an upgrade (replaces the binary, keeps the data container / login) instead
+# of skipping the install when the version is unchanged. Also shown at the bottom of Cleargram
+# Settings (read from CFBundleVersion at runtime, so it stays out of the Bazel-input ClearBuildInfo)
+# and put into the .ipa filename. Override with CLEARGRAM_BUILD_NUMBER=<n>.
+BUILD_NUMBER_FILE="$REPO/build/build-number"
+if [ -n "${CLEARGRAM_BUILD_NUMBER:-}" ]; then
+    BUILD_NUMBER="$CLEARGRAM_BUILD_NUMBER"
+else
+    mkdir -p "$REPO/build"
+    BUILD_NUMBER=$(( $(cat "$BUILD_NUMBER_FILE" 2>/dev/null || echo 0) + 1 ))
+    echo "$BUILD_NUMBER" > "$BUILD_NUMBER_FILE"
+fi
+
+echo "==> building $CONFIG (build $BUILD_NUMBER)$([ "$SIGN" = 1 ] && echo ' (signed)' || echo ' (unsigned)')"
 DEVELOPER_DIR="$XCODE" python3 build-system/Make/Make.py \
     --overrideXcodeVersion \
     --cacheDir "$CACHE_DIR" \
@@ -311,7 +325,7 @@ DEVELOPER_DIR="$XCODE" python3 build-system/Make/Make.py \
     --configurationPath build-system/template_minimal_development_configuration.json \
     "${CODESIGN_ARGS[@]}" \
     --configuration="$CONFIG" \
-    --buildNumber=1 \
+    --buildNumber="$BUILD_NUMBER" \
     --outputBuildArtifactsPath="$ARTIFACTS"
 
 echo
@@ -351,10 +365,10 @@ if [ "$COPY" = 1 ]; then
     if [ "$SIGN" = 1 ]; then
         find "$HOME/Downloads" -maxdepth 1 -name "Cleargram-$FLAVOUR-*.ipa" \
             ! -name "Cleargram-$FLAVOUR-*-unsigned.ipa" -delete 2>/dev/null || true
-        DEST="$HOME/Downloads/Cleargram-$FLAVOUR-$BUILD_ID.ipa"
+        DEST="$HOME/Downloads/Cleargram-$FLAVOUR-b$BUILD_NUMBER-$BUILD_ID.ipa"
     else
         rm -f "$HOME/Downloads/Cleargram-$FLAVOUR"-*-unsigned.ipa
-        DEST="$HOME/Downloads/Cleargram-$FLAVOUR-$BUILD_ID-unsigned.ipa"
+        DEST="$HOME/Downloads/Cleargram-$FLAVOUR-b$BUILD_NUMBER-$BUILD_ID-unsigned.ipa"
     fi
     # cp onto an existing file overwrites it in place — macOS then keeps the old inode's
     # creation date, so a rebuilt .ipa looks stale in Finder even though its bytes are new.
