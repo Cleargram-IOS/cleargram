@@ -28,6 +28,7 @@ public enum ClearConfig {
             // The Camera submodule depends on TelegramCore but not on TelegramUIPreferences,
             // so the square-video-message toggle can only reach it through ClearHooks.
             _ = ClearHooks.roundVideoKeepCorners.swap(value.roundVideoKeepCorners)
+            _ = ClearHooks.improveRoundVideoQuality.swap(value.improveRoundVideoQuality)
             // The equalizer is read from the audio renderer's own queue, so it gets its own
             // mirror rather than a ClearConfig lookup — and `update` notifies every live renderer,
             // which is what makes a change audible on the track already playing.
@@ -137,9 +138,11 @@ public enum ClearConfig {
     public static var scrobbleThresholdPercent: Int32 { current().scrobbleThresholdPercent }
     public static var transcriptionLocales: [String] { current().transcriptionLocales }
     public static var roundVideoKeepCorners: Bool { current().roundVideoKeepCorners }
+    public static var improveRoundVideoQuality: Bool { current().improveRoundVideoQuality }
     public static var equalizerEnabled: Bool { current().equalizerEnabled }
     public static var equalizerPreamp: Int32 { current().equalizerPreamp }
     public static var equalizerGains: [Int32] { current().equalizerGains }
+    public static var showContactAddedYouBadge: Bool { current().showContactAddedYouBadge }
     // What the audio renderer actually consumes. Kept next to the raw accessors so the screen and
     // the renderer can never disagree about how the three fields combine.
     public static func equalizerState(_ settings: ClearConfigSettings) -> ClearEqualizer.State {

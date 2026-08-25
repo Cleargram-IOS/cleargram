@@ -1,0 +1,81 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Tue, 25 Aug 2026 21:29:16 +0800
+Subject: Remove account count limit
+
+---
+ submodules/AccountUtils/Sources/AccountUtils.swift       | 9 +++++++--
+ .../SettingsUI/Sources/LogoutOptionsController.swift     | 8 +++++---
+ .../Sources/PeerInfoScreenSettingsActions.swift          | 8 +++++---
+ 3 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/submodules/AccountUtils/Sources/AccountUtils.swift b/submodules/AccountUtils/Sources/AccountUtils.swift
+index 0000000..0000000 100644
+--- a/submodules/AccountUtils/Sources/AccountUtils.swift
++++ b/submodules/AccountUtils/Sources/AccountUtils.swift
+@@ -4,8 +4,13 @@ import TelegramCore
+ import TelegramUIPreferences
+ import AccountContext
+ 
+-public let maximumNumberOfAccounts = 3
+-public let maximumPremiumNumberOfAccounts = 4
++// Cleargram: stock caps logged-in accounts at 3 (4 with Premium). The number of accounts the
++// client juggles is a purely local convenience limit — each account is an ordinary independent
++// login, nothing server-side gates the count — so it is lifted to an effectively unlimited value.
++// Every add-account gate routes through this constant (see PeerInfoScreenSettingsActions /
++// LogoutOptionsController, which used to hardcode 3/4).
++public let maximumNumberOfAccounts = 100
++public let maximumPremiumNumberOfAccounts = 100
+ 
+ public func activeAccountsAndPeers(context: AccountContext, includePrimary: Bool = false) -> Signal<((AccountContext, EnginePeer)?, [(AccountContext, EnginePeer, Int32)]), NoError> {
+     let sharedContext = context.sharedContext
+diff --git a/submodules/SettingsUI/Sources/LogoutOptionsController.swift b/submodules/SettingsUI/Sources/LogoutOptionsController.swift
+index 0000000..0000000 100644
+--- a/submodules/SettingsUI/Sources/LogoutOptionsController.swift
++++ b/submodules/SettingsUI/Sources/LogoutOptionsController.swift
+@@ -140,15 +140,17 @@ public func logoutOptionsController(context: AccountContext, navigationControlle
+         |> take(1)
+         |> deliverOnMainQueue
+         ).start(next: { accountAndPeer, accountsAndPeers in
+-            var maximumAvailableAccounts: Int = 3
++            // Cleargram: route through the (raised) maximumNumberOfAccounts instead of the stock
++            // hardcoded 3/4 Premium gate, so adding accounts is effectively unlimited.
++            var maximumAvailableAccounts: Int = maximumNumberOfAccounts
+             if accountAndPeer?.1.isPremium == true && !context.account.testingEnvironment {
+-                maximumAvailableAccounts = 4
++                maximumAvailableAccounts = maximumNumberOfAccounts
+             }
+             var count: Int = 1
+             for (accountContext, peer, _) in accountsAndPeers {
+                 if !accountContext.account.testingEnvironment {
+                     if peer.isPremium {
+-                        maximumAvailableAccounts = 4
++                        maximumAvailableAccounts = maximumNumberOfAccounts
+                     }
+                     count += 1
+                 }
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift
+@@ -220,15 +220,17 @@ extension PeerInfoScreenNode {
+                 guard let strongSelf = self else {
+                     return
+                 }
+-                var maximumAvailableAccounts: Int = 3
++                // Cleargram: route through the (raised) maximumNumberOfAccounts instead of the
++                // stock hardcoded 3/4 Premium gate, so adding accounts is effectively unlimited.
++                var maximumAvailableAccounts: Int = maximumNumberOfAccounts
+                 if accountAndPeer?.1.isPremium == true && !strongSelf.context.account.testingEnvironment {
+-                    maximumAvailableAccounts = 4
++                    maximumAvailableAccounts = maximumNumberOfAccounts
+                 }
+                 var count: Int = 1
+                 for (accountContext, peer, _) in accountsAndPeers {
+                     if !accountContext.account.testingEnvironment {
+                         if peer.isPremium {
+-                            maximumAvailableAccounts = 4
++                            maximumAvailableAccounts = maximumNumberOfAccounts
+                         }
+                         count += 1
+                     }

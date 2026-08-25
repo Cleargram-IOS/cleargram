@@ -4,18 +4,21 @@ Date: Tue, 28 Jul 2026 16:08:52 +0700
 Subject: Hide channel bottom button in channel preview
 
 ---
- .../TelegramUI/Sources/ChatInterfaceStateInputPanels.swift     | 3 +++
- 1 file changed, 3 insertions(+)
+ .../TelegramUI/Sources/ChatInterfaceStateInputPanels.swift  | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
 diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
 +++ b/submodules/TelegramUI/Sources/ChatInterfaceStateInputPanels.swift
-@@ -374,6 +374,9 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
+@@ -374,6 +374,12 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
                  if chatPresentationInterfaceState.interfaceState.editMessage != nil, channel.hasPermission(.editAllMessages) {
                      displayInputTextPanel = true
                  } else if !channel.hasPermission(.sendSomething) || !isMember {
-+                    if ClearConfig.hideChannelBottomButton {
++                    // ClearGram: keep the Subscribe/Join button (shown to non-members); hide the
++                    // panel only for members, where it is just the mute/notification toggle — i.e.
++                    // "hide everything except subscribe".
++                    if ClearConfig.hideChannelBottomButton && isMember {
 +                        return (nil, nil)
 +                    }
                      if let currentPanel = (currentPanel as? ChatChannelSubscriberInputPanelNode) ?? (currentSecondaryPanel as? ChatChannelSubscriberInputPanelNode) {

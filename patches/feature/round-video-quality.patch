@@ -1,0 +1,256 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Tue, 25 Aug 2026 21:29:35 +0800
+Subject: Add 60 fps round video recording
+
+---
+ submodules/Camera/Sources/Camera.swift        | 66 ++++++++++---------
+ submodules/Camera/Sources/CameraDevice.swift  | 27 +++++++-
+ submodules/Camera/Sources/CameraOutput.swift  |  8 ++-
+ .../SynchronizeChatInputStateOperation.swift  |  5 ++
+ .../Sources/VideoMessageCameraScreen.swift    | 11 +++-
+ 5 files changed, 78 insertions(+), 39 deletions(-)
+
+diff --git a/submodules/Camera/Sources/Camera.swift b/submodules/Camera/Sources/Camera.swift
+index 0000000..0000000 100644
+--- a/submodules/Camera/Sources/Camera.swift
++++ b/submodules/Camera/Sources/Camera.swift
+@@ -87,6 +87,14 @@ final class CameraDeviceContext {
+     
+     private func maxDimensions(additional: Bool, preferWide: Bool) -> CMVideoDimensions {
+         if self.isRoundVideo && self.exclusive {
++            // Cleargram: quality mode captures at 1440x1080 — a 4:3 shape, so the square кружок crop
++            // stays wide, and downscaled to the stock 400 output it looks the same. The larger
++            // readout is what lets the back sensor actually sustain 60 fps: at stock 640x480 it can
++            // only deliver ~24 (readout limit at that binning), while 1440x1080 reaches 60. Stock
++            // (30 fps) keeps 640x480.
++            if ClearHooks.improveRoundVideoQuality.with({ $0 }) {
++                return CMVideoDimensions(width: 1440, height: 1080)
++            }
+             return CMVideoDimensions(width: 640, height: 480)
+         } else {
+             if additional || preferWide {
+@@ -98,6 +106,13 @@ final class CameraDeviceContext {
+     }
+     
+     private func preferredMaxFrameRate(useLower: Bool) -> Double {
++        // Cleargram: round video is pinned to 30 by stock, both here and via the
++        // preferLowerFramerate flag its callers force on. Lift both when the quality toggle is on,
++        // but only for the single-camera (exclusive) case — in dual-camera mode two capture devices
++        // run at once and stock's 30 is load-bearing.
++        if self.isRoundVideo && self.exclusive && ClearHooks.improveRoundVideoQuality.with({ $0 }) {
++            return 60.0
++        }
+         if !self.exclusive || self.isRoundVideo || useLower {
+             return 30.0
+         }
+@@ -279,7 +294,7 @@ private final class CameraContext {
+                 self.modeChange = .position
+                 
+                 let preferWide = self.initialConfiguration.preferWide || isRoundVideo
+-                let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || isRoundVideo
++                let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || (isRoundVideo && !ClearHooks.improveRoundVideoQuality.with({ $0 }))
+                 
+                 mainDeviceContext.configure(position: targetPosition, previewView: self.simplePreviewView, audio: self.initialConfiguration.audio, photo: self.initialConfiguration.photo, metadata: self.initialConfiguration.metadata, preferWide: preferWide, preferLowerFramerate: preferLowerFramerate, switchAudio: !isRoundVideo)
+                 if isRoundVideo {
+@@ -303,7 +318,7 @@ private final class CameraContext {
+             self.modeChange = .position
+             
+             let preferWide = self.initialConfiguration.preferWide || (self.positionValue == .front && self.initialConfiguration.isRoundVideo)
+-            let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || self.initialConfiguration.isRoundVideo
++            let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || (self.initialConfiguration.isRoundVideo && !ClearHooks.improveRoundVideoQuality.with({ $0 }))
+             
+             self.mainDeviceContext?.configure(position: position, previewView: self.simplePreviewView, audio: self.initialConfiguration.audio, photo: self.initialConfiguration.photo, metadata: self.initialConfiguration.metadata, preferWide: preferWide, preferLowerFramerate: preferLowerFramerate)
+                         
+@@ -380,7 +395,7 @@ private final class CameraContext {
+                 self.additionalDeviceContext = nil
+                 
+                 let preferWide = self.initialConfiguration.preferWide || self.initialConfiguration.isRoundVideo
+-                let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || self.initialConfiguration.isRoundVideo
++                let preferLowerFramerate = self.initialConfiguration.preferLowerFramerate || (self.initialConfiguration.isRoundVideo && !ClearHooks.improveRoundVideoQuality.with({ $0 }))
+                 
+                 self.mainDeviceContext = CameraDeviceContext(session: self.session, exclusive: true, additional: false, ciContext: self.ciContext, colorSpace: self.colorSpace, isRoundVideo: self.initialConfiguration.isRoundVideo)
+                 self.mainDeviceContext?.configure(position: self.positionValue, previewView: self.simplePreviewView, audio: self.initialConfiguration.audio, photo: self.initialConfiguration.photo, metadata: self.initialConfiguration.metadata, preferWide: preferWide, preferLowerFramerate: preferLowerFramerate)
+@@ -512,40 +527,27 @@ private final class CameraContext {
+         self._flashMode = mode
+     }
+     
+-    func setZoomLevel(_ zoomLevel: CGFloat) {
+-        if self.initialConfiguration.isRoundVideo {
+-            if self.positionValue == .front {
+-                self.additionalDeviceContext?.device.setZoomLevel(zoomLevel)
+-            } else {
+-                self.mainDeviceContext?.device.setZoomLevel(zoomLevel)
+-            }
+-        } else {
+-            self.mainDeviceContext?.device.setZoomLevel(zoomLevel)
++    // ClearGram: the front camera is a separate `additionalDeviceContext` only in dual-camera
++    // mode. In the single-camera session (forced by the round-video quality toggle) the active
++    // camera — front or back — is always `mainDeviceContext`, so front zoom must go there too;
++    // stock routed it to the now-nil additional context, which is why front zoom did nothing.
++    private var zoomDeviceContext: CameraDeviceContext? {
++        if self.initialConfiguration.isRoundVideo, self.positionValue == .front, let additionalDeviceContext = self.additionalDeviceContext {
++            return additionalDeviceContext
+         }
++        return self.mainDeviceContext
+     }
+-    
++
++    func setZoomLevel(_ zoomLevel: CGFloat) {
++        self.zoomDeviceContext?.device.setZoomLevel(zoomLevel)
++    }
++
+     func setZoomDelta(_ zoomDelta: CGFloat) {
+-        if self.initialConfiguration.isRoundVideo {
+-            if self.positionValue == .front {
+-                self.additionalDeviceContext?.device.setZoomDelta(zoomDelta)
+-            } else {
+-                self.mainDeviceContext?.device.setZoomDelta(zoomDelta)
+-            }
+-        } else {
+-            self.mainDeviceContext?.device.setZoomDelta(zoomDelta)
+-        }
++        self.zoomDeviceContext?.device.setZoomDelta(zoomDelta)
+     }
+-    
++
+     func rampZoom(_ zoomLevel: CGFloat, rate: CGFloat) {
+-        if self.initialConfiguration.isRoundVideo {
+-            if self.positionValue == .front {
+-                self.additionalDeviceContext?.device.rampZoom(zoomLevel, rate: rate)
+-            } else {
+-                self.mainDeviceContext?.device.rampZoom(zoomLevel, rate: rate)
+-            }
+-        } else {
+-            self.mainDeviceContext?.device.rampZoom(zoomLevel, rate: rate)
+-        }
++        self.zoomDeviceContext?.device.rampZoom(zoomLevel, rate: rate)
+     }
+     
+     func takePhoto() -> Signal<PhotoCaptureResult, NoError> {
+diff --git a/submodules/Camera/Sources/CameraDevice.swift b/submodules/Camera/Sources/CameraDevice.swift
+index 0000000..0000000 100644
+--- a/submodules/Camera/Sources/CameraDevice.swift
++++ b/submodules/Camera/Sources/CameraDevice.swift
+@@ -31,7 +31,7 @@ final class CameraDevice {
+         
+     func configure(for session: CameraSession, position: Camera.Position, dual: Bool, switchAudio: Bool) {
+         self.position = position
+-        
++
+         var selectedDevice: AVCaptureDevice?
+         if #available(iOS 13.0, *), position != .front && !dual {
+             if let device = AVCaptureDevice.default(.builtInTripleCamera, for: .video, position: position) {
+@@ -133,8 +133,20 @@ final class CameraDevice {
+                 if bestFormat == nil {
+                     bestFormat = candidates.last
+                 }
++                // Cleargram: stock takes the last candidate whose ranges all fit under maxFramerate,
++                // so a 30fps format stays eligible when a higher rate is requested and the pick is
++                // effectively arbitrary — actualFPS would then clamp back to 30 and the 60fps round
++                // video would silently stay 30. Above stock's 30, insist on a format that reaches it.
++                if maxFramerate > 30.0 {
++                    let reachesCeiling: (AVCaptureDevice.Format) -> Bool = { format in
++                        return format.videoSupportedFrameRateRanges.contains(where: { $0.maxFrameRate >= maxFramerate })
++                    }
++                    if let format = photoCandidates.last(where: reachesCeiling) ?? candidates.last(where: reachesCeiling) {
++                        bestFormat = format
++                    }
++                }
+                 device.activeFormat = bestFormat!
+-                    
++
+                 Logger.shared.log("Camera", "Selected format:")
+                 Logger.shared.log("Camera", bestFormat!.description)
+             } else {
+@@ -152,7 +164,16 @@ final class CameraDevice {
+                 device.activeVideoMinFrameDuration = targetFPS.duration
+                 device.activeVideoMaxFrameDuration = targetFPS.duration
+             }
+-            
++
++            // ClearGram: video HDR captures alternating exposures and halves the frame rate
++            // (60 → 30). The back triple camera enables it automatically even in good light, which
++            // is exactly why 60 fps holds on the front but drops to 30 on the back. For a >30 fps
++            // request turn it off so the full rate is delivered; stock (30 fps) keeps HDR.
++            if maxFramerate > 30.0, device.activeFormat.isVideoHDRSupported {
++                device.automaticallyAdjustsVideoHDREnabled = false
++                device.isVideoHDREnabled = false
++            }
++
+             if device.isLowLightBoostSupported {
+                 device.automaticallyEnablesLowLightBoostWhenAvailable = true
+             }
+diff --git a/submodules/Camera/Sources/CameraOutput.swift b/submodules/Camera/Sources/CameraOutput.swift
+index 0000000..0000000 100644
+--- a/submodules/Camera/Sources/CameraOutput.swift
++++ b/submodules/Camera/Sources/CameraOutput.swift
+@@ -369,9 +369,13 @@ final class CameraOutput: NSObject {
+         if case .roundVideo = mode {
+             dimensions = videoMessageDimensions.cgSize
+             orientation = .landscapeRight
+-            
++
++            // Cleargram: only the frame-rate hint changes for 60 fps — bitrate and everything else
++            // stay stock. `AVVideoExpectedSourceFrameRateKey` lets the encoder pace GOPs for 60.
++            let frameRate = ClearHooks.improveRoundVideoQuality.with({ $0 }) ? 60 : 30
+             let compressionProperties: [String: Any] = [
+                 AVVideoAverageBitRateKey: 1000 * 1000,
++                AVVideoExpectedSourceFrameRateKey: frameRate,
+                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
+                 AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC
+             ]
+@@ -483,7 +487,7 @@ final class CameraOutput: NSObject {
+     private weak var masterOutput: CameraOutput?
+     
+     private var lastSampleTimestamp: CMTime?
+-    
++
+     private func roundVideoFormatDescription(for sourceFormatDescription: CMFormatDescription) -> CMFormatDescription? {
+         if let entry = self.roundVideoFormatDescriptionCache.first(where: { CFEqual($0.sourceFormatDescription, sourceFormatDescription) }) {
+             return entry.outputFormatDescription
+diff --git a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
++++ b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+@@ -13,6 +13,11 @@ public enum ClearHooks {
+     // keep real picture. The Camera submodule can't see TelegramUIPreferences, so it reads this
+     // mirror of ClearConfig.roundVideoKeepCorners (via CameraRoundLegacyVideoFilter).
+     public static let roundVideoKeepCorners = Atomic<Bool>(value: false)
++    // Record кружки at 60 fps instead of stock's 30. Resolution and everything else stay stock —
++    // only the capture frame rate changes (see Camera.preferredMaxFrameRate). Mirror of
++    // ClearConfig.improveRoundVideoQuality, read from the Camera module which can't see
++    // TelegramUIPreferences.
++    public static let improveRoundVideoQuality = Atomic<Bool>(value: false)
+ }
+ 
+ // Cleargram: the cap passed to `removeTailIfCountExceeds` for the cloud recent-sticker list.
+diff --git a/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift b/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
++++ b/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
+@@ -949,7 +949,14 @@ public class VideoMessageCameraScreen: ViewController {
+             self.previewContainerContentView.clipsToBounds = true
+             self.previewContainerView.addSubview(self.previewContainerContentView)
+                         
+-            let isDualCameraEnabled = Camera.isDualCameraSupported(forRoundVideo: true)
++            // Cleargram: 60 fps needs the single-camera (non-dual) session. Dual mode builds both
++            // device contexts as non-exclusive, and Camera.preferredMaxFrameRate returns 30 for
++            // those outright; even bypassing that, AVCaptureMultiCamSession's formats top out at 30
++            // and actualFPS would clamp straight back — the quality toggle would silently do
++            // nothing. Front/back switch and front-camera zoom both keep working (see the zoom
++            // routing in Camera.swift, which falls back to mainDeviceContext when there is no
++            // separate additional context).
++            let isDualCameraEnabled = Camera.isDualCameraSupported(forRoundVideo: true) && !ClearHooks.improveRoundVideoQuality.with({ $0 })
+             let isFrontPosition = controller.startWithFrontCamera
+             
+             self.mainPreviewView = CameraSimplePreviewView(frame: .zero, main: true, roundVideo: true)
+@@ -1912,7 +1919,7 @@ public class VideoMessageCameraScreen: ViewController {
+             }
+             
+             let dimensions = PixelDimensions(width: 400, height: 400)
+-            
++
+             let thumbnailImage: Signal<UIImage, NoError>
+             if startTime > 0.0 {
+                 thumbnailImage = Signal { subscriber in

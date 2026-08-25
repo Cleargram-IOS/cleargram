@@ -55,3 +55,7 @@ feature/lastfm-scrobbler.patch
 feature/local-transcription.patch
 feature/square-video-messages.patch
 feature/equalizer.patch
+feature/unlimited-accounts.patch
+feature/round-video-quality.patch
+feature/contact-added-you-badge.patch
+feature/settings-footer-copy.patch

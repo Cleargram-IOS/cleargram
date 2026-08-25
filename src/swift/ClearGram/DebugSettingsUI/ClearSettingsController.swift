@@ -145,21 +145,26 @@ private enum ClearRow {
 private final class ClearSection {
     let header: String?
     let footer: ((ClearConfigSettings) -> String?)?
+    // When true, long-pressing the footer copies its text to the clipboard (see the `.footer`
+    // item). Off by default, so ordinary footers are untouched — used for the build-info footer.
+    let footerCopyable: Bool
     let rows: [ClearRow]
 
-    init(header: String? = nil, footer: String? = nil, rows: [ClearRow]) {
+    init(header: String? = nil, footer: String? = nil, footerCopyable: Bool = false, rows: [ClearRow]) {
         self.header = header
         if let footer {
             self.footer = { _ in footer }
         } else {
             self.footer = nil
         }
+        self.footerCopyable = footerCopyable
         self.rows = rows
     }
 
-    init(header: String? = nil, dynamicFooter: @escaping (ClearConfigSettings) -> String?, rows: [ClearRow]) {
+    init(header: String? = nil, dynamicFooter: @escaping (ClearConfigSettings) -> String?, footerCopyable: Bool = false, rows: [ClearRow]) {
         self.header = header
         self.footer = dynamicFooter
+        self.footerCopyable = footerCopyable
         self.rows = rows
     }
 
@@ -201,7 +206,7 @@ private enum ClearEntry: ItemListNodeEntry {
     case disclosure(section: Int, index: Int, title: String)
     case link(section: Int, index: Int, title: String, label: String)
     case reset(section: Int, index: Int, title: String)
-    case footer(section: Int, text: String)
+    case footer(section: Int, text: String, copyable: Bool)
 
     var section: ItemListSectionId {
         switch self {
@@ -212,7 +217,7 @@ private enum ClearEntry: ItemListNodeEntry {
              let .disclosure(section, _, _),
              let .link(section, _, _, _),
              let .reset(section, _, _),
-             let .footer(section, _):
+             let .footer(section, _, _):
             return ItemListSectionId(section)
         }
     }
@@ -235,7 +240,7 @@ private enum ClearEntry: ItemListNodeEntry {
             return section * 1000 + 10 + index
         case let .reset(section, index, _):
             return section * 1000 + 10 + index
-        case let .footer(section, _):
+        case let .footer(section, _, _):
             return section * 1000 + 900
         }
     }
@@ -258,8 +263,8 @@ private enum ClearEntry: ItemListNodeEntry {
             return ls == rs && li == ri && lt == rt && ll == rl
         case let (.reset(ls, li, lt), .reset(rs, ri, rt)):
             return ls == rs && li == ri && lt == rt
-        case let (.footer(ls, lt), .footer(rs, rt)):
-            return ls == rs && lt == rt
+        case let (.footer(ls, lt, lc), .footer(rs, rt, rc)):
+            return ls == rs && lt == rt && lc == rc
         default:
             return false
         }
@@ -270,8 +275,13 @@ private enum ClearEntry: ItemListNodeEntry {
         switch self {
         case let .header(_, text):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
-        case let .footer(_, text):
-            return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
+        case let .footer(_, text, copyable):
+            return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section, longPressAction: copyable ? {
+                UIPasteboard.general.string = text
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                let pd = args.context.sharedContext.currentPresentationData.with { $0 }
+                args.present(UndoOverlayController(presentationData: pd, content: .copy(text: pd.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }))
+            } : nil)
         case let .toggle(section, index, title, subtitle, value, enabled):
             let toggle = args.screen.sections[section].toggle(at: index)
             return ItemListSwitchItem(
@@ -281,6 +291,10 @@ private enum ClearEntry: ItemListNodeEntry {
                 text: subtitle,
                 value: value,
                 enabled: enabled,
+                // Long RU labels (e.g. "Ускоренная передача файлов") overrun the stock
+                // single-line title and slip under the glass switch — its reserved gap is
+                // narrower than the switch. Allow the title to wrap; short rows stay one line.
+                maximumNumberOfLines: 2,
                 sectionId: self.section,
                 style: .blocks,
                 updated: { value in
@@ -392,6 +406,7 @@ private final class ClearArguments {
     let updateSlider: (ClearSlider, Int32) -> Void
     let openRow: (Int, Int) -> Void
     let reset: () -> Void
+    let present: (ViewController) -> Void
 
     init(
         context: AccountContext,
@@ -399,7 +414,8 @@ private final class ClearArguments {
         updateToggle: @escaping (ClearToggle, Bool) -> Void,
         updateSlider: @escaping (ClearSlider, Int32) -> Void,
         openRow: @escaping (Int, Int) -> Void,
-        reset: @escaping () -> Void
+        reset: @escaping () -> Void,
+        present: @escaping (ViewController) -> Void
     ) {
         self.context = context
         self.screen = screen
@@ -407,6 +423,7 @@ private final class ClearArguments {
         self.updateSlider = updateSlider
         self.openRow = openRow
         self.reset = reset
+        self.present = present
     }
 }
 
@@ -455,7 +472,7 @@ private func clearEntries(screen: ClearScreen, settings: ClearConfigSettings, ex
             }
         }
         if let footer = section.footer?(settings) {
-            entries.append(.footer(section: sectionIndex, text: footer))
+            entries.append(.footer(section: sectionIndex, text: footer, copyable: section.footerCopyable))
         }
     }
     return entries
@@ -537,6 +554,9 @@ private func clearScreenController(context: AccountContext, screen: ClearScreen)
                     })
                 ]
             ))
+        },
+        present: { controller in
+            presentImpl?(controller)
         }
     )
 
@@ -708,9 +728,12 @@ private func clearRootScreen() -> ClearScreen {
         ),
         // Which build this is: the upstream release, the commit the patchset is pinned to and
         // the cleargram commit it was assembled from. Generated at sync time, see
-        // ClearBuildInfo. Not translated — versions and hashes aren't UI text.
+        // ClearBuildInfo. The trailing "· build N" is the incrementing build number, read from
+        // CFBundleVersion at runtime (set by build.sh) — deliberately not baked into the
+        // Bazel-input ClearBuildInfo. Not translated — versions and hashes aren't UI text.
         ClearSection(
-            footer: ClearBuildInfo.summary,
+            footer: ClearBuildInfo.summary + ((Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String).map { " · build \($0)" } ?? ""),
+            footerCopyable: true,
             rows: []
         )
     ])
@@ -861,6 +884,16 @@ private func clearTabBarScreen() -> ClearScreen {
                 .toggle(ClearToggle(L("Search Tab", "Вкладка «Поиск»"), .config(\.tabBarSearchEnabled), isEnabled: { !$0.hideTabBar })),
                 .toggle(ClearToggle(L("Hide Contacts Tab", "Скрыть вкладку «Контакты»"), .config(\.disableContactsTab), requiresRestart: true))
             ]
+        ),
+        ClearSection(
+            header: L("CONTACTS", "КОНТАКТЫ"),
+            footer: L(
+                "A person glyph on the right of a contact who has you in their contacts too.",
+                "Значок человечка справа у контакта, который добавил вас в свои."
+            ),
+            rows: [
+                .toggle(ClearToggle(L("Mark Mutual Contacts", "Отмечать взаимные контакты"), .config(\.showContactAddedYouBadge)))
+            ]
         )
     ])
 }
@@ -990,8 +1023,8 @@ private func clearChannelsScreen() -> ClearScreen {
         ClearSection(
             header: L("BOTTOM BAR", "НИЖНЯЯ ПАНЕЛЬ"),
             footer: L(
-                "Removes the Mute/Join bar under a channel's posts. Joining then needs an invite link or a search result.",
-                "Убирает панель «Без звука / Подписаться» под постами канала. Подписаться после этого можно по ссылке-приглашению или из поиска."
+                "Hides the notification bar (Mute/Unmute) under posts of channels you've joined. The Subscribe button in channels you haven't joined stays.",
+                "Скрывает панель уведомлений («Без звука») под постами каналов, на которые вы подписаны. Кнопка «Подписаться» в неподписанных каналах остаётся."
             ),
             rows: [
                 .toggle(ClearToggle(L("Hide Bottom Action Bar", "Скрыть нижнюю панель действий"), .config(\.hideChannelBottomButton)))
@@ -1081,6 +1114,10 @@ private func clearMediaScreen() -> ClearScreen {
                         "Keeps the corners instead of baking in the circular mask. Still an ordinary round video for everyone — the corners only show in the downloaded original.",
                         "Сохраняет углы вместо запекания круглой маски. Для всех это по-прежнему обычный кружок — углы видны только в скачанном оригинале."
                     ) }
+                )),
+                .toggle(ClearToggle(
+                    L("60 fps", "60 fps"),
+                    .config(\.improveRoundVideoQuality)
                 ))
             ]
         ),
@@ -1167,8 +1204,8 @@ private func clearMediaScreen() -> ClearScreen {
         ClearSection(
             header: L("TRANSFERS", "ПЕРЕДАЧА ФАЙЛОВ"),
             footer: L(
-                "Larger download and upload chunks. Faster on a stable connection; on a flaky one a failed chunk costs more to retry.",
-                "Более крупные куски при скачивании и отправке. На стабильном соединении быстрее; на плохом повторить сорвавшийся кусок дороже."
+                "Larger download and upload chunks. Little to gain on a weak connection, where a dropped chunk costs more to retry.",
+                "Более крупные куски при скачивании и отправке. На слабом соединении почти без выигрыша — сорванный кусок дороже повторить."
             ),
             rows: [
                 .toggle(ClearToggle(L("Faster File Transfer", "Ускоренная передача файлов"), .config(\.fasterFileLoad)))

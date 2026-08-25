@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Tue, 25 Aug 2026 21:30:07 +0800
+Subject: Copy build info on long-press of settings footer
+
+---
+ .../ItemListUI/Sources/Items/ItemListTextItem.swift      | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/ItemListUI/Sources/Items/ItemListTextItem.swift b/submodules/ItemListUI/Sources/Items/ItemListTextItem.swift
+index 0000000..0000000 100644
+--- a/submodules/ItemListUI/Sources/Items/ItemListTextItem.swift
++++ b/submodules/ItemListUI/Sources/Items/ItemListTextItem.swift
+@@ -52,6 +52,9 @@ public class ItemListTextItem: ListViewItem, ItemListItem {
+     let text: ItemListTextItemText
+     public let sectionId: ItemListSectionId
+     let linkAction: ((ItemListTextItemLinkAction) -> Void)?
++    // ClearGram: optional long-press-to-copy on the whole footer. Default nil, so ordinary text
++    // items are byte-for-byte unchanged in look and behaviour.
++    let longPressAction: (() -> Void)?
+     let style: ItemListStyle
+     let textSize: ItemListTextItemTextSize
+     let textAlignment: ItemListTextItemTextAlignment
+@@ -60,11 +63,12 @@ public class ItemListTextItem: ListViewItem, ItemListItem {
+     public let isAlwaysPlain: Bool = true
+     public let tag: ItemListItemTag?
+     
+-    public init(presentationData: ItemListPresentationData, text: ItemListTextItemText, sectionId: ItemListSectionId, linkAction: ((ItemListTextItemLinkAction) -> Void)? = nil, style: ItemListStyle = .blocks, textSize: ItemListTextItemTextSize = .generic, textAlignment: ItemListTextItemTextAlignment = .natural, tag: ItemListItemTag? = nil, additionalInsets: UIEdgeInsets = .zero, additionalOuterInsets: UIEdgeInsets = .zero) {
++    public init(presentationData: ItemListPresentationData, text: ItemListTextItemText, sectionId: ItemListSectionId, linkAction: ((ItemListTextItemLinkAction) -> Void)? = nil, longPressAction: (() -> Void)? = nil, style: ItemListStyle = .blocks, textSize: ItemListTextItemTextSize = .generic, textAlignment: ItemListTextItemTextAlignment = .natural, tag: ItemListItemTag? = nil, additionalInsets: UIEdgeInsets = .zero, additionalOuterInsets: UIEdgeInsets = .zero) {
+         self.presentationData = presentationData
+         self.text = text
+         self.sectionId = sectionId
+         self.linkAction = linkAction
++        self.longPressAction = longPressAction
+         self.style = style
+         self.textSize = textSize
+         self.textAlignment = textAlignment
+@@ -273,6 +277,9 @@ public class ItemListTextItemNode: ListViewItemNode, ItemListItemNode {
+                                     }
+                                 }
+                             }
++                        case .longTap:
++                            // ClearGram: long-press-to-copy anywhere on the item, when it opts in.
++                            self.item?.longPressAction?()
+                         default:
+                             break
+                     }

@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Tue, 25 Aug 2026 21:29:51 +0800
+Subject: Add mutual-contact badge in contacts list
+
+---
+ .../ContactListUI/Sources/ContactListNode.swift    | 14 +++++++++++++-
+ .../Sources/ContactsPeerItem.swift                 |  5 +++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/ContactListUI/Sources/ContactListNode.swift b/submodules/ContactListUI/Sources/ContactListNode.swift
+index 0000000..0000000 100644
+--- a/submodules/ContactListUI/Sources/ContactListNode.swift
++++ b/submodules/ContactListUI/Sources/ContactListNode.swift
+@@ -173,9 +173,14 @@ private enum ContactListNodeEntry: Comparable, Identifiable {
+                 var status: ContactsPeerItemStatus
+                 let itemPeer: ContactsPeerItemPeer
+                 var isContextActionEnabled = false
++                // ClearGram: mutual contact == this person has you in their contacts too.
++                var isMutualContact = false
+                 switch peer {
+                     case let .peer(peer, isGlobal, participantCount):
+                         isContextActionEnabled = true
++                        if case let .user(user) = peer, user.flags.contains(.mutualContact) {
++                            isMutualContact = true
++                        }
+                         if isGlobal, let _ = peer.addressName {
+                             status = .addressName("")
+                         } else {
+@@ -245,7 +250,14 @@ private enum ContactListNodeEntry: Comparable, Identifiable {
+                 if case .blocks = listStyle, let id = header?.id.id.base as? Int64 {
+                     sectionId = Int32(clamping: id)
+                 }
+-                return ContactsPeerItem(presentationData: ItemListPresentationData(presentationData), style: listStyle, systemStyle: .glass, sectionId: listStyle == .blocks ? sectionId : 0, sortOrder: nameSortOrder, displayOrder: nameDisplayOrder, context: context, peerMode: isSearch ? .generalSearch(isSavedMessages: false) : .peer, peer: itemPeer, status: status, requiresPremiumForMessaging: requiresPremiumForMessaging, enabled: enabled, selection: selection, selectionPosition: .left, editing: ContactsPeerItemEditing(editable: false, editing: false, revealed: false), additionalActions: additionalActions, index: nil, header: listStyle == .blocks ? nil : header, action: { _ in
++                // ClearGram: a non-interactive "they added you back" badge on the right. Only when
++                // the row has no trailing action buttons (call/more) and isn't in selection mode,
++                // since actionIcon is exclusive with those and would collide with the checkmark.
++                var clearActionIcon: ContactsPeerItemActionIcon = .none
++                if ClearConfig.showContactAddedYouBadge, isMutualContact, additionalActions.isEmpty, case .none = selection {
++                    clearActionIcon = .contactAddedYou
++                }
++                return ContactsPeerItem(presentationData: ItemListPresentationData(presentationData), style: listStyle, systemStyle: .glass, sectionId: listStyle == .blocks ? sectionId : 0, sortOrder: nameSortOrder, displayOrder: nameDisplayOrder, context: context, peerMode: isSearch ? .generalSearch(isSavedMessages: false) : .peer, peer: itemPeer, status: status, requiresPremiumForMessaging: requiresPremiumForMessaging, enabled: enabled, selection: selection, selectionPosition: .left, editing: ContactsPeerItemEditing(editable: false, editing: false, revealed: false), additionalActions: additionalActions, actionIcon: clearActionIcon, index: nil, header: listStyle == .blocks ? nil : header, action: { _ in
+                         interaction.openPeer(peer, .generic, nil, nil)
+                 }, disabledAction: { _ in
+                     if case let .peer(peer, _, _) = peer {
+diff --git a/submodules/ContactsPeerItem/Sources/ContactsPeerItem.swift b/submodules/ContactsPeerItem/Sources/ContactsPeerItem.swift
+index 0000000..0000000 100644
+--- a/submodules/ContactsPeerItem/Sources/ContactsPeerItem.swift
++++ b/submodules/ContactsPeerItem/Sources/ContactsPeerItem.swift
+@@ -99,6 +99,8 @@ public enum ContactsPeerItemActionIcon {
+     case voiceCall
+     case videoCall
+     case more
++    // ClearGram: non-interactive "they added you back" (mutual contact) badge.
++    case contactAddedYou
+ }
+ 
+ public struct ContactsPeerItemAction {
+@@ -913,6 +915,9 @@ public class ContactsPeerItemNode: ItemListRevealOptionsItemNode {
+                             image = PresentationResourcesItemList.videoCallIcon(theme)
+                         case .more:
+                             image = PresentationResourcesItemList.videoCallIcon(theme)
++                        case .contactAddedYou:
++                            // ClearGram: a plain person glyph, tinted like a subtle indicator.
++                            image = generateTintedImage(image: UIImage(systemName: "person.fill")?.withConfiguration(UIImage.SymbolConfiguration(pointSize: 16.0, weight: .regular)), color: theme.list.itemSecondaryTextColor)
+                     }
+                     self.type = icon
+                     self.image = image

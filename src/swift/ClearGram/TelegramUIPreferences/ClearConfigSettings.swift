@@ -104,12 +104,20 @@ public struct ClearConfigSettings: Codable, Equatable {
     // real picture. The message still carries `instantRoundVideo`, so every client draws it as an
     // ordinary кружок — the corners only ever show up for whoever downloads the original file.
     public var roundVideoKeepCorners: Bool
+    // Higher-quality round video recording: 60 fps + 480x480 (up from stock 30 fps / 400x400).
+    // 60 fps forces the single-camera (non-dual) session. Bridged into the Camera modules via
+    // ClearHooks.improveRoundVideoQuality.
+    public var improveRoundVideoQuality: Bool
     // Ten-band equalizer for the music player. Gains and the preamp are tenths of a decibel,
     // capped at ClearEqualizer.gainLimit; `equalizerGains` is allowed to be empty (flat) or a
     // different length than the current band count — ClearEqualizer.State.gain(at:) reads it.
     public var equalizerEnabled: Bool
     public var equalizerPreamp: Int32
     public var equalizerGains: [Int32]
+    // Show a small person glyph on the right of a contacts-list row when the peer is a mutual
+    // contact — i.e. they have you in their contacts too. Reads the `.mutualContact` flag the
+    // API already sends; presentation-only.
+    public var showContactAddedYouBadge: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -196,9 +204,11 @@ public struct ClearConfigSettings: Codable, Equatable {
             scrobbleThresholdPercent: 50,
             transcriptionLocales: [],
             roundVideoKeepCorners: false,
+            improveRoundVideoQuality: false,
             equalizerEnabled: false,
             equalizerPreamp: 0,
-            equalizerGains: []
+            equalizerGains: [],
+            showContactAddedYouBadge: false
         )
     }
 
@@ -286,9 +296,11 @@ public struct ClearConfigSettings: Codable, Equatable {
         scrobbleThresholdPercent: Int32 = 50,
         transcriptionLocales: [String] = [],
         roundVideoKeepCorners: Bool = false,
+        improveRoundVideoQuality: Bool = false,
         equalizerEnabled: Bool = false,
         equalizerPreamp: Int32 = 0,
-        equalizerGains: [Int32] = []
+        equalizerGains: [Int32] = [],
+        showContactAddedYouBadge: Bool = false
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -373,9 +385,11 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.scrobbleThresholdPercent = scrobbleThresholdPercent
         self.transcriptionLocales = transcriptionLocales
         self.roundVideoKeepCorners = roundVideoKeepCorners
+        self.improveRoundVideoQuality = improveRoundVideoQuality
         self.equalizerEnabled = equalizerEnabled
         self.equalizerPreamp = equalizerPreamp
         self.equalizerGains = equalizerGains
+        self.showContactAddedYouBadge = showContactAddedYouBadge
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -401,8 +415,9 @@ public struct ClearConfigSettings: Codable, Equatable {
         case swipeActionPin, swipeActionMute, swipeActionRead, swipeActionDelete, swipeActionArchive, swipeActionsLeft, swipeActionsRight
         case importSettingsFromChats
         case lastFmScrobbling, lastFmNowPlaying, scrobbleThresholdPercent, transcriptionLocales
-        case roundVideoKeepCorners
+        case roundVideoKeepCorners, improveRoundVideoQuality
         case equalizerEnabled, equalizerPreamp, equalizerGains
+        case showContactAddedYouBadge
     }
 
     public init(from decoder: Decoder) throws {
@@ -493,9 +508,11 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.scrobbleThresholdPercent = try c.decodeIfPresent(Int32.self, forKey: .scrobbleThresholdPercent) ?? 50
         self.transcriptionLocales = try c.decodeIfPresent([String].self, forKey: .transcriptionLocales) ?? []
         self.roundVideoKeepCorners = try c.decodeIfPresent(Bool.self, forKey: .roundVideoKeepCorners) ?? false
+        self.improveRoundVideoQuality = try c.decodeIfPresent(Bool.self, forKey: .improveRoundVideoQuality) ?? false
         self.equalizerEnabled = try c.decodeIfPresent(Bool.self, forKey: .equalizerEnabled) ?? false
         self.equalizerPreamp = try c.decodeIfPresent(Int32.self, forKey: .equalizerPreamp) ?? 0
         self.equalizerGains = try c.decodeIfPresent([Int32].self, forKey: .equalizerGains) ?? []
+        self.showContactAddedYouBadge = try c.decodeIfPresent(Bool.self, forKey: .showContactAddedYouBadge) ?? false
     }
 }
 
