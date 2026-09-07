@@ -118,6 +118,9 @@ public struct ClearConfigSettings: Codable, Equatable {
     // contact — i.e. they have you in their contacts too. Reads the `.mutualContact` flag the
     // API already sends; presentation-only.
     public var showContactAddedYouBadge: Bool
+    // Show an "Administrators" row on a group/channel profile even when you aren't an admin — the
+    // admins list the API returns to any member (see ClearGroupAdminsItems.swift). Read-only.
+    public var showGroupAdmins: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -208,7 +211,8 @@ public struct ClearConfigSettings: Codable, Equatable {
             equalizerEnabled: false,
             equalizerPreamp: 0,
             equalizerGains: [],
-            showContactAddedYouBadge: false
+            showContactAddedYouBadge: false,
+            showGroupAdmins: false
         )
     }
 
@@ -300,7 +304,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         equalizerEnabled: Bool = false,
         equalizerPreamp: Int32 = 0,
         equalizerGains: [Int32] = [],
-        showContactAddedYouBadge: Bool = false
+        showContactAddedYouBadge: Bool = false,
+        showGroupAdmins: Bool = false
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -390,6 +395,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.equalizerPreamp = equalizerPreamp
         self.equalizerGains = equalizerGains
         self.showContactAddedYouBadge = showContactAddedYouBadge
+        self.showGroupAdmins = showGroupAdmins
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -418,6 +424,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case roundVideoKeepCorners, improveRoundVideoQuality
         case equalizerEnabled, equalizerPreamp, equalizerGains
         case showContactAddedYouBadge
+        case showGroupAdmins
     }
 
     public init(from decoder: Decoder) throws {
@@ -513,6 +520,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.equalizerPreamp = try c.decodeIfPresent(Int32.self, forKey: .equalizerPreamp) ?? 0
         self.equalizerGains = try c.decodeIfPresent([Int32].self, forKey: .equalizerGains) ?? []
         self.showContactAddedYouBadge = try c.decodeIfPresent(Bool.self, forKey: .showContactAddedYouBadge) ?? false
+        self.showGroupAdmins = try c.decodeIfPresent(Bool.self, forKey: .showGroupAdmins) ?? false
     }
 }
 

@@ -1331,6 +1331,16 @@ private func clearProfileScreen() -> ClearScreen {
             ]
         ),
         ClearSection(
+            header: L("GROUPS", "ГРУППЫ"),
+            footer: L(
+                "Adds an Administrators row on groups and channels where you aren't an admin. Read-only.",
+                "Добавляет строку «Администраторы» в группах и каналах, где вы не админ. Только для просмотра."
+            ),
+            rows: [
+                .toggle(ClearToggle(L("Show Administrators", "Показывать администраторов"), .config(\.showGroupAdmins)))
+            ]
+        ),
+        ClearSection(
             header: L("YOUR PROFILE", "ВАШ ПРОФИЛЬ"),
             footer: L(
                 "Hides your number in Settings only — it stays visible to whoever you share it with. Requires a restart.",

@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Mon, 7 Sep 2026 16:11:40 +0300
+Subject: Add group admins view for members
+
+---
+ .../PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift  | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoProfileItems.swift
+@@ -691,6 +691,7 @@ func infoItems(
+                 )
+             }
+             items[currentPeerInfoSection]!.append(contentsOf: clearPeerIdItems(peer: data.peer, context: context, interaction: interaction))
++            items[.peerMembers]!.append(contentsOf: clearGroupAdminsItems(peer: data.peer, context: context, interaction: interaction))
+             if let cachedData = data.cachedData as? CachedChannelData {
+                 let aboutText: String?
+                 if channel.isFake {
+@@ -865,6 +866,7 @@ func infoItems(
+         }
+     } else if case let .legacyGroup(group) = data.peer {
+         items[currentPeerInfoSection]!.append(contentsOf: clearPeerIdItems(peer: data.peer, context: context, interaction: interaction))
++        items[.peerMembers]!.append(contentsOf: clearGroupAdminsItems(peer: data.peer, context: context, interaction: interaction))
+         if let cachedData = data.cachedData as? CachedGroupData {
+             let aboutText: String?
+             if group.isFake {
