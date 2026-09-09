@@ -144,6 +144,7 @@ public enum ClearConfig {
     public static var equalizerGains: [Int32] { current().equalizerGains }
     public static var showContactAddedYouBadge: Bool { current().showContactAddedYouBadge }
     public static var showGroupAdmins: Bool { current().showGroupAdmins }
+    public static var disableChatEdgeEffect: Bool { current().disableChatEdgeEffect }
     // What the audio renderer actually consumes. Kept next to the raw accessors so the screen and
     // the renderer can never disagree about how the three fields combine.
     public static func equalizerState(_ settings: ClearConfigSettings) -> ClearEqualizer.State {

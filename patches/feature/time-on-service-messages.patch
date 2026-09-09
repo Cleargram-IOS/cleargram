@@ -16,7 +16,7 @@ index 0000000..0000000 100644
                  }
                  
 +                if ClearConfig.timeOnServiceMessages, let attr = updatedAttributedString {
-+                    let timeString = stringForMessageTimestamp(timestamp: item.message.timestamp, dateTimeFormat: item.presentationData.dateTimeFormat, local: true)
++                    let timeString = stringForMediumDate(timestamp: item.message.timestamp, strings: item.presentationData.strings, dateTimeFormat: item.presentationData.dateTimeFormat)
 +                    let mutableUpdated = NSMutableAttributedString(attributedString: attr)
 +                    mutableUpdated.append(NSAttributedString(string: " · \(timeString)", font: Font.regular(13.0), textColor: primaryTextColor.withAlphaComponent(0.6)))
 +                    updatedAttributedString = mutableUpdated

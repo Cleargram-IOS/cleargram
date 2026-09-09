@@ -121,6 +121,9 @@ public struct ClearConfigSettings: Codable, Equatable {
     // Show an "Administrators" row on a group/channel profile even when you aren't an admin — the
     // admins list the API returns to any member (see ClearGroupAdminsItems.swift). Read-only.
     public var showGroupAdmins: Bool
+    // Remove the top/bottom edge dimming (the gradient/blur `WallpaperEdgeEffectNode` overlays that
+    // fade the chat wallpaper under the nav bar and above the input panel). Presentation-only.
+    public var disableChatEdgeEffect: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -212,7 +215,8 @@ public struct ClearConfigSettings: Codable, Equatable {
             equalizerPreamp: 0,
             equalizerGains: [],
             showContactAddedYouBadge: false,
-            showGroupAdmins: false
+            showGroupAdmins: false,
+            disableChatEdgeEffect: false
         )
     }
 
@@ -305,7 +309,8 @@ public struct ClearConfigSettings: Codable, Equatable {
         equalizerPreamp: Int32 = 0,
         equalizerGains: [Int32] = [],
         showContactAddedYouBadge: Bool = false,
-        showGroupAdmins: Bool = false
+        showGroupAdmins: Bool = false,
+        disableChatEdgeEffect: Bool = false
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -396,6 +401,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.equalizerGains = equalizerGains
         self.showContactAddedYouBadge = showContactAddedYouBadge
         self.showGroupAdmins = showGroupAdmins
+        self.disableChatEdgeEffect = disableChatEdgeEffect
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -425,6 +431,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case equalizerEnabled, equalizerPreamp, equalizerGains
         case showContactAddedYouBadge
         case showGroupAdmins
+        case disableChatEdgeEffect
     }
 
     public init(from decoder: Decoder) throws {
@@ -521,6 +528,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.equalizerGains = try c.decodeIfPresent([Int32].self, forKey: .equalizerGains) ?? []
         self.showContactAddedYouBadge = try c.decodeIfPresent(Bool.self, forKey: .showContactAddedYouBadge) ?? false
         self.showGroupAdmins = try c.decodeIfPresent(Bool.self, forKey: .showGroupAdmins) ?? false
+        self.disableChatEdgeEffect = try c.decodeIfPresent(Bool.self, forKey: .disableChatEdgeEffect) ?? false
     }
 }
 

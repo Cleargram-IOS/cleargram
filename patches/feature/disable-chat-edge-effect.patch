@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: keet <keetsta@icloud.com>
+Date: Wed, 9 Sep 2026 12:01:10 +0300
+Subject: Add chat edge dimming toggle
+
+---
+ submodules/TelegramUI/Sources/ChatControllerNode.swift | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/submodules/TelegramUI/Sources/ChatControllerNode.swift b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatControllerNode.swift
++++ b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+@@ -2414,7 +2414,7 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+         }
+         
+         var bottomBackgroundEdgeEffectNode: WallpaperEdgeEffectNode?
+-        if self.historyNode.rotated && !isOverlay {
++        if self.historyNode.rotated && !isOverlay && !ClearConfig.disableChatEdgeEffect {
+             if let current = self.bottomBackgroundEdgeEffectNode {
+                 bottomBackgroundEdgeEffectNode = current
+             } else {
+@@ -2621,7 +2621,7 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+         })
+         
+         var topBackgroundEdgeEffectNode: WallpaperEdgeEffectNode?
+-        if self.historyNode.rotated && !isOverlay {
++        if self.historyNode.rotated && !isOverlay && !ClearConfig.disableChatEdgeEffect {
+             if let current = self.topBackgroundEdgeEffectNode {
+                 topBackgroundEdgeEffectNode = current
+             } else {

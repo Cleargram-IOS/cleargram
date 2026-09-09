@@ -761,6 +761,16 @@ private func clearAppearanceScreen() -> ClearScreen {
             rows: [
                 .toggle(ClearToggle(L("Larger Text in Chats", "Крупный текст в чатах"), .config(\.fontSizeOverride), requiresRestart: true))
             ]
+        ),
+        ClearSection(
+            header: L("CHAT BACKGROUND", "ФОН ЧАТА"),
+            footer: L(
+                "Removes the gradient that fades the wallpaper under the navigation bar and above the input field.",
+                "Убирает градиент, затемняющий обои под панелью навигации и над полем ввода."
+            ),
+            rows: [
+                .toggle(ClearToggle(L("Remove Edge Dimming", "Убрать затемнение по краям"), .config(\.disableChatEdgeEffect)))
+            ]
         )
     ])
 }
@@ -940,7 +950,7 @@ private func clearChatsScreen() -> ClearScreen {
             },
             rows: [
                 .toggle(ClearToggle(L("Show Seconds", "Показывать секунды"), .config(\.secondsInMessages))),
-                .toggle(ClearToggle(L("Time on Service Messages", "Время у служебных сообщений"), .config(\.timeOnServiceMessages)))
+                .toggle(ClearToggle(L("Date on Service Messages", "Дата у служебных сообщений"), .config(\.timeOnServiceMessages)))
             ]
         ),
         ClearSection(
