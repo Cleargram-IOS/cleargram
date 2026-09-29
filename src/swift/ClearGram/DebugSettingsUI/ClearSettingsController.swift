@@ -824,19 +824,11 @@ private func clearChatListScreen() -> ClearScreen {
         ClearSection(
             header: L("ROWS", "СТРОКИ"),
             footer: L(
-                "Smaller avatars and tighter spacing. Three preview lines is stock; fewer also tightens the row. Both need a restart.",
-                "Аватары меньше, отступы плотнее. Три строки превью — как в оригинале; меньше — строка ещё плотнее. И то и другое требует перезапуска."
+                "Smaller avatars and tighter spacing. Requires a restart.",
+                "Аватары меньше, отступы плотнее. Требуется перезапуск."
             ),
             rows: [
-                .toggle(ClearToggle(L("Compact Rows", "Компактные строки"), .config(\.compactChatList), requiresRestart: true)),
-                .slider(ClearSlider(
-                    title: L("Preview Lines", "Строк превью"),
-                    keyPath: \.chatListLines,
-                    minValue: 1,
-                    maxValue: 3,
-                    step: 1,
-                    format: { "\($0)" }
-                ))
+                .toggle(ClearToggle(L("Compact Rows", "Компактные строки"), .config(\.compactChatList), requiresRestart: true))
             ]
         ),
         ClearSection(
@@ -1009,8 +1001,12 @@ private func clearChatsScreen() -> ClearScreen {
             header: L("REACTIONS", "РЕАКЦИИ"),
             rows: [
                 .toggle(ClearToggle(L("Hide Star Reaction", "Скрыть реакцию-звезду"), .config(\.hideStarReactionButton))),
-                .toggle(ClearToggle(L("Hide Star Reaction Count", "Скрыть счётчик звёзд"), .config(\.hideStarReactionCount))),
-                .toggle(ClearToggle(L("Reactions Beside the Time", "Реакции рядом со временем"), .config(\.showInlineReactions)))
+                .toggle(ClearToggle(L("Hide Star Reaction Count", "Скрыть счётчик звёзд"), .config(\.hideStarReactionCount)))
+                // No row for `showInlineReactions`: switching it on does not move reactions next to
+                // the time, it removes them from the message altogether. `feature__inline-reactions`
+                // only replaces upstream's unconditional `false` in `shouldDisplayInlineDateReactions`
+                // with the flag, and the pre-existing branch it unlocks is evidently unfinished. The
+                // accessor is forced off in ClearConfig until that path actually works.
             ]
         ),
         ClearSection(

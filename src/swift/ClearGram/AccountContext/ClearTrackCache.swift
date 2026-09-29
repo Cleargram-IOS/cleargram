@@ -24,6 +24,27 @@ public enum ClearTrackCacheState: Equatable {
     case local
 }
 
+/// Cache state of a music file, with a queued track reported as `.fetching(nil)` — a dim arc rather
+/// than nothing. The downloader only runs three fetches at a time, so most of a queued playlist is
+/// still `.remote`, and showing that as "not downloaded" gives no sign the request landed at all.
+public func clearTrackCacheStateQueueAware(mediaBox: MediaBox, file: TelegramMediaFile?) -> Signal<ClearTrackCacheState?, NoError> {
+    guard ClearConfig.showTrackCacheStatus, let file else {
+        return .single(nil)
+    }
+    let id = file.resource.id
+    return combineLatest(
+        clearTrackCacheStatusSignal(mediaBox: mediaBox, resource: file.resource),
+        ClearPlaylistDownloader.shared.queuedIds
+    )
+    |> map { state, queued -> ClearTrackCacheState? in
+        if case .remote = state, queued.contains(id) {
+            return .fetching(nil)
+        }
+        return state
+    }
+    |> distinctUntilChanged
+}
+
 /// Cache state of a playlist item, or nil when the feature is off or the item isn't a plain file
 /// (the toggle is read here so call sites stay one-liners).
 public func clearTrackCacheState(context: AccountContext, item: SharedMediaPlaylistItem?) -> Signal<ClearTrackCacheState?, NoError> {
@@ -266,8 +287,21 @@ public final class ClearPlaylistDownloader {
     private let lock = NSLock()
     private var active: [MediaResourceId: Disposable] = [:]
     private var pending: [(MediaBox, MediaResourceReference, MediaResourceId)] = []
+    // Ids sitting in `pending`. Published so a list row can say "waiting" instead of showing
+    // nothing at all: with only three fetches in flight, most of a queued playlist looks untouched
+    // otherwise, and there is no way to tell it was even asked for.
+    private let queuedPromise = ValuePromise<Set<MediaResourceId>>(Set(), ignoreRepeated: true)
+
+    public var queuedIds: Signal<Set<MediaResourceId>, NoError> {
+        return self.queuedPromise.get()
+    }
 
     private init() {
+    }
+
+    /// Called with the lock held.
+    private func publishQueued() {
+        self.queuedPromise.set(Set(self.pending.map { $0.2 }))
     }
 
     fileprivate func enqueue(mediaBox: MediaBox, reference: MediaResourceReference, id: MediaResourceId) {
@@ -277,6 +311,7 @@ public final class ClearPlaylistDownloader {
             return
         }
         self.pending.append((mediaBox, reference, id))
+        self.publishQueued()
         self.lock.unlock()
         self.pump()
     }
@@ -290,6 +325,7 @@ public final class ClearPlaylistDownloader {
         let (mediaBox, reference, id) = self.pending.removeFirst()
         let disposable = MetaDisposable()
         self.active[id] = disposable
+        self.publishQueued()
         self.lock.unlock()
 
         disposable.set(fetchedMediaResource(
@@ -372,9 +408,13 @@ public func clearDownloadPlaylist(context: AccountContext, message: Message) {
     })
 }
 
-/// Fetch one track, for the "download just this one" row action. `clearDownloadPlaylist` walks
-/// the whole `.music` history view around a message; this is the single-file case and needs
-/// none of that, so it goes straight to `fetchedMediaResource` with no queue.
+/// Fetch one track, for the "download just this one" row action.
+///
+/// Goes through `ClearPlaylistDownloader` even though there is nothing to pace, because the queue
+/// is what **holds the disposable**. The first version called `fetchedMediaResource(...).start()`
+/// and dropped the result on the floor — a `Signal` is cancelled the moment nothing retains its
+/// disposable, so the download was torn down in the same breath it started and the menu item
+/// looked like it did nothing at all.
 public func clearDownloadSingleTrack(context: AccountContext, message: Message) {
     for item in message.effectiveMedia {
         guard let file = item as? TelegramMediaFile, file.isMusic else {
@@ -384,12 +424,11 @@ public func clearDownloadSingleTrack(context: AccountContext, message: Message) 
             return
         }
         let reference = FileMediaReference.message(message: MessageReference(message), media: file)
-        let _ = fetchedMediaResource(
+        ClearPlaylistDownloader.shared.enqueue(
             mediaBox: context.account.postbox.mediaBox,
-            userLocation: .other,
-            userContentType: .audio,
-            reference: reference.resourceReference(file.resource)
-        ).start()
+            reference: reference.resourceReference(file.resource),
+            id: file.resource.id
+        )
         return
     }
 }

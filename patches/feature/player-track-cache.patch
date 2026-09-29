@@ -4,14 +4,14 @@ Date: Tue, 29 Sep 2026 02:11:16 +0200
 Subject: Show cache state per track and add cache actions to the player menu
 
 ---
- .../Sources/ListMessageFileItemNode.swift     | 49 ++++++++++++++++++-
+ .../Sources/ListMessageFileItemNode.swift     | 54 ++++++++++++++++++-
  .../MediaNavigationAccessoryHeaderNode.swift  | 12 ++++-
  .../MediaNavigationAccessoryHeaderNode.swift  | 10 +++-
  .../Sources/PeerInfoScreen.swift              |  6 +++
  .../ChatInterfaceStateContextMenus.swift      |  9 ++++
- .../OverlayAudioPlayerControllerNode.swift    | 25 ++++++++++
- .../OverlayAudioPlayerControlsNode.swift      | 11 ++++-
- 7 files changed, 114 insertions(+), 8 deletions(-)
+ .../OverlayAudioPlayerControllerNode.swift    | 25 +++++++++
+ .../OverlayAudioPlayerControlsNode.swift      | 11 +++-
+ 7 files changed, 119 insertions(+), 8 deletions(-)
 
 diff --git a/submodules/ListMessageItem/Sources/ListMessageFileItemNode.swift b/submodules/ListMessageItem/Sources/ListMessageFileItemNode.swift
 index 0000000..0000000 100644
@@ -62,7 +62,7 @@ index 0000000..0000000 100644
              
              let (textNodeLayout, textNodeApply) = textNodeMakeLayout(TextNodeLayoutArguments(attributedString: captionText, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: params.width - leftInset - leftOffset - contentRightInset - 30.0, height: CGFloat.infinity), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
              
-@@ -1278,9 +1293,39 @@ public final class ListMessageFileItemNode: ListMessageNode {
+@@ -1278,9 +1293,44 @@ public final class ListMessageFileItemNode: ListMessageNode {
                          }
                      }
                      
@@ -89,7 +89,12 @@ index 0000000..0000000 100644
 +                        if strongSelf.clearCacheFileId != clearCacheFile.fileId {
 +                            strongSelf.clearCacheFileId = clearCacheFile.fileId
 +                            let clearColor = item.presentationData.theme.theme.list.itemSecondaryTextColor
-+                            strongSelf.clearCacheDisposable.set((clearTrackCacheState(mediaBox: item.context.account.postbox.mediaBox, file: clearCacheFile)
++                            // Clear whatever the previous occupant of this recycled node was showing.
++                            // `resourceStatus` is asynchronous, so without this the old row's arrow
++                            // stays on screen until the new signal lands — on a fast scroll that
++                            // reads as "everything is downloaded".
++                            strongSelf.clearCacheNode.update(state: nil, color: clearColor, style: .library)
++                            strongSelf.clearCacheDisposable.set((clearTrackCacheStateQueueAware(mediaBox: item.context.account.postbox.mediaBox, file: clearCacheFile)
 +                            |> deliverOnMainQueue).start(next: { [weak strongSelf] state in
 +                                strongSelf?.clearCacheNode.update(state: state, color: clearColor, style: .library)
 +                            }))

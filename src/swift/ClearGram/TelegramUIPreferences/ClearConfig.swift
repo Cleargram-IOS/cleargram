@@ -71,7 +71,13 @@ public enum ClearConfig {
     public static var hideContextMenuSelect: Bool { current().hideContextMenuSelect }
     public static var defaultEmojisFirst: Bool { current().defaultEmojisFirst }
     public static var disableScrollToNextChannel: Bool { current().disableScrollToNextChannel }
-    public static var showInlineReactions: Bool { current().showInlineReactions }
+    // Forced off. `feature__inline-reactions` swaps upstream's unconditional `false` in
+    // `shouldDisplayInlineDateReactions` for this flag, but the branch that unlocks does not put
+    // reactions beside the time — it removes them from the message. Verified on device 2026-09-29.
+    // The settings row was withdrawn, so accounts that had switched it on could not switch it back;
+    // honouring the stored value would leave them with no reactions at all. Restore the real read
+    // together with the row, once that path works.
+    public static var showInlineReactions: Bool { false }
     public static var blockCloudDrafts: Bool { current().blockCloudDrafts }
     public static var showForwardedTime: Bool { current().showForwardedTime }
     public static var stripTrackingParams: Bool { current().stripTrackingParams }
@@ -89,7 +95,9 @@ public enum ClearConfig {
     public static var showTabNames: Bool { current().showTabNames }
     public static var compactChatList: Bool { current().compactChatList }
     public static var chatListLines: Int32 { current().chatListLines }
-    public static var compactMessagePreview: Bool { current().chatListLines != 3 }
+    // Forced off with the preview-lines row withdrawn — the setting did nothing observable and was
+    // not wanted. `chatListLines` stays in the model so existing stored settings still decode.
+    public static var compactMessagePreview: Bool { false }
     public static var compactFolderNames: Bool { current().compactFolderNames }
     public static var allChatsHidden: Bool { current().allChatsHidden }
     public static var hideTabBar: Bool { current().hideTabBar }

@@ -80,8 +80,9 @@ public func clearSearchAuthorSuggestions(
         |> mapToSignal { result -> Signal<[EnginePeer], NoError> in
             switch result {
             case .progress:
-                // Nothing to show yet; the stock list still renders while this settles.
-                return .complete()
+                // Nothing yet. Emit an empty value rather than completing silently, so the combined
+                // signal keeps producing while resolution is in flight.
+                return .single([])
             case let .result(peer):
                 guard let peer, case .user = peer else {
                     return .single([])
@@ -101,7 +102,14 @@ public func clearSearchAuthorSuggestions(
         extra = .single([])
     }
 
-    return combineLatest(stock, extra)
+    // Both sides are primed with an empty value. `combineLatest` waits for every input to produce
+    // something, and `searchPeerMembers` in a group with participants hidden is exactly the case
+    // where it may never do so — which would leave the suggestion list empty forever, including the
+    // half this function exists to add.
+    return combineLatest(
+        .single([]) |> then(stock),
+        .single([]) |> then(extra)
+    )
     |> map { stockPeers, extraPeers -> [EnginePeer] in
         guard !extraPeers.isEmpty else {
             return stockPeers

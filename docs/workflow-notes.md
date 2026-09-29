@@ -115,11 +115,20 @@ and updating the "Pending wire-up" list in `docs/features.md` in the same change
 Two traps worth knowing, both hit on 2026-09-29:
 - **A `.soon` row is a promise the user can see.** Six of them currently sit in shipped
   settings. Adding one costs nothing; leaving one there for months is a visible lie.
-- **A field with no row is worse than a `.soon` row** — nothing signals it is unfinished.
-  `showInlineReactions` had a working read site and no row for weeks while `features.md`
-  marked it shipped; `chatListLines` had neither, and silently kept three branches of
-  `feature__compact-chat-list` dead. When adding a field, add its row in the same change or
-  a `.soon` row explaining why not.
+- **A field with a read site but no row is a warning, not an oversight — verify on a device
+  before wiring it up.** This note previously said the opposite ("add the row"), and following it
+  on 2026-09-29 broke two things in one build. `showInlineReactions` looked like a shipped feature
+  missing its switch; switching it on removed reactions from messages entirely, because the patch
+  only swaps upstream's unconditional `false` for the flag and the branch that unlocks is
+  unfinished. `chatListLines` looked like the dead half of `feature__compact-chat-list`; the slider
+  changed nothing observable. In both cases the missing row *was the finding* — somebody had
+  already discovered the path does not work and left no note. **So: leave the row out, and record
+  in `docs/features.md` why the field is inert.** A static audit can prove a field is unread; only
+  a device can tell you whether reading it would help.
+- **Withdrawing a row is not enough on its own.** A user who already switched the setting on keeps
+  the stored `true` and now has no way back. Force the accessor to `false` in `ClearConfig` in the
+  same change, with a comment naming what must work before the real read returns — that is what
+  `showInlineReactions`, `compactMessagePreview` and `ClearDesign.useLegacy` all do now.
 
 ## Tooling traps
 
