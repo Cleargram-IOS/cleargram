@@ -37,6 +37,11 @@ patches/**/*.orig
 CLAUDE.local.md
 TODO.md
 STATUS.md
+# Working notes and agent briefs — local, and their presence would otherwise make every
+# build report a dirty id (readCleargramCommit hashes untracked files too).
+HANDOFF*.md
+prompt-*.md
+legacy-design-findings.md
 
 # Локальная конфигурация билд-скрипта
 /build.local
