@@ -762,6 +762,19 @@ private func clearAppearanceScreen() -> ClearScreen {
                 .toggle(ClearToggle(L("Larger Text in Chats", "Крупный текст в чатах"), .config(\.fontSizeOverride), requiresRestart: true))
             ]
         ),
+        // Parked until the conversion actually works on a device — see the open bug in TODO.md.
+        // `ClearDesign.mirrorForNextLaunch` forces the flag off meanwhile, so accounts that had the
+        // toggle on are not left with a half-converted UI they cannot switch back.
+        // ClearSection(
+        //     header: L("DESIGN", "ОФОРМЛЕНИЕ"),
+        //     footer: L(
+        //         "The build already asks iOS for the pre-Liquid-Glass look; this makes Telegram's own panels, switches, menus and transitions follow it instead of drawing glass on top.",
+        //         "Сборка уже просит у iOS доliquid-оформление; это переводит на него собственные панели, переключатели, меню и переходы Telegram, чтобы они не рисовали стекло поверх."
+        //     ),
+        //     rows: [
+        //         .toggle(ClearToggle(L("Legacy Design", "Старое оформление"), .config(\.legacyDesign), requiresRestart: true))
+        //     ]
+        // ),
         ClearSection(
             header: L("CHAT BACKGROUND", "ФОН ЧАТА"),
             footer: L(
@@ -770,6 +783,35 @@ private func clearAppearanceScreen() -> ClearScreen {
             ),
             rows: [
                 .toggle(ClearToggle(L("Remove Edge Dimming", "Убрать затемнение по краям"), .config(\.disableChatEdgeEffect)))
+            ]
+        ),
+        ClearSection(
+            header: L("MEDIA", "МЕДИА"),
+            footer: L(
+                "Photos and videos the sender marked as a spoiler open uncovered, in chats and in the shared-media list.",
+                "Фото и видео, помеченные отправителем как спойлер, открываются без плашки — и в чатах, и в списке медиа."
+            ),
+            rows: [
+                .toggle(ClearToggle(L("Reveal Spoilers", "Не скрывать спойлеры"), .config(\.disableMediaSpoilers)))
+                // Not built yet — two separate things, and only one of them is possible:
+                //
+                // 1. "Sending device" in a photo's ⋯ menu. There is NO device field on a message;
+                //    checked every MessageAttribute, zero matches. The only thing Telegram reports
+                //    a device for is an active session (RecentAccountSession.deviceModel), which is
+                //    a different question. It IS readable for media sent **as a file**: EXIF
+                //    survives there, Make/Model included, via CGImageSourceCopyPropertiesAtIndex on
+                //    the downloaded bytes. Compressed photos are re-encoded by the sender and carry
+                //    nothing, so the row must simply not appear for them rather than guess.
+                //
+                // 2. Spoofing our own device string. `deviceModelName` reaches MTApiEnvironment at
+                //    connect time, so default / Desktop / Android / custom is a matter of one
+                //    string and a relaunch. Note the app *name* cannot be spoofed — the server
+                //    derives it from api_id, so sessions always read "Cleargram" and this is a
+                //    hardware label, not impersonation of an official client. It does change what
+                //    her own session list shows, which is the reason to keep it explicit.
+                //
+                // .toggle(ClearToggle(L("Sending Device", "Устройство отправки"), .config(\.showSendingDevice))),
+                // .screen(clearDeviceSpoofScreen())
             ]
         )
     ])
@@ -880,8 +922,8 @@ private func clearTabBarScreen() -> ClearScreen {
             },
             rows: [
                 .toggle(ClearToggle(L("Hide Tab Bar", "Скрыть панель вкладок"), .config(\.hideTabBar), requiresRestart: true)),
-                .toggle(ClearToggle(L("Show Tab Names", "Показывать названия вкладок"), .config(\.showTabNames), isEnabled: { !$0.hideTabBar }, requiresRestart: true)),
-                .toggle(ClearToggle(L("Narrow Tab Bar", "Узкая панель вкладок"), .config(\.narrowTabBar), isEnabled: { !$0.hideTabBar }, requiresRestart: true))
+                .toggle(ClearToggle(L("Show Tab Names", "Показывать названия вкладок"), .config(\.showTabNames), isEnabled: { !$0.hideTabBar && !$0.legacyDesign }, requiresRestart: true)),
+                .toggle(ClearToggle(L("Narrow Tab Bar", "Узкая панель вкладок"), .config(\.narrowTabBar), isEnabled: { !$0.hideTabBar && !$0.legacyDesign }, requiresRestart: true))
             ]
         ),
         ClearSection(
@@ -891,7 +933,7 @@ private func clearTabBarScreen() -> ClearScreen {
                 "Выключение вкладки «Поиск» убирает поиск совсем — другого входа пока нет. Скрытие «Контактов» требует перезапуска."
             ),
             rows: [
-                .toggle(ClearToggle(L("Search Tab", "Вкладка «Поиск»"), .config(\.tabBarSearchEnabled), isEnabled: { !$0.hideTabBar })),
+                .toggle(ClearToggle(L("Search Tab", "Вкладка «Поиск»"), .config(\.tabBarSearchEnabled), isEnabled: { !$0.hideTabBar && !$0.legacyDesign })),
                 .toggle(ClearToggle(L("Hide Contacts Tab", "Скрыть вкладку «Контакты»"), .config(\.disableContactsTab), requiresRestart: true))
             ]
         ),
@@ -1148,6 +1190,27 @@ private func clearMediaScreen() -> ClearScreen {
             },
             rows: [
                 .toggle(ClearToggle(L("Show Codec & Bitrate", "Показывать кодек и битрейт"), .config(\.showAudioFormatBitrate)))
+            ]
+        ),
+        ClearSection(
+            header: L("TRACK CACHE", "КЭШ ТРЕКОВ"),
+            footer: L(
+                "Lists of music already show the cache state; the indicator adds it to the player itself. The action appears on a downloaded track's context menu and keeps the message.",
+                "В списках музыки состояние кэша видно и так; индикатор добавляет его в сам плеер. Пункт меню появляется у скачанного трека по зажатию и удаляет только файл, не сообщение."
+            ),
+            rows: [
+                .toggle(ClearToggle(L("Cache Indicator in Player", "Индикатор кэша в плеере"), .config(\.showTrackCacheStatus))),
+                .toggle(ClearToggle(L("“Unload from Cache” Action", "Пункт «Выгрузить из кэша»"), .config(\.unloadTrackFromCache))),
+                .toggle(ClearToggle(L("“Download Playlist” Action", "Пункт «Скачать плейлист»"), .config(\.downloadPlaylist))),
+                .slider(ClearSlider(
+                    title: L("Download at Most", "Скачивать не больше"),
+                    keyPath: \.playlistDownloadLimit,
+                    minValue: 5,
+                    maxValue: 200,
+                    step: 5,
+                    format: { "\($0)" },
+                    isEnabled: { $0.downloadPlaylist }
+                ))
             ]
         ),
         ClearSection(

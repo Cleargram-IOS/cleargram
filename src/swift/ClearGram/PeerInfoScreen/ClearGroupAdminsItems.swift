@@ -33,6 +33,13 @@ func clearGroupAdminsItems(peer: EnginePeer?, context: AccountContext, interacti
 
     switch peer {
     case let .channel(channel):
+        // Broadcast channels are out: `channels.getParticipants` with a filter of
+        // `channelParticipantsAdmins` is admin-only there, so a member gets nothing back and the
+        // row would open an empty screen. Supergroups — also `.channel`, but `.group` info — do
+        // return it, which is the whole point of this feature.
+        if case .broadcast = channel.info {
+            return []
+        }
         if channel.adminRights != nil || channel.flags.contains(.isCreator) {
             return []
         }

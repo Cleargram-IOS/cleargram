@@ -6,11 +6,11 @@ Subject: Show forwarded message time
 ---
  .../ChatMessageAnimatedStickerItemNode.swift  |  2 +-
  .../Sources/ChatMessageBubbleItemNode.swift   | 24 ++++++++++++-------
- .../Sources/ChatMessageForwardInfoNode.swift  | 20 ++++++++++++++--
+ .../Sources/ChatMessageForwardInfoNode.swift  | 21 ++++++++++++++--
  .../ChatMessageInstantVideoItemNode.swift     |  2 +-
  ...atMessageInteractiveInstantVideoNode.swift |  2 +-
  .../Sources/ChatMessageStickerItemNode.swift  |  2 +-
- 6 files changed, 38 insertions(+), 14 deletions(-)
+ 6 files changed, 39 insertions(+), 14 deletions(-)
 
 diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageAnimatedStickerItemNode/Sources/ChatMessageAnimatedStickerItemNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageAnimatedStickerItemNode/Sources/ChatMessageAnimatedStickerItemNode.swift
 index 0000000..0000000 100644
@@ -91,16 +91,17 @@ diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageForwardInfoNode/So
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Components/Chat/ChatMessageForwardInfoNode/Sources/ChatMessageForwardInfoNode.swift
 +++ b/submodules/TelegramUI/Components/Chat/ChatMessageForwardInfoNode/Sources/ChatMessageForwardInfoNode.swift
-@@ -9,6 +9,8 @@ import AccountContext
+@@ -9,6 +9,9 @@ import AccountContext
  import AvatarNode
  import TextLoadingEffect
  import SwiftSignalKit
 +import TelegramUIPreferences
++import TelegramStringFormatting
 +import TextFormat
  
  public enum ChatMessageForwardInfoType: Equatable {
      case bubble(incoming: Bool)
-@@ -278,13 +280,13 @@ public class ChatMessageForwardInfoNode: ASDisplayNode {
+@@ -278,13 +281,13 @@ public class ChatMessageForwardInfoNode: ASDisplayNode {
          }
      }
      
@@ -116,12 +117,12 @@ index 0000000..0000000 100644
              let originalPeer = peer
              let peer = peer ?? previousPeer
              
-@@ -405,6 +407,20 @@ public class ChatMessageForwardInfoNode: ASDisplayNode {
+@@ -405,6 +408,20 @@ public class ChatMessageForwardInfoNode: ASDisplayNode {
                  }
              }
              
 +            if ClearConfig.showForwardedTime, let forwardDate = forwardDate, let _ = authorString {
-+                let timeString = stringForMessageTimestamp(timestamp: forwardDate, dateTimeFormat: presentationData.dateTimeFormat, local: true)
++                let timeString = stringForMediumDate(timestamp: forwardDate, strings: strings, dateTimeFormat: presentationData.dateTimeFormat)
 +                if let storyData = storyData {
 +                    switch storyData.storyType {
 +                    case .regular, .unavailable:

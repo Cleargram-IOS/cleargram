@@ -40,3 +40,6 @@ STATUS.md
 
 # Локальная конфигурация билд-скрипта
 /build.local
+
+# local__* patches are machine-specific and never exported
+/patches/local/

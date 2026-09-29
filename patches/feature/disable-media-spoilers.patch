@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Asya Medvedeva <asya_bububu@proton.me>
+Date: Tue, 29 Sep 2026 02:01:16 +0200
+Subject: Add a toggle to reveal media spoilers
+
+---
+ .../Sources/ChatMessageInteractiveMediaNode.swift           | 6 +++---
+ .../Sources/PeerInfoVisualMediaPaneNode.swift               | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveMediaNode/Sources/ChatMessageInteractiveMediaNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveMediaNode/Sources/ChatMessageInteractiveMediaNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveMediaNode/Sources/ChatMessageInteractiveMediaNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageInteractiveMediaNode/Sources/ChatMessageInteractiveMediaNode.swift
+@@ -943,7 +943,7 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
+                 }
+             }
+             
+-            let hasSpoiler = message.attributes.contains(where: { $0 is MediaSpoilerMessageAttribute })
++            let hasSpoiler = (!ClearConfig.disableMediaSpoilers && message.attributes.contains(where: { $0 is MediaSpoilerMessageAttribute }))
+             var isExtendedMediaPreview = false
+             var isInlinePlayableVideo = false
+             var isSticker = false
+@@ -2150,7 +2150,7 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
+                                 }
+                             }
+                             
+-                            if message.attributes.contains(where: { $0 is MediaSpoilerMessageAttribute }), strongSelf.extendedMediaOverlayNode == nil {
++                            if (!ClearConfig.disableMediaSpoilers && message.attributes.contains(where: { $0 is MediaSpoilerMessageAttribute })), strongSelf.extendedMediaOverlayNode == nil {
+                                 strongSelf.internallyVisible = false
+                             }
+                                                         
+@@ -3085,7 +3085,7 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
+                 icon = .lock
+             }
+             displaySpoiler = true
+-        } else if message.attributes.contains(where: { $0 is MediaSpoilerMessageAttribute }) {
++        } else if (!ClearConfig.disableMediaSpoilers && message.attributes.contains(where: { $0 is MediaSpoilerMessageAttribute })) {
+             displaySpoiler = true
+         } else if isSecretMedia {
+             displaySpoiler = true
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoVisualMediaPaneNode/Sources/PeerInfoVisualMediaPaneNode.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoVisualMediaPaneNode/Sources/PeerInfoVisualMediaPaneNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoVisualMediaPaneNode/Sources/PeerInfoVisualMediaPaneNode.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoVisualMediaPaneNode/Sources/PeerInfoVisualMediaPaneNode.swift
+@@ -892,7 +892,7 @@ private final class SparseItemGridBindingImpl: SparseItemGridBinding, ListShimme
+                 }
+ 
+                 let message = item.message
+-                var hasSpoiler = message.attributes.contains(where: { $0 is MediaSpoilerMessageAttribute }) && !self.revealedSpoilerMessageIds.contains(message.id)
++                var hasSpoiler = !ClearConfig.disableMediaSpoilers && message.attributes.contains(where: { $0 is MediaSpoilerMessageAttribute }) && !self.revealedSpoilerMessageIds.contains(message.id)
+                 if message.isSensitiveContent(platform: "ios") {
+                     hasSpoiler = true
+                 }

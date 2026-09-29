@@ -78,7 +78,19 @@ const [patchNames, commitIds] = await Promise.all([
 ])
 await clearExportedPatchFiles()
 
-const entries = await parallelMap(patchNames, async (patchName) => {
+// `local__*` patches are machine-specific by definition — dev signing (bundle id, team id),
+// build flags a free Apple ID needs. They stay in the stgit stack and out of the repo, which is
+// also what `check-patches.ts` assumes: it keeps a separate baseline for them precisely because
+// they "never reach patches/". Without this filter an export drops them into `patches/local/` and
+// lists them in `series`, so the next commit carries them and a fresh `pnpm setup` elsewhere tries
+// to apply patches that do not exist.
+const exportable = patchNames.filter(name => parsePatchName(name).group !== 'local')
+const skipped = patchNames.length - exportable.length
+if (skipped > 0) {
+  step(`Skipping ${skipped} local ${skipped === 1 ? 'patch' : 'patches'} (never exported)`)
+}
+
+const entries = await parallelMap(exportable, async (patchName) => {
   const commitId = commitIds.get(patchName)
   if (!commitId) throw new Error(`No commit id for applied patch ${patchName}`)
   const patch = await exportPatchFile(repoDir, patchName, commitId)

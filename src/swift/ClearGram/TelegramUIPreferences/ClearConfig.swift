@@ -145,6 +145,12 @@ public enum ClearConfig {
     public static var showContactAddedYouBadge: Bool { current().showContactAddedYouBadge }
     public static var showGroupAdmins: Bool { current().showGroupAdmins }
     public static var disableChatEdgeEffect: Bool { current().disableChatEdgeEffect }
+    public static var showTrackCacheStatus: Bool { current().showTrackCacheStatus }
+    public static var unloadTrackFromCache: Bool { current().unloadTrackFromCache }
+    public static var downloadPlaylist: Bool { current().downloadPlaylist }
+    public static var playlistDownloadLimit: Int32 { current().playlistDownloadLimit }
+    public static var legacyDesign: Bool { current().legacyDesign }
+    public static var disableMediaSpoilers: Bool { current().disableMediaSpoilers }
     // What the audio renderer actually consumes. Kept next to the raw accessors so the screen and
     // the renderer can never disagree about how the three fields combine.
     public static func equalizerState(_ settings: ClearConfigSettings) -> ClearEqualizer.State {

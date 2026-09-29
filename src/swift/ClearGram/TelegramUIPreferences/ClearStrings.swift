@@ -67,6 +67,19 @@ public enum ClearStrings {
     // stock files use these instead, so each patch hunk stays a one-liner and the Russian
     // text never lands in a stock file.
 
+    public static func contextMenuDownloadPlaylist(_ count: Int32) -> String {
+        let n = Int(count)
+        return tr("Download \(n) Tracks", "Скачать \(n) \(plural(n, one: "трек", few: "трека", many: "треков"))")
+    }
+
+    public static var contextMenuDownloadTrack: String {
+        return tr("Download This Track", "Скачать этот трек")
+    }
+
+    public static var contextMenuUnloadFromCache: String {
+        return tr("Unload from Cache", "Выгрузить из кэша")
+    }
+
     public static var contextMenuShowPackOwner: String {
         return tr("Show Pack Owner", "Показать владельца набора")
     }

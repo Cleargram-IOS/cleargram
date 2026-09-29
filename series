@@ -61,3 +61,9 @@ feature/contact-added-you-badge.patch
 feature/settings-footer-copy.patch
 feature/group-admins.patch
 feature/disable-chat-edge-effect.patch
+feature/track-cache-indicator.patch
+feature/unload-track-from-cache.patch
+feature/download-playlist.patch
+feature/legacy-design.patch
+feature/disable-media-spoilers.patch
+feature/player-track-cache.patch

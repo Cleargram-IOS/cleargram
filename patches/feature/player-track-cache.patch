@@ -1,0 +1,259 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Asya Medvedeva <asya_bububu@proton.me>
+Date: Tue, 29 Sep 2026 02:11:16 +0200
+Subject: Show cache state per track and add cache actions to the player menu
+
+---
+ .../Sources/ListMessageFileItemNode.swift     | 49 ++++++++++++++++++-
+ .../MediaNavigationAccessoryHeaderNode.swift  | 12 ++++-
+ .../MediaNavigationAccessoryHeaderNode.swift  | 10 +++-
+ .../Sources/PeerInfoScreen.swift              |  6 +++
+ .../ChatInterfaceStateContextMenus.swift      |  9 ++++
+ .../OverlayAudioPlayerControllerNode.swift    | 25 ++++++++++
+ .../OverlayAudioPlayerControlsNode.swift      | 11 ++++-
+ 7 files changed, 114 insertions(+), 8 deletions(-)
+
+diff --git a/submodules/ListMessageItem/Sources/ListMessageFileItemNode.swift b/submodules/ListMessageItem/Sources/ListMessageFileItemNode.swift
+index 0000000..0000000 100644
+--- a/submodules/ListMessageItem/Sources/ListMessageFileItemNode.swift
++++ b/submodules/ListMessageItem/Sources/ListMessageFileItemNode.swift
+@@ -21,6 +21,7 @@ import ManagedAnimationNode
+ import ShimmerEffect
+ import ComponentFlow
+ import EmojiStatusComponent
++import TelegramUIPreferences
+ 
+ private let extensionImageCache = Atomic<[UInt32: UIImage]>(value: [:])
+ 
+@@ -379,6 +380,9 @@ public final class ListMessageFileItemNode: ListMessageNode {
+     private var resourceStatus: FileMediaResourceMediaStatus?
+     private let fetchDisposable = MetaDisposable()
+     private let playbackStatusDisposable = MetaDisposable()
++    private let clearCacheNode = ClearTrackCacheIndicatorNode()
++    private let clearCacheDisposable = MetaDisposable()
++    private var clearCacheFileId: EngineMedia.Id?
+     private let playbackStatus = Promise<MediaPlayerStatus>()
+     
+     private var downloadStatusIconNode: DownloadIconNode?
+@@ -546,6 +550,7 @@ public final class ListMessageFileItemNode: ListMessageNode {
+     deinit {
+         self.statusDisposable.dispose()
+         self.fetchDisposable.dispose()
++        self.clearCacheDisposable.dispose()
+     }
+     
+     required public init?(coder aDecoder: NSCoder) {
+@@ -1046,7 +1051,17 @@ public final class ListMessageFileItemNode: ListMessageNode {
+             
+             let (dateNodeLayout, dateNodeApply) = dateNodeMakeLayout(TextNodeLayoutArguments(attributedString: dateAttributedString, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: params.width - leftInset - leftOffset - contentRightInset - 12.0, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
+             
+-            let (titleNodeLayout, titleNodeApply) = titleNodeMakeLayout(item.context, params.width - leftInset - leftOffset - contentRightInset - dateNodeLayout.size.width - 4.0, item.presentationData.theme.theme, titleText, isAudio ? .end : .middle, titleExtraData)
++            // A music row carries the cache indicator beside its title, so the title gets that much
++            // less width. Reserved for every music row rather than only the cached ones: the state
++            // changes while the row is on screen, and a width that moved with it would reflow the
++            // text mid-download.
++            var clearCacheFile: TelegramMediaFile?
++            if ClearConfig.showTrackCacheStatus, let clearMessage = message {
++                clearCacheFile = clearMessage.effectiveMedia.compactMap({ $0 as? TelegramMediaFile }).first(where: { $0.isMusic })
++            }
++            let clearCacheWidth: CGFloat = clearCacheFile == nil ? 0.0 : ClearTrackCacheIndicatorNode.size.width + 4.0
++            
++            let (titleNodeLayout, titleNodeApply) = titleNodeMakeLayout(item.context, params.width - leftInset - leftOffset - contentRightInset - dateNodeLayout.size.width - 4.0 - clearCacheWidth, item.presentationData.theme.theme, titleText, isAudio ? .end : .middle, titleExtraData)
+             
+             let (textNodeLayout, textNodeApply) = textNodeMakeLayout(TextNodeLayoutArguments(attributedString: captionText, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: params.width - leftInset - leftOffset - contentRightInset - 30.0, height: CGFloat.infinity), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
+             
+@@ -1278,9 +1293,39 @@ public final class ListMessageFileItemNode: ListMessageNode {
+                         }
+                     }
+                     
+-                    transition.updateFrame(node: strongSelf.titleNode, frame: CGRect(origin: CGPoint(x: leftOffset + leftInset - 1.0, y: 7.0 + verticalInset), size: titleNodeLayout))
++                    let clearTitleFrame = CGRect(origin: CGPoint(x: leftOffset + leftInset - 1.0, y: 7.0 + verticalInset), size: titleNodeLayout)
++                    transition.updateFrame(node: strongSelf.titleNode, frame: clearTitleFrame)
+                     let _ = titleNodeApply()
+                     
++                    if let clearCacheFile {
++                        if strongSelf.clearCacheNode.supernode == nil {
++                            strongSelf.addSubnode(strongSelf.clearCacheNode)
++                        }
++                        strongSelf.clearCacheNode.isHidden = false
++                        transition.updateFrame(node: strongSelf.clearCacheNode, frame: CGRect(
++                            origin: CGPoint(
++                                x: clearTitleFrame.maxX + 4.0,
++                                y: clearTitleFrame.midY - ClearTrackCacheIndicatorNode.size.height / 2.0
++                            ),
++                            size: ClearTrackCacheIndicatorNode.size
++                        ))
++                        // Subscribed per file, not per layout pass: the row has to follow a download
++                        // that finishes while it is on screen, which is why the old synchronous
++                        // check meant reopening the screen to see a change.
++                        if strongSelf.clearCacheFileId != clearCacheFile.fileId {
++                            strongSelf.clearCacheFileId = clearCacheFile.fileId
++                            let clearColor = item.presentationData.theme.theme.list.itemSecondaryTextColor
++                            strongSelf.clearCacheDisposable.set((clearTrackCacheState(mediaBox: item.context.account.postbox.mediaBox, file: clearCacheFile)
++                            |> deliverOnMainQueue).start(next: { [weak strongSelf] state in
++                                strongSelf?.clearCacheNode.update(state: state, color: clearColor)
++                            }))
++                        }
++                    } else {
++                        strongSelf.clearCacheNode.isHidden = true
++                        strongSelf.clearCacheFileId = nil
++                        strongSelf.clearCacheDisposable.set(nil)
++                    }
++                    
+                     var descriptionOffset: CGFloat = 0.0
+                     if let resourceStatus = strongSelf.resourceStatus {
+                         switch resourceStatus {
+diff --git a/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift b/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift
++++ b/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift
+@@ -245,13 +245,21 @@ public final class MediaNavigationAccessoryHeaderNode: ASDisplayNode, ASScrollVi
+     
+     private func clearUpdateCacheStateSubscription() {
+         self.clearCacheStateDisposable.set((clearTrackCacheState(context: self.context, item: self.playbackItems?.0)
+-        |> deliverOnMainQueue).start(next: { [weak self] state in
++        |> deliverOnMainQueue).start(next: { [weak self] rawState in
++            // A track already on disk gets no indicator in the compact panels: there is nothing
++            // left to report, and a permanent tick would keep the title pushed off centre. Dropping
++            // the state to nil hides the node and zeroes the layout shift in one go; the full-screen
++            // player still shows it, because there the row has space for it.
++            var state = rawState
++            if case .local = state {
++                state = nil
++            }
+             guard let self, self.clearCacheState != state else {
+                 return
+             }
+             self.clearCacheState = state
+             if let layout = self.validLayout {
+-                self.updateLayout(size: layout.0, leftInset: layout.1, rightInset: layout.2, transition: .immediate)
++                self.updateLayout(size: layout.0, leftInset: layout.1, rightInset: layout.2, transition: .animated(duration: 0.2, curve: .easeInOut))
+             }
+         }))
+     }
+diff --git a/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift b/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift
++++ b/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift
+@@ -240,13 +240,19 @@ public final class MediaNavigationAccessoryHeaderNode: ASDisplayNode, ASScrollVi
+     
+     private func clearUpdateCacheStateSubscription() {
+         self.clearCacheStateDisposable.set((clearTrackCacheState(context: self.context, item: self.playbackItems?.0)
+-        |> deliverOnMainQueue).start(next: { [weak self] state in
++        |> deliverOnMainQueue).start(next: { [weak self] rawState in
++            // Same as the other compact panel: a cached track shows nothing, so the title keeps
++            // its centre. See the note in TelegramBaseController's copy of this node.
++            var state = rawState
++            if case .local = state {
++                state = nil
++            }
+             guard let self, self.clearCacheState != state else {
+                 return
+             }
+             self.clearCacheState = state
+             if let layout = self.validLayout {
+-                self.updateLayout(size: layout.0, leftInset: layout.1, rightInset: layout.2, transition: .immediate)
++                self.updateLayout(size: layout.0, leftInset: layout.1, rightInset: layout.2, transition: .animated(duration: 0.2, curve: .easeInOut))
+             }
+         }))
+     }
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+@@ -772,6 +772,12 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+                         f(.default)
+                     })))
+                 }
++                if clearPlaylistDownloadLimit(context: strongSelf.context, media: message.media) != nil, clearUnloadableMusicFile(context: strongSelf.context, media: message.media) == nil {
++                    items.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuDownloadTrack, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Download"), color: theme.contextMenu.primaryColor) }, action: { _, f in
++                        clearDownloadSingleTrack(context: strongSelf.context, message: message)
++                        f(.default)
++                    })))
++                }
+                 if let clearFile = clearUnloadableMusicFile(context: strongSelf.context, media: message.media) {
+                     let clearContext = strongSelf.context
+                     items.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuUnloadFromCache, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
++++ b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+@@ -1565,6 +1565,15 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+             })))
+         }
+         
++        if clearPlaylistDownloadLimit(context: context, media: message.effectiveMedia) != nil, clearUnloadableMusicFile(context: context, media: message.effectiveMedia) == nil {
++            actions.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuDownloadTrack, icon: { theme in
++                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Download"), color: theme.actionSheet.primaryTextColor)
++            }, action: { _, f in
++                clearDownloadSingleTrack(context: context, message: message)
++                f(.default)
++            })))
++        }
++        
+         if let clearFile = clearUnloadableMusicFile(context: context, media: message.effectiveMedia) {
+             actions.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuUnloadFromCache, icon: { theme in
+                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.actionSheet.primaryTextColor)
+diff --git a/submodules/TelegramUI/Sources/OverlayAudioPlayerControllerNode.swift b/submodules/TelegramUI/Sources/OverlayAudioPlayerControllerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/OverlayAudioPlayerControllerNode.swift
++++ b/submodules/TelegramUI/Sources/OverlayAudioPlayerControllerNode.swift
+@@ -1477,6 +1477,31 @@ final class OverlayAudioPlayerControllerNode: ViewControllerTracingNode, ASGestu
+                 })))
+             }
+             
++            if let clearPlaylistLimit = clearPlaylistDownloadLimit(context: context, media: message.effectiveMedia) {
++                items.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuDownloadPlaylist(clearPlaylistLimit), icon: { theme in
++                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Download"), color: theme.contextMenu.primaryColor)
++                }, action: { _, f in
++                    clearDownloadPlaylist(context: context, message: message)
++                    f(.default)
++                })))
++            }
++            if clearPlaylistDownloadLimit(context: context, media: message.effectiveMedia) != nil, clearUnloadableMusicFile(context: context, media: message.effectiveMedia) == nil {
++                items.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuDownloadTrack, icon: { theme in
++                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Download"), color: theme.contextMenu.primaryColor)
++                }, action: { _, f in
++                    clearDownloadSingleTrack(context: context, message: message)
++                    f(.default)
++                })))
++            }
++            if let clearFile = clearUnloadableMusicFile(context: context, media: message.effectiveMedia) {
++                items.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuUnloadFromCache, icon: { theme in
++                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.contextMenu.primaryColor)
++                }, action: { _, f in
++                    clearUnloadTrackFromCache(engine: context.engine, file: clearFile)
++                    f(.default)
++                })))
++            }
++            
+             var addedSeparator = false
+             
+             if message.id.namespace == Namespaces.Message.Cloud {
+diff --git a/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift b/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
++++ b/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
+@@ -599,13 +599,20 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+     
+     private func clearUpdateCacheState(file: TelegramMediaFile?) {
+         self.clearCacheStateDisposable.set((clearTrackCacheState(mediaBox: self.account.postbox.mediaBox, file: file)
+-        |> deliverOnMainQueue).start(next: { [weak self] state in
++        |> deliverOnMainQueue).start(next: { [weak self] rawState in
++            // Same rule as the compact panels: nothing next to the title once the track is on disk,
++            // so the title keeps its centre. The per-row markers in the playlist below are a
++            // different thing and stay — there the point is comparing tracks, not reporting one.
++            var state = rawState
++            if case .local = state {
++                state = nil
++            }
+             guard let self, self.clearCacheState != state else {
+                 return
+             }
+             self.clearCacheState = state
+             if let layout = self.validLayout {
+-                let _ = self.updateLayout(width: layout.width, leftInset: layout.leftInset, rightInset: layout.rightInset, bottomInset: layout.bottomInset, maxHeight: layout.maxHeight, savedMusic: layout.savedMusic, transition: .immediate)
++                let _ = self.updateLayout(width: layout.width, leftInset: layout.leftInset, rightInset: layout.rightInset, bottomInset: layout.bottomInset, maxHeight: layout.maxHeight, savedMusic: layout.savedMusic, transition: .animated(duration: 0.2, curve: .easeInOut))
+             }
+         }))
+     }

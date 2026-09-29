@@ -4,9 +4,29 @@ Date: Wed, 9 Sep 2026 12:01:10 +0300
 Subject: Add chat edge dimming toggle
 
 ---
- submodules/TelegramUI/Sources/ChatControllerNode.swift | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ .../Sources/ChatRecentActionsControllerNode.swift         | 8 +++++++-
+ submodules/TelegramUI/Sources/ChatControllerNode.swift    | 4 ++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)
 
+diff --git a/submodules/TelegramUI/Components/Chat/ChatRecentActionsController/Sources/ChatRecentActionsControllerNode.swift b/submodules/TelegramUI/Components/Chat/ChatRecentActionsController/Sources/ChatRecentActionsControllerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatRecentActionsController/Sources/ChatRecentActionsControllerNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatRecentActionsController/Sources/ChatRecentActionsControllerNode.swift
+@@ -1013,7 +1013,13 @@ final class ChatRecentActionsControllerNode: ViewControllerTracingNode {
+         }
+ 
+         let bottomBackgroundEdgeEffectNode: WallpaperEdgeEffectNode?
+-        if let current = self.bottomBackgroundEdgeEffectNode {
++        if ClearConfig.disableChatEdgeEffect {
++            if let current = self.bottomBackgroundEdgeEffectNode {
++                self.bottomBackgroundEdgeEffectNode = nil
++                current.removeFromSupernode()
++            }
++            bottomBackgroundEdgeEffectNode = nil
++        } else if let current = self.bottomBackgroundEdgeEffectNode {
+             bottomBackgroundEdgeEffectNode = current
+         } else if let value = self.backgroundNode.makeEdgeEffectNode() {
+             bottomBackgroundEdgeEffectNode = value
 diff --git a/submodules/TelegramUI/Sources/ChatControllerNode.swift b/submodules/TelegramUI/Sources/ChatControllerNode.swift
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Sources/ChatControllerNode.swift

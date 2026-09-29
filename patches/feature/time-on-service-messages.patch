@@ -4,8 +4,10 @@ Date: Tue, 28 Jul 2026 04:22:43 +0700
 Subject: Show timestamp on service messages
 
 ---
- .../Sources/ChatMessageActionBubbleContentNode.swift       | 7 +++++++
- 1 file changed, 7 insertions(+)
+ .../Sources/ChatMessageActionBubbleContentNode.swift   |  7 +++++++
+ .../Sources/ChatMessageGiftBubbleContentNode.swift     |  9 ++++++++-
+ .../ChatMessageJoinedChannelBubbleContentNode.swift    | 10 +++++++++-
+ 3 files changed, 24 insertions(+), 2 deletions(-)
 
 diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageActionBubbleContentNode/Sources/ChatMessageActionBubbleContentNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageActionBubbleContentNode/Sources/ChatMessageActionBubbleContentNode.swift
 index 0000000..0000000 100644
@@ -25,3 +27,52 @@ index 0000000..0000000 100644
                  let (labelLayout, apply) = makeLabelLayout(TextNodeLayoutArguments(attributedString: updatedAttributedString, backgroundColor: nil, maximumNumberOfLines: 0, truncationType: .end, constrainedSize: CGSize(width: constrainedSize.width - 32.0, height: CGFloat.greatestFiniteMagnitude), alignment: textAlignment, cutout: nil, insets: UIEdgeInsets()))
              
                  var labelRects = labelLayout.linesRects()
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageGiftBubbleContentNode/Sources/ChatMessageGiftBubbleContentNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageGiftBubbleContentNode/Sources/ChatMessageGiftBubbleContentNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageGiftBubbleContentNode/Sources/ChatMessageGiftBubbleContentNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageGiftBubbleContentNode/Sources/ChatMessageGiftBubbleContentNode.swift
+@@ -415,7 +415,7 @@ public class ChatMessageGiftBubbleContentNode: ChatMessageBubbleContentNode {
+                     incoming = item.message.effectivelyIncoming(item.context.account.peerId)
+                 }
+                 
+-                let attributedString = attributedServiceMessageString(theme: item.presentationData.theme, strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, message: EngineMessage(item.message), accountPeerId: item.context.account.peerId)
++                var attributedString = attributedServiceMessageString(theme: item.presentationData.theme, strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, message: EngineMessage(item.message), accountPeerId: item.context.account.peerId)
+             
+                 var primaryTextColor = serviceMessageColorComponents(theme: item.presentationData.theme.theme, wallpaper: item.presentationData.theme.wallpaper).primaryText
+                                 
+@@ -806,6 +806,13 @@ public class ChatMessageGiftBubbleContentNode: ChatMessageBubbleContentNode {
+                     animationName = "Gift3"
+                 }
+                 
++                if ClearConfig.timeOnServiceMessages, let attr = attributedString {
++                    let timeString = stringForMediumDate(timestamp: item.message.timestamp, strings: item.presentationData.strings, dateTimeFormat: item.presentationData.dateTimeFormat)
++                    let mutableUpdated = NSMutableAttributedString(attributedString: attr)
++                    mutableUpdated.append(NSAttributedString(string: " · \(timeString)", font: Font.regular(13.0), textColor: primaryTextColor.withAlphaComponent(0.6)))
++                    attributedString = mutableUpdated
++                }
++                
+                 let (labelLayout, labelApply) = makeLabelLayout(TextNodeLayoutArguments(attributedString: attributedString, backgroundColor: nil, maximumNumberOfLines: 0, truncationType: .end, constrainedSize: CGSize(width: constrainedSize.width - 32.0, height: CGFloat.greatestFiniteMagnitude), alignment: .center, cutout: nil, insets: UIEdgeInsets()))
+                 
+                 let titleAttributedString = NSMutableAttributedString(attributedString: NSAttributedString(string: title, font: Font.semibold(15.0), textColor: primaryTextColor, paragraphAlignment: .center))
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageJoinedChannelBubbleContentNode/Sources/ChatMessageJoinedChannelBubbleContentNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageJoinedChannelBubbleContentNode/Sources/ChatMessageJoinedChannelBubbleContentNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageJoinedChannelBubbleContentNode/Sources/ChatMessageJoinedChannelBubbleContentNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageJoinedChannelBubbleContentNode/Sources/ChatMessageJoinedChannelBubbleContentNode.swift
+@@ -162,8 +162,16 @@ public class ChatMessageJoinedChannelBubbleContentNode: ChatMessageBubbleContent
+                         
+             let unboundWidth: CGFloat = constrainedSize.width - 10.0 * 2.0
+             return (contentProperties, nil, unboundWidth, { constrainedSize, position in
+-                let attributedString = attributedServiceMessageString(theme: item.presentationData.theme, strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, message: EngineMessage(item.message), accountPeerId: item.context.account.peerId)
++                var attributedString = attributedServiceMessageString(theme: item.presentationData.theme, strings: item.presentationData.strings, nameDisplayOrder: item.presentationData.nameDisplayOrder, dateTimeFormat: item.presentationData.dateTimeFormat, message: EngineMessage(item.message), accountPeerId: item.context.account.peerId)
+             
++                if ClearConfig.timeOnServiceMessages, let attr = attributedString {
++                    let timeString = stringForMediumDate(timestamp: item.message.timestamp, strings: item.presentationData.strings, dateTimeFormat: item.presentationData.dateTimeFormat)
++                    let serviceTextColor = serviceMessageColorComponents(theme: item.presentationData.theme.theme, wallpaper: item.presentationData.theme.wallpaper).primaryText
++                    let mutableUpdated = NSMutableAttributedString(attributedString: attr)
++                    mutableUpdated.append(NSAttributedString(string: " · \(timeString)", font: Font.regular(13.0), textColor: serviceTextColor.withAlphaComponent(0.6)))
++                    attributedString = mutableUpdated
++                }
++                
+                 let (labelLayout, labelApply) = makeLabelLayout(TextNodeLayoutArguments(attributedString: attributedString, backgroundColor: nil, maximumNumberOfLines: 0, truncationType: .end, constrainedSize: CGSize(width: constrainedSize.width - 32.0, height: CGFloat.greatestFiniteMagnitude), alignment: .center, cutout: nil, insets: UIEdgeInsets()))
+                 
+                 let (titleLayout, titleApply) = makeTitleLayout(TextNodeLayoutArguments(attributedString: NSAttributedString(string: item.presentationData.strings.Chat_SimilarChannels, font: Font.semibold(15.0), textColor: item.presentationData.theme.theme.chat.message.incoming.primaryTextColor, paragraphAlignment: .center), backgroundColor: nil, maximumNumberOfLines: 0, truncationType: .end, constrainedSize: CGSize(width: constrainedSize.width - 32.0, height: CGFloat.greatestFiniteMagnitude), alignment: .center, cutout: nil, insets: UIEdgeInsets()))

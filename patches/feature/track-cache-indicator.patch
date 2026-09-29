@@ -1,0 +1,304 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Asya Medvedeva <asya_bububu@proton.me>
+Date: Mon, 28 Sep 2026 21:24:41 +0200
+Subject: Show track cache state in the player
+
+---
+ .../MediaNavigationAccessoryHeaderNode.swift  | 49 +++++++++++++++++--
+ .../MediaNavigationAccessoryHeaderNode.swift  | 49 +++++++++++++++++--
+ .../OverlayAudioPlayerControlsNode.swift      | 42 +++++++++++++++-
+ 3 files changed, 128 insertions(+), 12 deletions(-)
+
+diff --git a/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift b/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift
++++ b/submodules/TelegramBaseController/Sources/MediaNavigationAccessoryHeaderNode.swift
+@@ -25,6 +25,7 @@ private func normalizeValue(_ value: CGFloat) -> CGFloat {
+ private class MediaHeaderItemNode: ASDisplayNode {
+     private let titleNode: TextNode
+     private let subtitleNode: TextNode
++    private let clearCacheNode = ClearTrackCacheIndicatorNode()
+     
+     override init() {
+         self.titleNode = TextNode()
+@@ -40,9 +41,10 @@ private class MediaHeaderItemNode: ASDisplayNode {
+         
+         self.addSubnode(self.titleNode)
+         self.addSubnode(self.subtitleNode)
++        self.addSubnode(self.clearCacheNode)
+     }
+     
+-    func updateLayout(size: CGSize, leftInset: CGFloat, rightInset: CGFloat, theme: PresentationTheme, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, nameDisplayOrder: PresentationPersonNameOrder, playbackItem: SharedMediaPlaylistItem?, transition: ContainedViewLayoutTransition) -> (NSAttributedString?, NSAttributedString?, Bool) {
++    func updateLayout(size: CGSize, leftInset: CGFloat, rightInset: CGFloat, theme: PresentationTheme, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, nameDisplayOrder: PresentationPersonNameOrder, playbackItem: SharedMediaPlaylistItem?, clearCacheState: ClearTrackCacheState?, transition: ContainedViewLayoutTransition) -> (NSAttributedString?, NSAttributedString?, Bool) {
+         var rateButtonHidden = false
+         var titleString: NSAttributedString?
+         var subtitleString: NSAttributedString?
+@@ -115,9 +117,23 @@ private class MediaHeaderItemNode: ASDisplayNode {
+         
+         let minimizedTitleOffset: CGFloat = subtitleString == nil ? 6.0 : 0.0
+         
+-        let minimizedTitleFrame = CGRect(origin: CGPoint(x: floor((size.width - titleLayout.size.width) / 2.0), y: 4.0 + minimizedTitleOffset), size: titleLayout.size)
++        // The indicator sits to the left of the title and shifts the pair right by half its
++        // width, so title + indicator stay centred together rather than the title alone.
++        let clearIndicatorSpacing: CGFloat = 4.0
++        let clearIndicatorShift: CGFloat = clearCacheState == nil ? 0.0 : floor((ClearTrackCacheIndicatorNode.size.width + clearIndicatorSpacing) / 2.0)
++        
++        let minimizedTitleFrame = CGRect(origin: CGPoint(x: floor((size.width - titleLayout.size.width) / 2.0) + clearIndicatorShift, y: 4.0 + minimizedTitleOffset), size: titleLayout.size)
+         let minimizedSubtitleFrame = CGRect(origin: CGPoint(x: floor((size.width - subtitleLayout.size.width) / 2.0), y: 20.0), size: subtitleLayout.size)
+         
++        self.clearCacheNode.update(state: clearCacheState, color: theme.rootController.navigationBar.secondaryTextColor)
++        self.clearCacheNode.frame = CGRect(
++            origin: CGPoint(
++                x: minimizedTitleFrame.minX - clearIndicatorSpacing - ClearTrackCacheIndicatorNode.size.width,
++                y: minimizedTitleFrame.midY - ClearTrackCacheIndicatorNode.size.height / 2.0
++            ),
++            size: ClearTrackCacheIndicatorNode.size
++        )
++        
+         transition.updateFrame(node: self.titleNode, frame: minimizedTitleFrame)
+         transition.updateFrame(node: self.subtitleNode, frame: minimizedSubtitleFrame)
+         
+@@ -214,9 +230,32 @@ public final class MediaNavigationAccessoryHeaderNode: ASDisplayNode, ASScrollVi
+             if !arePlaylistItemsEqual(self.playbackItems?.0, oldValue?.0) || !arePlaylistItemsEqual(self.playbackItems?.1, oldValue?.1) || !arePlaylistItemsEqual(self.playbackItems?.2, oldValue?.2), let layout = validLayout {
+                 self.updateLayout(size: layout.0, leftInset: layout.1, rightInset: layout.2, transition: .immediate)
+             }
++            if !arePlaylistItemsEqual(self.playbackItems?.0, oldValue?.0) {
++                self.clearUpdateCacheStateSubscription()
++            }
+         }
+     }
+     
++    private var clearCacheState: ClearTrackCacheState?
++    private let clearCacheStateDisposable = MetaDisposable()
++    
++    deinit {
++        self.clearCacheStateDisposable.dispose()
++    }
++    
++    private func clearUpdateCacheStateSubscription() {
++        self.clearCacheStateDisposable.set((clearTrackCacheState(context: self.context, item: self.playbackItems?.0)
++        |> deliverOnMainQueue).start(next: { [weak self] state in
++            guard let self, self.clearCacheState != state else {
++                return
++            }
++            self.clearCacheState = state
++            if let layout = self.validLayout {
++                self.updateLayout(size: layout.0, leftInset: layout.1, rightInset: layout.2, transition: .immediate)
++            }
++        }))
++    }
++    
+     private weak var tooltipController: TooltipScreen?
+     private let dismissedPromise = ValuePromise<Bool>(false)
+     
+@@ -445,12 +484,12 @@ public final class MediaNavigationAccessoryHeaderNode: ASDisplayNode, ASScrollVi
+         
+         let inset: CGFloat = 45.0 + leftInset
+         let constrainedSize = CGSize(width: size.width - inset * 2.0, height: size.height)
+-        let (titleString, subtitleString, rateButtonHidden) = self.currentItemNode.updateLayout(size: constrainedSize, leftInset: 0.0, rightInset: 0.0, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.0, transition: transition)
++        let (titleString, subtitleString, rateButtonHidden) = self.currentItemNode.updateLayout(size: constrainedSize, leftInset: 0.0, rightInset: 0.0, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.0, clearCacheState: self.clearCacheState, transition: transition)
+         self.accessibilityAreaNode.accessibilityLabel = "\(titleString?.string ?? ""). \(subtitleString?.string ?? "")"
+         self.rateButton.isHidden = rateButtonHidden
+         
+-        let _ = self.previousItemNode.updateLayout(size: constrainedSize, leftInset: 0.0, rightInset: 0.0, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.1, transition: transition)
+-        let _ = self.nextItemNode.updateLayout(size: constrainedSize, leftInset: 0.0, rightInset: 0.0, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.2, transition: transition)
++        let _ = self.previousItemNode.updateLayout(size: constrainedSize, leftInset: 0.0, rightInset: 0.0, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.1, clearCacheState: nil, transition: transition)
++        let _ = self.nextItemNode.updateLayout(size: constrainedSize, leftInset: 0.0, rightInset: 0.0, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.2, clearCacheState: nil, transition: transition)
+         
+         let constrainedBounds = CGRect(origin: CGPoint(), size: constrainedSize)
+         transition.updateFrame(node: self.scrollNode, frame: constrainedBounds.offsetBy(dx: inset, dy: 0.0))
+diff --git a/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift b/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift
++++ b/submodules/TelegramUI/Components/MediaPlaybackHeaderPanelComponent/Sources/MediaNavigationAccessoryHeaderNode.swift
+@@ -25,6 +25,7 @@ private func normalizeValue(_ value: CGFloat) -> CGFloat {
+ private class MediaHeaderItemNode: ASDisplayNode {
+     private let titleNode: TextNode
+     private let subtitleNode: TextNode
++    private let clearCacheNode = ClearTrackCacheIndicatorNode()
+     
+     override init() {
+         self.titleNode = TextNode()
+@@ -40,9 +41,10 @@ private class MediaHeaderItemNode: ASDisplayNode {
+         
+         self.addSubnode(self.titleNode)
+         self.addSubnode(self.subtitleNode)
++        self.addSubnode(self.clearCacheNode)
+     }
+     
+-    func updateLayout(size: CGSize, leftInset: CGFloat, rightInset: CGFloat, theme: PresentationTheme, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, nameDisplayOrder: PresentationPersonNameOrder, playbackItem: SharedMediaPlaylistItem?, transition: ContainedViewLayoutTransition) -> (NSAttributedString?, NSAttributedString?, Bool) {
++    func updateLayout(size: CGSize, leftInset: CGFloat, rightInset: CGFloat, theme: PresentationTheme, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, nameDisplayOrder: PresentationPersonNameOrder, playbackItem: SharedMediaPlaylistItem?, clearCacheState: ClearTrackCacheState?, transition: ContainedViewLayoutTransition) -> (NSAttributedString?, NSAttributedString?, Bool) {
+         var rateButtonHidden = false
+         var titleString: NSAttributedString?
+         var subtitleString: NSAttributedString?
+@@ -115,7 +117,21 @@ private class MediaHeaderItemNode: ASDisplayNode {
+         
+         let minimizedTitleOffset: CGFloat = subtitleString == nil ? 6.0 : 0.0
+         
+-        let minimizedTitleFrame = CGRect(origin: CGPoint(x: floor((size.width - titleLayout.size.width) / 2.0), y: 5.0 + minimizedTitleOffset), size: titleLayout.size)
++        // The indicator sits to the left of the title and shifts the pair right by half its
++        // width, so title + indicator stay centred together rather than the title alone.
++        let clearIndicatorSpacing: CGFloat = 4.0
++        let clearIndicatorShift: CGFloat = clearCacheState == nil ? 0.0 : floor((ClearTrackCacheIndicatorNode.size.width + clearIndicatorSpacing) / 2.0)
++        
++        let minimizedTitleFrame = CGRect(origin: CGPoint(x: floor((size.width - titleLayout.size.width) / 2.0) + clearIndicatorShift, y: 5.0 + minimizedTitleOffset), size: titleLayout.size)
++        
++        self.clearCacheNode.update(state: clearCacheState, color: theme.rootController.navigationBar.secondaryTextColor)
++        self.clearCacheNode.frame = CGRect(
++            origin: CGPoint(
++                x: minimizedTitleFrame.minX - clearIndicatorSpacing - ClearTrackCacheIndicatorNode.size.width,
++                y: minimizedTitleFrame.midY - ClearTrackCacheIndicatorNode.size.height / 2.0
++            ),
++            size: ClearTrackCacheIndicatorNode.size
++        )
+         let minimizedSubtitleFrame = CGRect(origin: CGPoint(x: floor((size.width - subtitleLayout.size.width) / 2.0), y: 21.0), size: subtitleLayout.size)
+         
+         transition.updateFrame(node: self.titleNode, frame: minimizedTitleFrame)
+@@ -209,9 +225,32 @@ public final class MediaNavigationAccessoryHeaderNode: ASDisplayNode, ASScrollVi
+             if !arePlaylistItemsEqual(self.playbackItems?.0, oldValue?.0) || !arePlaylistItemsEqual(self.playbackItems?.1, oldValue?.1) || !arePlaylistItemsEqual(self.playbackItems?.2, oldValue?.2), let layout = validLayout {
+                 self.updateLayout(size: layout.0, leftInset: layout.1, rightInset: layout.2, transition: .immediate)
+             }
++            if !arePlaylistItemsEqual(self.playbackItems?.0, oldValue?.0) {
++                self.clearUpdateCacheStateSubscription()
++            }
+         }
+     }
+     
++    private var clearCacheState: ClearTrackCacheState?
++    private let clearCacheStateDisposable = MetaDisposable()
++    
++    deinit {
++        self.clearCacheStateDisposable.dispose()
++    }
++    
++    private func clearUpdateCacheStateSubscription() {
++        self.clearCacheStateDisposable.set((clearTrackCacheState(context: self.context, item: self.playbackItems?.0)
++        |> deliverOnMainQueue).start(next: { [weak self] state in
++            guard let self, self.clearCacheState != state else {
++                return
++            }
++            self.clearCacheState = state
++            if let layout = self.validLayout {
++                self.updateLayout(size: layout.0, leftInset: layout.1, rightInset: layout.2, transition: .immediate)
++            }
++        }))
++    }
++    
+     private weak var tooltipController: TooltipScreen?
+     private let dismissedPromise = ValuePromise<Bool>(false)
+     
+@@ -435,12 +474,12 @@ public final class MediaNavigationAccessoryHeaderNode: ASDisplayNode, ASScrollVi
+         
+         let inset: CGFloat = 45.0 + leftInset
+         let constrainedSize = CGSize(width: size.width - inset * 2.0, height: size.height)
+-        let (titleString, subtitleString, rateButtonHidden) = self.currentItemNode.updateLayout(size: constrainedSize, leftInset: leftInset, rightInset: rightInset, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.0, transition: transition)
++        let (titleString, subtitleString, rateButtonHidden) = self.currentItemNode.updateLayout(size: constrainedSize, leftInset: leftInset, rightInset: rightInset, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.0, clearCacheState: self.clearCacheState, transition: transition)
+         self.accessibilityAreaNode.accessibilityLabel = "\(titleString?.string ?? ""). \(subtitleString?.string ?? "")"
+         self.rateButton.isHidden = rateButtonHidden
+         
+-        let _ = self.previousItemNode.updateLayout(size: constrainedSize, leftInset: 0.0, rightInset: 0.0, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.1, transition: transition)
+-        let _ = self.nextItemNode.updateLayout(size: constrainedSize, leftInset: 0.0, rightInset: 0.0, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.2, transition: transition)
++        let _ = self.previousItemNode.updateLayout(size: constrainedSize, leftInset: 0.0, rightInset: 0.0, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.1, clearCacheState: nil, transition: transition)
++        let _ = self.nextItemNode.updateLayout(size: constrainedSize, leftInset: 0.0, rightInset: 0.0, theme: self.theme, strings: self.strings, dateTimeFormat: self.dateTimeFormat, nameDisplayOrder: self.nameDisplayOrder, playbackItem: self.playbackItems?.2, clearCacheState: nil, transition: transition)
+         
+         let constrainedBounds = CGRect(origin: CGPoint(), size: constrainedSize)
+         transition.updateFrame(node: self.scrollNode, frame: constrainedBounds.offsetBy(dx: inset, dy: 0.0))
+diff --git a/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift b/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
++++ b/submodules/TelegramUI/Sources/OverlayAudioPlayerControlsNode.swift
+@@ -142,6 +142,9 @@ private func stringsForDisplayData(_ data: SharedMediaPlaybackDisplayData?, pres
+ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+     private let accountManager: AccountManager<TelegramAccountManagerTypes>
+     private let account: Account
++    private let clearCacheNode = ClearTrackCacheIndicatorNode()
++    private var clearCacheState: ClearTrackCacheState?
++    private let clearCacheStateDisposable = MetaDisposable()
+     private let engine: TelegramEngine
+     private var presentationData: PresentationData
+     private let chatLocation: ChatLocation
+@@ -321,6 +324,7 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         self.addSubnode(self.albumArtNode)
+         //self.addSubnode(self.titleNode)
+         self.addSubnode(self.descriptionNode)
++        self.addSubnode(self.clearCacheNode)
+         self.addSubnode(self.artistButton)
+         self.addSubnode(self.shareNode)
+         
+@@ -474,6 +478,7 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+                     switch source {
+                         case let .telegramFile(fileReference, _, _):
+                             strongSelf.currentFileReference = fileReference
++                            strongSelf.clearUpdateCacheState(file: fileReference.media)
+                             if let size = fileReference.media.size {
+                                 strongSelf.scrubberNode.bufferingStatus = strongSelf.engine.resources.resourceRangesStatus(resource: EngineMediaResource(fileReference.media.resource))
+                                 |> map { ranges -> (RangeSet<Int64>, Int64) in
+@@ -485,6 +490,7 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+                     }
+                 } else {
+                     strongSelf.scrubberNode.bufferingStatus = nil
++                    strongSelf.clearUpdateCacheState(file: nil)
+                 }
+                 strongSelf.updateLabels(transition: .immediate)
+             }
+@@ -588,6 +594,20 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+     deinit {
+         self.statusDisposable?.dispose()
+         self.chapterDisposable?.dispose()
++        self.clearCacheStateDisposable.dispose()
++    }
++    
++    private func clearUpdateCacheState(file: TelegramMediaFile?) {
++        self.clearCacheStateDisposable.set((clearTrackCacheState(mediaBox: self.account.postbox.mediaBox, file: file)
++        |> deliverOnMainQueue).start(next: { [weak self] state in
++            guard let self, self.clearCacheState != state else {
++                return
++            }
++            self.clearCacheState = state
++            if let layout = self.validLayout {
++                let _ = self.updateLayout(width: layout.width, leftInset: layout.leftInset, rightInset: layout.rightInset, bottomInset: layout.bottomInset, maxHeight: layout.maxHeight, savedMusic: layout.savedMusic, transition: .immediate)
++            }
++        }))
+     }
+     
+     override func didLoad() {
+@@ -753,19 +773,37 @@ final class OverlayAudioPlayerControlsNode: ASDisplayNode {
+         let makeTitleLayout = TextNode.asyncLayout(self.titleNode)
+         let (titleLayout, titleApply) = makeTitleLayout(TextNodeLayoutArguments(attributedString: titleString, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: width - sideInset * 2.0 - leftInset - rightInset - infoLabelsLeftInset - infoLabelsRightInset, height: CGFloat.greatestFiniteMagnitude), alignment: .left, lineSpacing: 0.0, cutout: nil, insets: UIEdgeInsets()))
+         
++        let clearIndicatorSpacing: CGFloat = 5.0
++        let clearIndicatorReservedWidth: CGFloat = self.clearCacheState == nil ? 0.0 : (ClearTrackCacheIndicatorNode.size.width + clearIndicatorSpacing)
++        
+         let titleSize = self.title.update(
+             transition: .immediate,
+             component: AnyComponent(
+                 MarqueeComponent(attributedText: titleString ?? NSAttributedString())
+             ),
+             environment: {},
+-            containerSize: CGSize(width: width - sideInset * 2.0 - leftInset - rightInset - infoLabelsLeftInset - infoLabelsRightInset, height: CGFloat.greatestFiniteMagnitude)
++            containerSize: CGSize(width: width - sideInset * 2.0 - leftInset - rightInset - infoLabelsLeftInset - infoLabelsRightInset - clearIndicatorReservedWidth, height: CGFloat.greatestFiniteMagnitude)
+         )
++        var clearTitleFrame: CGRect?
+         if let titleView = self.title.view {
+             if titleView.superview == nil {
+                 self.view.addSubview(titleView)
+             }
+-            transition.updateFrame(view: titleView, frame: CGRect(origin: CGPoint(x: self.isExpanded ? floor((width - titleSize.width) / 2.0) : (leftInset + sideInset + infoLabelsLeftInset), y: infoVerticalOrigin), size: titleSize))
++            let titleFrame = CGRect(origin: CGPoint(x: self.isExpanded ? floor((width - titleSize.width) / 2.0) : (leftInset + sideInset + infoLabelsLeftInset), y: infoVerticalOrigin), size: titleSize)
++            clearTitleFrame = titleFrame
++            transition.updateFrame(view: titleView, frame: titleFrame)
++        }
++        // The title is a marquee that takes the full width it is given, so the indicator cannot
++        // simply follow the text — the container above is narrowed by exactly the room it needs.
++        self.clearCacheNode.update(state: self.clearCacheState, color: self.presentationData.theme.list.itemSecondaryTextColor)
++        if let titleFrame = clearTitleFrame {
++            self.clearCacheNode.frame = CGRect(
++                origin: CGPoint(
++                    x: titleFrame.maxX + clearIndicatorSpacing,
++                    y: titleFrame.midY - ClearTrackCacheIndicatorNode.size.height / 2.0
++                ),
++                size: ClearTrackCacheIndicatorNode.size
++            )
+         }
+         
+         let makeDescriptionLayout = TextNode.asyncLayout(self.descriptionNode)

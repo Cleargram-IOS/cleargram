@@ -27,9 +27,9 @@ TrollStore only (unavailable on iOS 26+). Don't use it to install on an iPhone.
 i.e. the app-group entitlement wasn't granted by the profile. **Check signing/app-group
 first, then code.**
 
-## First build on a fresh machine — three blockers
+## First build on a fresh machine — four blockers
 
-All three bite once, in this order.
+All four bite once, in this order.
 
 1. **git submodules are not initialized.** `pnpm setup` clones without `--recurse-submodules`,
    so bazel fails with `No MODULE.bazel ... in build-system/bazel-rules/rules_swift`. Also
@@ -55,6 +55,22 @@ All three bite once, in this order.
    ```sh
    ln -s /Applications/Xcode-26.4.0.app /Applications/Xcode.app
    ```
+
+4. **`xcode-select` points at the Command Line Tools.** This one is easy to misread, because
+   it surfaces as two unrelated-looking failures at once — 24× `cannot execute tool 'metal' due
+   to missing Metal Toolchain` and 9× `SDK "iphoneos" cannot be located`. Neither is really
+   missing: the third-party C libraries (`libvpx`, `mozjpeg`, `opus`, `td`, `webp`, `dav1d`)
+   shell out to `xcrun`/`xcodebuild` themselves, which ignores the `DEVELOPER_DIR` that
+   `build.sh`'s `CLEARGRAM_XCODE` sets for Make.py. Check and fix system-wide:
+
+   ```sh
+   xcode-select -p                 # /Library/Developer/CommandLineTools  ← wrong
+   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+   xcrun -f metal                  # should resolve; do NOT downloadComponent first
+   ```
+
+   Do not chase the Metal error on its own — `xcodebuild -downloadComponent MetalToolchain`
+   is not needed, the toolchain is already there and simply invisible from the CLT prefix.
 
 After that the first build is ~10 min cold (~2300 actions); everything after is incremental
 (a one-line change is ~20 actions). Only a configuration switch (sim ↔ device, debug ↔ opt),
@@ -182,6 +198,42 @@ xcrun devicectl device install app --device <UDID> bazel-bin/Telegram/Telegram.i
 Add `--continueOnError` after `build` (forwards to bazel's `--keep_going`) when verifying
 edits that may break many files at once.
 
+## Signing from zero on a fresh machine
+
+Adding the Apple ID under Xcode ▸ Settings ▸ Accounts is **not** enough — it creates no
+certificate, and the build then dies on the very last few actions with
+
+```
+error: no provisioning profile was found named
+'iOS Team Provisioning Profile: app.jackfruit6741.cauliflower5530'
+```
+
+Check what is actually there before guessing:
+
+```sh
+security find-identity -v -p codesigning           # "0 valid identities found" = no certificate
+ls ~/Library/MobileDevice/Provisioning\ Profiles/  # empty = no profile
+defaults read com.apple.dt.Xcode IDEProvisioningTeams   # missing = Xcode has no team yet
+```
+
+Three things have to exist, in order:
+
+1. **Certificate** — Xcode ▸ Settings ▸ Accounts ▸ your Apple ID ▸ *Manage Certificates…* ▸
+   `+` ▸ *Apple Development*. Only this creates the keychain identity.
+2. **Profile for the dev bundle id** — Xcode writes one automatically the first time it builds
+   a project that uses that bundle id with automatic signing. The bundle id lives in
+   `build-system/template_minimal_development_configuration.json`, currently
+   `app.jackfruit6741.cauliflower5530`.
+3. **`team_id` in that same file must be your team.** It ships as `KUU4JSYX6G`, which is not a
+   personal team; a free Apple ID gets its own. Read yours off the certificate once it exists —
+   `security find-identity -v -p codesigning` prints it in parentheses.
+
+On the phone: Settings ▸ Privacy & Security ▸ Developer Mode. `xcrun devicectl list devices`
+showing `connected (no DDI)` usually means that switch is still off.
+
+A free Apple ID provisions **one** app id, which is the other reason app extensions must be
+off — see blocker 2 above and `local__disable-extensions`.
+
 ## Provisioning gotcha
 
 `--xcodeManagedCodesigning` reads the profile from
@@ -232,7 +284,7 @@ worktree and loses it. Re-apply after a fresh setup.
 ## Disk cache
 
 `.bazelrc`/`xcodeproj.bazelrc` pin `--disk_cache=~/telegram-bazel-cache`,
-`--experimental_disk_cache_gc_max_size=20G`, `--experimental_disk_cache_gc_max_age=30d`.
+`--experimental_disk_cache_gc_max_size=40G`, `--experimental_disk_cache_gc_max_age=30d`.
 Bazel auto-evicts. Don't `rm -rf` the cache or the active output base — that throws away
 warm state and forces a cold rebuild.
 

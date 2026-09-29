@@ -1,0 +1,371 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Asya Medvedeva <asya_bububu@proton.me>
+Date: Mon, 28 Sep 2026 21:49:55 +0200
+Subject: Add a legacy design toggle
+
+---
+ submodules/Display/Source/SwitchNode.swift       |  4 ++--
+ submodules/Display/Source/WindowContent.swift    |  4 ++--
+ .../Sources/Items/ItemListSwitchItem.swift       |  2 +-
+ .../TabBarUI/Sources/TabBarContollerNode.swift   | 16 ++++++++++++++++
+ .../Sources/InputIconButtonComponent.swift       |  2 +-
+ .../ContextControllerActionsStackNode.swift      |  4 ++--
+ .../EdgeEffect/Sources/EdgeEffect.swift          |  2 +-
+ .../Sources/GlassBackgroundComponent.swift       |  2 +-
+ .../Sources/HorizontalTabsComponent.swift        |  2 +-
+ .../Sources/LensTransitionContainer.swift        |  4 ++--
+ .../LiquidLens/Sources/LiquidLensView.swift      |  2 +-
+ .../Sources/ListActionItemComponent.swift        |  2 +-
+ .../Sources/SegmentControlComponent.swift        |  2 +-
+ .../Sources/SliderComponent.swift                |  2 +-
+ .../SpaceWarpView/Sources/SpaceWarpView.swift    |  4 ++--
+ submodules/TelegramUI/Sources/AppDelegate.swift  | 10 ++++++++++
+ .../Sources/SharedAccountContext.swift           |  4 ++--
+ 17 files changed, 47 insertions(+), 21 deletions(-)
+
+diff --git a/submodules/Display/Source/SwitchNode.swift b/submodules/Display/Source/SwitchNode.swift
+index 0000000..0000000 100644
+--- a/submodules/Display/Source/SwitchNode.swift
++++ b/submodules/Display/Source/SwitchNode.swift
+@@ -9,7 +9,7 @@ private final class SwitchNodeViewLayer: CALayer {
+ 
+ private final class SwitchNodeView: UISwitch {
+     override class var layerClass: AnyClass {
+-        if #available(iOS 26.0, *) {
++        if #available(iOS 26.0, *), !ClearDesign.systemIsLegacy {
+             return super.layerClass
+         } else {
+             return SwitchNodeViewLayer.self
+@@ -90,7 +90,7 @@ open class SwitchNode: ASDisplayNode {
+     }
+     
+     override open func calculateSizeThatFits(_ constrainedSize: CGSize) -> CGSize {
+-        if #available(iOS 26.0, *) {
++        if #available(iOS 26.0, *), !ClearDesign.systemIsLegacy {
+             return CGSize(width: 63.0, height: 28.0)
+         } else {
+             return CGSize(width: 51.0, height: 31.0)
+diff --git a/submodules/Display/Source/WindowContent.swift b/submodules/Display/Source/WindowContent.swift
+index 0000000..0000000 100644
+--- a/submodules/Display/Source/WindowContent.swift
++++ b/submodules/Display/Source/WindowContent.swift
+@@ -627,7 +627,7 @@ public class Window1 {
+                             
+                 var duration: Double = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.0
+                 if duration > Double.ulpOfOne {
+-                    if #available(iOS 26.0, *) {
++                    if #available(iOS 26.0, *), !ClearDesign.systemIsLegacy {
+                     } else {
+                         duration = 0.5
+                     }
+@@ -1379,7 +1379,7 @@ public class Window1 {
+         
+         if canDismiss, let inputHeight = self.windowLayout.inputHeight, currentLocation.y + (self.keyboardGestureAccessoryHeight ?? 0.0) > self.windowLayout.size.height - inputHeight {
+             let springDuration: CGFloat
+-            if #available(iOS 26.0, *) {
++            if #available(iOS 26.0, *), !ClearDesign.systemIsLegacy {
+                 springDuration = 0.3832
+             } else {
+                 springDuration = 0.25
+diff --git a/submodules/ItemListUI/Sources/Items/ItemListSwitchItem.swift b/submodules/ItemListUI/Sources/Items/ItemListSwitchItem.swift
+index 0000000..0000000 100644
+--- a/submodules/ItemListUI/Sources/Items/ItemListSwitchItem.swift
++++ b/submodules/ItemListUI/Sources/Items/ItemListSwitchItem.swift
+@@ -585,7 +585,7 @@ public class ItemListSwitchItemNode: ListViewItemNode, ItemListItemNode {
+                             switch item.systemStyle {
+                             case .glass:
+                                 let offset: CGPoint
+-                                if #available(iOS 26.0, *) {
++                                if #available(iOS 26.0, *), !ClearDesign.systemIsLegacy {
+                                     offset = .zero
+                                 } else {
+                                     offset = CGPoint(x: 5.0, y: 1.0)
+diff --git a/submodules/TabBarUI/Sources/TabBarContollerNode.swift b/submodules/TabBarUI/Sources/TabBarContollerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TabBarUI/Sources/TabBarContollerNode.swift
++++ b/submodules/TabBarUI/Sources/TabBarContollerNode.swift
+@@ -57,6 +57,7 @@ final class TabBarControllerNode: ASDisplayNode {
+     private let contextAction: (Int, ContextExtractedContentContainingView, ContextGesture) -> Void
+     
+     private let tabBarView = ComponentView<Empty>()
++    private let legacyTabBar: ClearLegacyTabBar?
+     
+     private let disabledOverlayNode: ASDisplayNode
+     private var toolbar: ComponentView<Empty>?
+@@ -90,6 +91,7 @@ final class TabBarControllerNode: ASDisplayNode {
+             if let tabBarView = self.tabBarView.view {
+                 self.view.bringSubviewToFront(tabBarView)
+             }
++            self.legacyTabBar?.bringToFront(in: self.view)
+         }
+         
+         return { [weak self, weak previousNode] in
+@@ -120,6 +122,7 @@ final class TabBarControllerNode: ASDisplayNode {
+         self.disabledPressed = disabledPressed
+         self.activateSearch = activateSearch
+         self.deactivateSearch = deactivateSearch
++        self.legacyTabBar = ClearDesign.useLegacy ? ClearLegacyTabBar(theme: theme, itemSelected: itemSelected, contextAction: contextAction, swipeAction: swipeAction, toolbarActionSelected: toolbarActionSelected) : nil
+ 
+         super.init()
+         
+@@ -143,6 +146,8 @@ final class TabBarControllerNode: ASDisplayNode {
+         
+         //self.addSubnode(self.tabBarNode)
+         //self.addSubnode(self.disabledOverlayNode)
++
++        self.legacyTabBar?.attach(to: self, disabledOverlay: self.disabledOverlayNode)
+     }
+     
+     override func didLoad() {
+@@ -162,6 +167,7 @@ final class TabBarControllerNode: ASDisplayNode {
+         self.backgroundColor = theme.list.plainBackgroundColor
+         
+         self.disabledOverlayNode.backgroundColor = theme.rootController.tabBar.backgroundColor.withAlphaComponent(0.5)
++        self.legacyTabBar?.updateTheme(theme)
+         self.requestUpdate()
+     }
+     
+@@ -194,6 +200,10 @@ final class TabBarControllerNode: ASDisplayNode {
+     }
+     
+     private func updateImpl(params: Params, transition: ContainedViewLayoutTransition) -> CGFloat {
++        if let legacyTabBar = self.legacyTabBar {
++            return legacyTabBar.update(layout: params.layout, toolbar: params.toolbar, items: self.tabBarItems, selectedIndex: self.selectedIndex, isTabBarHidden: self.tabBarHidden, transition: transition)
++        }
++
+         var panelsBottomInset: CGFloat = params.layout.insets(options: []).bottom
+         if params.layout.metrics.widthClass == .regular, let inputHeight = params.layout.inputHeight, inputHeight != 0.0 {
+             panelsBottomInset = inputHeight + 8.0
+@@ -391,6 +401,9 @@ final class TabBarControllerNode: ASDisplayNode {
+     }
+     
+     func frameForControllerTab(at index: Int) -> CGRect? {
++        if let legacyTabBar = self.legacyTabBar {
++            return legacyTabBar.frameForItem(at: index)
++        }
+         guard let tabBarView = self.tabBarView.view as? TabBarComponent.View else {
+             return nil
+         }
+@@ -401,6 +414,9 @@ final class TabBarControllerNode: ASDisplayNode {
+     }
+     
+     func isPointInsideContentArea(point: CGPoint) -> Bool {
++        if let legacyTabBar = self.legacyTabBar {
++            return legacyTabBar.isPointInsideContentArea(point: point)
++        }
+         guard let tabBarView = self.tabBarView.view else {
+             return false
+         }
+diff --git a/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/InputIconButtonComponent.swift b/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/InputIconButtonComponent.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/InputIconButtonComponent.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/InputIconButtonComponent.swift
+@@ -55,7 +55,7 @@ final class InputIconButtonComponent: Component {
+                 guard let self else {
+                     return
+                 }
+-                if #available(iOS 26.0, *) {
++                if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+                 } else {
+                     self.iconView.alpha = highlighted ? 1.0 : 0.7
+                 }
+diff --git a/submodules/TelegramUI/Components/ContextControllerImpl/Sources/ContextControllerActionsStackNode.swift b/submodules/TelegramUI/Components/ContextControllerImpl/Sources/ContextControllerActionsStackNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/ContextControllerImpl/Sources/ContextControllerActionsStackNode.swift
++++ b/submodules/TelegramUI/Components/ContextControllerImpl/Sources/ContextControllerActionsStackNode.swift
+@@ -1473,7 +1473,7 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
+     
+     func update(theme: PresentationTheme) {
+         self.theme = theme
+-        if #available(iOS 26.0, *) {
++        if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+             let glassEffectValue: UIGlassEffect
+             if theme.overallDarkAppearance {
+                 glassEffectValue = UIGlassEffect(style: .regular)
+@@ -1490,7 +1490,7 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
+         transition.animateView {
+             self.glassView.bounds.size = size
+             self.glassView.center = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+-            if #available(iOS 26.0, *) {
++            if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+                 self.glassView.cornerConfiguration = .corners(radius: UICornerRadius(floatLiteral: cornerRadius))
+             }
+         }
+diff --git a/submodules/TelegramUI/Components/EdgeEffect/Sources/EdgeEffect.swift b/submodules/TelegramUI/Components/EdgeEffect/Sources/EdgeEffect.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/EdgeEffect/Sources/EdgeEffect.swift
++++ b/submodules/TelegramUI/Components/EdgeEffect/Sources/EdgeEffect.swift
+@@ -619,7 +619,7 @@ public final class VariableBlurEffect {
+         self.isTransparent = isTransparent
+         self.maxBlurRadius = maxBlurRadius
+         
+-        if #available(iOS 26.0, *) {
++        if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+             let imageSubview = UIImageView()
+             self.imageSubview = imageSubview
+             imageSubview.layer.name = "mask_source"
+diff --git a/submodules/TelegramUI/Components/GlassBackgroundComponent/Sources/GlassBackgroundComponent.swift b/submodules/TelegramUI/Components/GlassBackgroundComponent/Sources/GlassBackgroundComponent.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/GlassBackgroundComponent/Sources/GlassBackgroundComponent.swift
++++ b/submodules/TelegramUI/Components/GlassBackgroundComponent/Sources/GlassBackgroundComponent.swift
+@@ -422,7 +422,7 @@ public class GlassBackgroundView: UIView {
+                 transition.setCornerRadius(layer: self.view.layer, cornerRadius: cornerRadius)
+             case let .customRoundedRect(cornerRadii):
+                 transition.setCornerRadius(layer: self.view.layer, cornerRadius: 0.0)
+-                if #available(iOS 26.0, *) {
++                if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+                     transition.animateView {
+                         self.view.cornerConfiguration = .corners(
+                             topLeftRadius: .fixed(cornerRadii.topLeft),
+diff --git a/submodules/TelegramUI/Components/HorizontalTabsComponent/Sources/HorizontalTabsComponent.swift b/submodules/TelegramUI/Components/HorizontalTabsComponent/Sources/HorizontalTabsComponent.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/HorizontalTabsComponent/Sources/HorizontalTabsComponent.swift
++++ b/submodules/TelegramUI/Components/HorizontalTabsComponent/Sources/HorizontalTabsComponent.swift
+@@ -588,7 +588,7 @@ public final class HorizontalTabsComponent: Component {
+             if !component.liftWhileSwitching {
+                 isLifted = false
+             }
+-            if #available(iOS 26.0, *) {
++            if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+             } else {
+                 isLifted = false
+             }
+diff --git a/submodules/TelegramUI/Components/LensTransition/Sources/LensTransitionContainer.swift b/submodules/TelegramUI/Components/LensTransition/Sources/LensTransitionContainer.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/LensTransition/Sources/LensTransitionContainer.swift
++++ b/submodules/TelegramUI/Components/LensTransition/Sources/LensTransitionContainer.swift
+@@ -1510,7 +1510,7 @@ public final class LensTransitionContainer: UIView {
+     private let impl: (UIView & LensTransitionContainerProtocol)
+     
+     public var effectView: UIView? {
+-        if #available(iOS 26.0, *) {
++        if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+             if let impl = self.impl as? LensTransitionContainerImpl {
+                 return impl.effectView
+             } else {
+@@ -1526,7 +1526,7 @@ public final class LensTransitionContainer: UIView {
+     }
+     
+     public init(effectView: LensTransitionContainerEffectView) {
+-        if #available(iOS 26.0, *) {
++        if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+             self.impl = LensTransitionContainerImpl(effectView: effectView)
+         } else {
+             self.impl = LensTransitionContainerFallbackImpl(frame: CGRect())
+diff --git a/submodules/TelegramUI/Components/LiquidLens/Sources/LiquidLensView.swift b/submodules/TelegramUI/Components/LiquidLens/Sources/LiquidLensView.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/LiquidLens/Sources/LiquidLensView.swift
++++ b/submodules/TelegramUI/Components/LiquidLens/Sources/LiquidLensView.swift
+@@ -195,7 +195,7 @@ public final class LiquidLensView: UIView {
+         }
+         self.containerView.isUserInteractionEnabled = false
+         
+-        if #available(iOS 26.0, *) {
++        if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+             if let viewClass = NSClassFromString("_UILiquidLensView") as AnyObject as? NSObjectProtocol {
+                 let allocSelector = NSSelectorFromString("alloc")
+                 let initSelector = NSSelectorFromString("initWithRestingBackground:")
+diff --git a/submodules/TelegramUI/Components/ListActionItemComponent/Sources/ListActionItemComponent.swift b/submodules/TelegramUI/Components/ListActionItemComponent/Sources/ListActionItemComponent.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/ListActionItemComponent/Sources/ListActionItemComponent.swift
++++ b/submodules/TelegramUI/Components/ListActionItemComponent/Sources/ListActionItemComponent.swift
+@@ -865,7 +865,7 @@ public final class ListActionItemComponent: Component {
+                         
+                         if let image = lockView.image {
+                             let originX: CGFloat
+-                            if #available(iOS 26.0, *) {
++                            if #available(iOS 26.0, *), !ClearDesign.systemIsLegacy {
+                                 originX = switchFrame.minX + 14.0 - UIScreenPixel
+                             } else {
+                                 originX = switchFrame.minX + 8.0 + UIScreenPixel
+diff --git a/submodules/TelegramUI/Components/SegmentControlComponent/Sources/SegmentControlComponent.swift b/submodules/TelegramUI/Components/SegmentControlComponent/Sources/SegmentControlComponent.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/SegmentControlComponent/Sources/SegmentControlComponent.swift
++++ b/submodules/TelegramUI/Components/SegmentControlComponent/Sources/SegmentControlComponent.swift
+@@ -172,7 +172,7 @@ public final class SegmentControlComponent: Component {
+             self.component = component
+             
+             var controlSize = CGSize()
+-            if #available(iOS 26.0, *) {
++            if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+                 let segmentedView: SegmentedControlView
+                 if let current = self.nativeSegmentedView {
+                     segmentedView = current
+diff --git a/submodules/TelegramUI/Components/SliderComponent/Sources/SliderComponent.swift b/submodules/TelegramUI/Components/SliderComponent/Sources/SliderComponent.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/SliderComponent/Sources/SliderComponent.swift
++++ b/submodules/TelegramUI/Components/SliderComponent/Sources/SliderComponent.swift
+@@ -205,7 +205,7 @@ public final class SliderComponent: Component {
+             
+             let size = CGSize(width: availableSize.width, height: 44.0)
+             
+-            if #available(iOS 26.0, *), component.useNative {
++            if #available(iOS 26.0, *), component.useNative, !ClearDesign.useLegacy {
+                 if let sliderView = self.sliderView {
+                     self.sliderView = nil
+                     sliderView.removeFromSuperview()
+diff --git a/submodules/TelegramUI/Components/SpaceWarpView/Sources/SpaceWarpView.swift b/submodules/TelegramUI/Components/SpaceWarpView/Sources/SpaceWarpView.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/SpaceWarpView/Sources/SpaceWarpView.swift
++++ b/submodules/TelegramUI/Components/SpaceWarpView/Sources/SpaceWarpView.swift
+@@ -233,7 +233,7 @@ open class SpaceWarpNodeImpl: ASDisplayNode, SpaceWarpNode {
+     override public init() {
+         self.backdropLayerDelegate = BackdropLayerDelegate()
+         self.transformContainerLayer = SimpleLayer()
+-        if #available(iOS 26.0, *) {
++        if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+             let displacementMapLayer = SimpleLayer()
+             displacementMapLayer.magnificationFilter = .trilinear
+             self.displacementMapLayer = displacementMapLayer
+@@ -750,7 +750,7 @@ open class SpaceWarpNodeImpl: ASDisplayNode, SpaceWarpNode {
+         }
+         
+         let amplitude: CGFloat
+-        if #available(iOS 26.0, *) {
++        if #available(iOS 26.0, *), !ClearDesign.useLegacy {
+             amplitude = 30.0
+         } else {
+             amplitude = 10.0
+diff --git a/submodules/TelegramUI/Sources/AppDelegate.swift b/submodules/TelegramUI/Sources/AppDelegate.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/AppDelegate.swift
++++ b/submodules/TelegramUI/Sources/AppDelegate.swift
+@@ -1113,6 +1113,16 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+             
+             ClearConfig.start(accountManager: sharedContext.accountManager)
+             
++            // The legacy-design branches are read inside initialisers and layerClass overrides,
++            // so the flag has to be readable before any view exists — which shared data is not:
++            // it only arrives through a signal that hops queues. `ClearDesign` therefore reads a
++            // UserDefaults mirror synchronously at launch, and all this does is keep that mirror
++            // up to date for the *next* one. Hence the relaunch the settings row asks for.
++            let _ = (clearConfigEntry(accountManager: sharedContext.accountManager)
++            |> deliverOnMainQueue).start(next: { settings in
++                ClearDesign.mirrorForNextLaunch(settings.legacyDesign)
++            })
++            
+             sharedContext.presentGlobalController = { [weak self] c, a in
+                 guard let strongSelf = self else {
+                     return
+diff --git a/submodules/TelegramUI/Sources/SharedAccountContext.swift b/submodules/TelegramUI/Sources/SharedAccountContext.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/SharedAccountContext.swift
++++ b/submodules/TelegramUI/Sources/SharedAccountContext.swift
+@@ -518,7 +518,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
+         let immediateExperimentalUISettingsValue = self.immediateExperimentalUISettingsValue
+         let _ = immediateExperimentalUISettingsValue.swap(initialPresentationDataAndSettings.experimentalUISettings)
+         
+-        GlassBackgroundView.useCustomGlassImpl = immediateExperimentalUISettingsValue.with({ $0.fakeGlass })
++        GlassBackgroundView.useCustomGlassImpl = immediateExperimentalUISettingsValue.with({ $0.fakeGlass }) || ClearDesign.useLegacy
+         
+         self.experimentalUISettingsDisposable = (self.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings])
+         |> deliverOnMainQueue).start(next: { sharedData in
+@@ -526,7 +526,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
+                 let _ = immediateExperimentalUISettingsValue.swap(settings)
+                 
+                 flatBuffers_checkedGet = settings.checkSerializedData
+-                GlassBackgroundView.useCustomGlassImpl = settings.fakeGlass
++                GlassBackgroundView.useCustomGlassImpl = settings.fakeGlass || ClearDesign.useLegacy
+             }
+         })
+         

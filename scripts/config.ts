@@ -46,6 +46,19 @@ export const forkSyncDirs: ForkSyncDir[] = [
     source: 'src/swift/ClearGram/TelegramCore',
     target: 'submodules/TelegramCore/Sources/ClearGram',
   },
+  // The track cache indicator is shown by three modules that cannot see each other
+  // (TelegramUI, TelegramBaseController, MediaPlaybackHeaderPanelComponent); AccountContext is the
+  // lowest module all three already depend on, and its BUILD globs Sources/**.
+  // The legacy-design flag is read by a dozen components across TelegramUI and ItemListUI;
+  // Display is the lowest module all of them already depend on. Its BUILD globs Source/**.
+  {
+    source: 'src/swift/ClearGram/Display',
+    target: 'submodules/Display/Source/ClearGram',
+  },
+  {
+    source: 'src/swift/ClearGram/AccountContext',
+    target: 'submodules/AccountContext/Sources/ClearGram',
+  },
   {
     source: 'src/swift/ClearGram/TelegramUIPreferences',
     target: 'submodules/TelegramUIPreferences/Sources/ClearGram',
@@ -86,6 +99,13 @@ export const forkSyncDirs: ForkSyncDir[] = [
   {
     source: 'src/swift/ClearGram/LocalAudioTranscription',
     target: 'submodules/Media/LocalAudioTranscription/Sources/ClearGram',
+  },
+  // The legacy tab bar drives `TabBarNode`, which is internal to TabBarUI, so its wrapper has to
+  // be inside that module. The BUILD globs Sources/** and already depends on Display and
+  // TelegramPresentationData, which is everything the wrapper needs.
+  {
+    source: 'src/swift/ClearGram/TabBarUI',
+    target: 'submodules/TabBarUI/Sources/ClearGram',
   },
 ]
 

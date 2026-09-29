@@ -156,9 +156,43 @@ for f in ct.get('frames', [])[:30]: print(' ', f.get('symbol',''), '+'+str(f.get
 "
 ```
 
+## Pre-build sanity sweep (when a build isn't possible)
+
+Bazel needs tens of GB; these three checks need none, run in seconds, and between them catch the
+failures that blind patches actually produce. Worth doing before every build, and the only
+verification available when the disk is full.
+
+**1. Syntax.** `swiftc -parse` resolves no modules, so it runs on any file standalone:
+
+```sh
+for f in $(find src/swift/ClearGram -name '*.swift'); do swiftc -parse "$f" || echo "FAIL $f"; done
+# and the stock files the patches touch:
+grep -h '^+++ b/' patches/*/*.patch | sed 's|^+++ b/||' | sort -u | grep '\.swift$' \
+  | while read f; do (cd worktree && swiftc -parse "$f") || echo "FAIL $f"; done
+```
+
+This is not theoretical — it found a stray `}` in `ClearTrackCache.swift` that closed the class
+right after its stored properties, leaving `init` at file scope. A guaranteed build break, invisible
+to review because the brace looked like the end of a property block.
+
+**2. Imports.** Collect the `public` symbols declared under `src/swift/ClearGram/<Module>/`, then
+check every `Clear*` identifier a patch adds to a stock file against that file's `import` list.
+**Strip trailing `//` comments first** — the fork's comments mention `ClearConfig` while explaining
+why a call site uses `ClearHooks` instead, which is otherwise two false positives every run.
+
+**3. BUILD deps.** Same symbol map, but check the nearest `BUILD`/`BUILD.bazel` above the file.
+Expect hits that are not bugs: rules_swift propagates modules transitively, so a package depending
+on `//submodules/TelegramPresentationData` can `import TelegramUIPreferences` with no dep of its
+own. Before adding a hunk, compare against a package that already ships that pattern
+(`ChatListFilterTabContainerNode` and `TabBarComponent` both do) — if the transitive path matches,
+there is nothing to fix.
+
+What none of this catches: type errors, wrong argument labels, missing protocol conformances,
+`-warnings-as-errors` warnings. It narrows the first build's failures, it does not replace it.
+
 ## Disk space budget
 - Bazel execroot: ~36G (clearable via `bazel clean`)
-- Disk cache: ~24G (20G GC cap in `.bazelrc`, don't delete)
+- Disk cache: ~24G (40G GC cap in `.bazelrc`, don't delete)
 - Xcode DerivedData: ~800M (clearable)
 - Need ~20G free for a device build to succeed (sim is smaller).
 

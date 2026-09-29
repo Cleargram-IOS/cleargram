@@ -30,6 +30,16 @@ DEVICE="${CLEARGRAM_DEVICE:-}"
 XCODE="${CLEARGRAM_XCODE:-$(xcode-select -p)}"
 # Bazel disk cache, shared across configurations.
 CACHE_DIR="${CLEARGRAM_CACHE_DIR:-$HOME/telegram-bazel-cache}"
+# Bazel's output base — where the sandbox, the action outputs and the external repos live. This
+# is the *large* one, tens of GB, and it is a different directory from the disk cache above:
+# capping the cache (see the disk-cache-gc block in .bazelrc) does nothing for it. Unset, bazel
+# puts it under /private/var/tmp on the boot volume; point this at an external disk to build off
+# one. Both should move together, or half the build still lands on the boot volume.
+BAZEL_USER_ROOT="${CLEARGRAM_BAZEL_USER_ROOT:-}"
+BAZEL_ROOT_ARGS=()
+if [ -n "$BAZEL_USER_ROOT" ]; then
+    BAZEL_ROOT_ARGS=(--bazelUserRoot "$BAZEL_USER_ROOT")
+fi
 # How to invoke pnpm (e.g. `npx --yes pnpm@10.33.2` when it is not installed globally).
 PNPM="${CLEARGRAM_PNPM:-pnpm}"
 
@@ -80,6 +90,8 @@ Configuration (build.local or environment):
   CLEARGRAM_DEVICE        device UDID for --install
   CLEARGRAM_XCODE         Developer dir to build with
   CLEARGRAM_CACHE_DIR     bazel disk cache
+  CLEARGRAM_BAZEL_USER_ROOT  bazel output base (the big one) — set both it and the
+                          disk cache to build off an external disk
 EOF
     exit 2
 }
@@ -299,7 +311,7 @@ cd "$REPO/worktree"
 if [ "$CLEAN" = 1 ]; then
     echo "==> cleaning bazel state"
     DEVELOPER_DIR="$XCODE" python3 build-system/Make/Make.py \
-        --overrideXcodeVersion --cacheDir "$CACHE_DIR" clean
+        --overrideXcodeVersion "${BAZEL_ROOT_ARGS[@]}" --cacheDir "$CACHE_DIR" clean
 fi
 
 # Persistent, monotonically increasing build number. Bumps CFBundleVersion every build so the
@@ -319,6 +331,7 @@ fi
 echo "==> building $CONFIG (build $BUILD_NUMBER)$([ "$SIGN" = 1 ] && echo ' (signed)' || echo ' (unsigned)')"
 DEVELOPER_DIR="$XCODE" python3 build-system/Make/Make.py \
     --overrideXcodeVersion \
+    "${BAZEL_ROOT_ARGS[@]}" \
     --cacheDir "$CACHE_DIR" \
     build \
     --continueOnError \

@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Asya Medvedeva <asya_bububu@proton.me>
+Date: Mon, 28 Sep 2026 21:32:27 +0200
+Subject: Add unload from cache action for music
+
+---
+ .../PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift | 7 +++++++
+ .../Sources/ChatInterfaceStateContextMenus.swift         | 9 +++++++++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+@@ -764,6 +764,13 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+                 }
+                 
+                 var items: [ContextMenuItem] = []
++                if let clearFile = clearUnloadableMusicFile(context: strongSelf.context, media: message.media) {
++                    let clearContext = strongSelf.context
++                    items.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuUnloadFromCache, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.contextMenu.primaryColor) }, action: { _, f in
++                        clearUnloadTrackFromCache(engine: clearContext.engine, file: clearFile)
++                        f(.default)
++                    })))
++                }
+                 items.append(.action(ContextMenuActionItem(text: strongSelf.presentationData.strings.SharedMedia_ViewInChat, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/GoToMessage"), color: theme.contextMenu.primaryColor) }, action: { c, _ in
+                     c?.dismiss(completion: {
+                         if let strongSelf = self, let currentPeer = strongSelf.data?.peer, let navigationController = strongSelf.controller?.navigationController as? NavigationController {
+diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
++++ b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
+@@ -1556,6 +1556,15 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
+             }
+         }
+         
++        if let clearFile = clearUnloadableMusicFile(context: context, media: message.effectiveMedia) {
++            actions.append(.action(ContextMenuActionItem(text: ClearStrings.contextMenuUnloadFromCache, icon: { theme in
++                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.actionSheet.primaryTextColor)
++            }, action: { _, f in
++                clearUnloadTrackFromCache(engine: context.engine, file: clearFile)
++                f(.default)
++            })))
++        }
++        
+         if (loggingSettings.logToFile || loggingSettings.logToConsole) && !downloadableMediaResourceInfos.isEmpty {
+             actions.append(.action(ContextMenuActionItem(text: "Send Logs", icon: { theme in
+                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Message"), color: theme.actionSheet.primaryTextColor)

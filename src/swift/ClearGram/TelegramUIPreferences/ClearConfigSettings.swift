@@ -124,6 +124,20 @@ public struct ClearConfigSettings: Codable, Equatable {
     // Remove the top/bottom edge dimming (the gradient/blur `WallpaperEdgeEffectNode` overlays that
     // fade the chat wallpaper under the nav bar and above the input panel). Presentation-only.
     public var disableChatEdgeEffect: Bool
+    public var disableMediaSpoilers: Bool
+    // Show a cache-state indicator next to the track title in the music player and both mini
+    // panels — a ring with a download arrow, a progress arc, or a tick. Presentation-only.
+    public var showTrackCacheStatus: Bool
+    // Offer "Unload from Cache" in the context menu of a downloaded music message — drops the local
+    // copy, keeps the message. Local-only.
+    public var unloadTrackFromCache: Bool
+    // Offer "download the playlist" on a music message: queues the chat's music around it, capped
+    // by playlistDownloadLimit. Local-only.
+    public var downloadPlaylist: Bool
+    public var playlistDownloadLimit: Int32
+    // Use Telegram's own emulated glass (LegacyGlassView) instead of the native iOS 26 one. The
+    // branch is picked in GlassBackgroundView.init, so this only takes effect on relaunch.
+    public var legacyDesign: Bool
 
     public static var defaultSettings: ClearConfigSettings {
         return ClearConfigSettings(
@@ -216,7 +230,13 @@ public struct ClearConfigSettings: Codable, Equatable {
             equalizerGains: [],
             showContactAddedYouBadge: false,
             showGroupAdmins: false,
-            disableChatEdgeEffect: false
+            disableChatEdgeEffect: false,
+            disableMediaSpoilers: false,
+            showTrackCacheStatus: false,
+            unloadTrackFromCache: false,
+            downloadPlaylist: false,
+            playlistDownloadLimit: 50,
+            legacyDesign: false
         )
     }
 
@@ -310,7 +330,13 @@ public struct ClearConfigSettings: Codable, Equatable {
         equalizerGains: [Int32] = [],
         showContactAddedYouBadge: Bool = false,
         showGroupAdmins: Bool = false,
-        disableChatEdgeEffect: Bool = false
+        disableChatEdgeEffect: Bool = false,
+        disableMediaSpoilers: Bool = false,
+        showTrackCacheStatus: Bool = false,
+        unloadTrackFromCache: Bool = false,
+        downloadPlaylist: Bool = false,
+        playlistDownloadLimit: Int32 = 50,
+        legacyDesign: Bool = false
     ) {
         self.hideStories = hideStories
         self.hideAiFeatures = hideAiFeatures
@@ -402,6 +428,12 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.showContactAddedYouBadge = showContactAddedYouBadge
         self.showGroupAdmins = showGroupAdmins
         self.disableChatEdgeEffect = disableChatEdgeEffect
+        self.disableMediaSpoilers = disableMediaSpoilers
+        self.showTrackCacheStatus = showTrackCacheStatus
+        self.unloadTrackFromCache = unloadTrackFromCache
+        self.downloadPlaylist = downloadPlaylist
+        self.playlistDownloadLimit = playlistDownloadLimit
+        self.legacyDesign = legacyDesign
     }
 
     // Backward-compatible Decodable: uses decodeIfPresent so old persisted data missing
@@ -432,6 +464,11 @@ public struct ClearConfigSettings: Codable, Equatable {
         case showContactAddedYouBadge
         case showGroupAdmins
         case disableChatEdgeEffect
+        case disableMediaSpoilers
+        case showTrackCacheStatus
+        case unloadTrackFromCache
+        case downloadPlaylist, playlistDownloadLimit
+        case legacyDesign
     }
 
     public init(from decoder: Decoder) throws {
@@ -529,6 +566,12 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.showContactAddedYouBadge = try c.decodeIfPresent(Bool.self, forKey: .showContactAddedYouBadge) ?? false
         self.showGroupAdmins = try c.decodeIfPresent(Bool.self, forKey: .showGroupAdmins) ?? false
         self.disableChatEdgeEffect = try c.decodeIfPresent(Bool.self, forKey: .disableChatEdgeEffect) ?? false
+        self.disableMediaSpoilers = try c.decodeIfPresent(Bool.self, forKey: .disableMediaSpoilers) ?? false
+        self.showTrackCacheStatus = try c.decodeIfPresent(Bool.self, forKey: .showTrackCacheStatus) ?? false
+        self.unloadTrackFromCache = try c.decodeIfPresent(Bool.self, forKey: .unloadTrackFromCache) ?? false
+        self.downloadPlaylist = try c.decodeIfPresent(Bool.self, forKey: .downloadPlaylist) ?? false
+        self.playlistDownloadLimit = try c.decodeIfPresent(Int32.self, forKey: .playlistDownloadLimit) ?? 50
+        self.legacyDesign = try c.decodeIfPresent(Bool.self, forKey: .legacyDesign) ?? false
     }
 }
 
