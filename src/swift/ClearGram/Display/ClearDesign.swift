@@ -43,8 +43,8 @@ public enum ClearDesign {
     /// **Parked.** Verified broken on device twice — once before the synchronous-read fix and once
     /// after, so the race was real but not the whole story. Until that is understood the feature
     /// must not activate at all: accounts that switched the toggle on still have
-    /// `legacyDesign = true` in shared data, and the settings row is now a `.soon` placeholder they
-    /// cannot use to switch it back off. So this ignores the stored value and writes `false`.
+    /// `legacyDesign = true` in shared data, and the settings section is commented out entirely, so
+    /// they have no way to switch it back off. So this ignores the stored value and writes `false`.
     /// Restore the commented line and the real row in `ClearSettingsController` together.
     public static func mirrorForNextLaunch(_ value: Bool) {
         let _ = value

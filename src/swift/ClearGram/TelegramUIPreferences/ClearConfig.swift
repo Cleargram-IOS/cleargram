@@ -69,7 +69,6 @@ public enum ClearConfig {
     public static var hideContextMenuForward: Bool { current().hideContextMenuForward }
     public static var hideContextMenuReport: Bool { current().hideContextMenuReport }
     public static var hideContextMenuSelect: Bool { current().hideContextMenuSelect }
-    public static var doubleTapDelay: Int32 { current().doubleTapDelay }
     public static var defaultEmojisFirst: Bool { current().defaultEmojisFirst }
     public static var disableScrollToNextChannel: Bool { current().disableScrollToNextChannel }
     public static var showInlineReactions: Bool { current().showInlineReactions }
@@ -101,7 +100,6 @@ public enum ClearConfig {
     public static var disableGalleryCamera: Bool { current().disableGalleryCamera }
     public static var compactGalleryCamera: Bool { current().compactGalleryCamera }
     public static var disableStoryCameraSwipe: Bool { current().disableStoryCameraSwipe }
-    public static var enableMultiColumnLayout: Bool { current().enableMultiColumnLayout }
     public static var flatStickerCorners: Bool { current().flatStickerCorners }
     public static var saveStickerToPhotos: Bool { current().saveStickerToPhotos }
     public static var collapseLongMessages: Bool { current().collapseLongMessages }
@@ -110,7 +108,6 @@ public enum ClearConfig {
     public static var showAudioFormatBitrate: Bool { current().showAudioFormatBitrate }
     public static var allChatsTitleLengthOverride: Int32 { current().allChatsTitleLengthOverride }
     public static var fontSizeOverride: Bool { current().fontSizeOverride }
-    public static var searchByUserId: Bool { current().searchByUserId }
     public static var adminLogsImprovements: Bool { current().adminLogsImprovements }
     public static var paranoiaMode: Bool { current().paranoiaMode }
     public static var hideChannelJoinRequests: Bool { current().hideChannelJoinRequests }
@@ -151,6 +148,7 @@ public enum ClearConfig {
     public static var playlistDownloadLimit: Int32 { current().playlistDownloadLimit }
     public static var legacyDesign: Bool { current().legacyDesign }
     public static var disableMediaSpoilers: Bool { current().disableMediaSpoilers }
+    public static var searchHiddenMembers: Bool { current().searchHiddenMembers }
     // What the audio renderer actually consumes. Kept next to the raw accessors so the screen and
     // the renderer can never disagree about how the three fields combine.
     public static func equalizerState(_ settings: ClearConfigSettings) -> ClearEqualizer.State {

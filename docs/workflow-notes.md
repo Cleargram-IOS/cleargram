@@ -105,10 +105,54 @@ entry, pick a `stableId` that fits the global ascending order of `entries.append
 not just the section. Crash log signature: `_assertionFailure` in
 `closure #10 in ItemListControllerNode.init`.
 
-### Disabled toggle = "(soon)" placeholder
-New planned features get a disabled switch (`enabled: false`, title suffix "(soon)") so
-the user sees the roadmap. Wire-up replaces the placeholder with a real `updated` closure +
-removes "(soon)". Update `docs/features.md` "Pending wire-up" section in the same change.
+### Disabled toggle = `.soon` placeholder
+A planned feature gets `ClearToggle.soon(title, plan)`, which is `.unimplemented` storage
+rendered as a disabled switch with **the plan text as the row subtitle**. There is no
+"(soon)" suffix on the title — an earlier version of this note said there was.
+Wiring it up means replacing the whole row with a real `ClearToggle(title, .config(\.field))`,
+and updating the "Pending wire-up" list in `docs/features.md` in the same change.
+
+Two traps worth knowing, both hit on 2026-09-29:
+- **A `.soon` row is a promise the user can see.** Six of them currently sit in shipped
+  settings. Adding one costs nothing; leaving one there for months is a visible lie.
+- **A field with no row is worse than a `.soon` row** — nothing signals it is unfinished.
+  `showInlineReactions` had a working read site and no row for weeks while `features.md`
+  marked it shipped; `chatListLines` had neither, and silently kept three branches of
+  `feature__compact-chat-list` dead. When adding a field, add its row in the same change or
+  a `.soon` row explaining why not.
+
+## Tooling traps
+
+Each of these cost real time once. They live here rather than in a handoff note, which rots.
+
+- **Fish mangles `git show "$VAR:path"`.** The variable swallows part of the path
+  (`$PRE:submodules/TabBarUI/Sou` → garbage). Write the revision as a literal:
+  `git show ebcd0557e5^:submodules/TabBarUI/Sources/TabBarNode.swift`.
+- **`stg refresh` always with explicit paths.** Otherwise `.bazelrc` rides into the patch —
+  `pnpm setup` keeps a managed disk-cache block in it, so it is permanently modified in the tree.
+- **No git command that moves the branch.** A stray `git commit --amend` once desynced HEAD from
+  the top of the stgit stack; recovering took `stg repair` + deleting the duplicate + `stg rename`
+  + `stg edit -m`.
+- **`pnpm export` used to write `local__*` patches into the repo.** Fixed 2026-09-29 in
+  `scripts/export.ts` — they are machine-specific (dev signing, build flags) and
+  `check-patches.ts` was already built on the assumption that they never reach `patches/`.
+  `/patches/local/` is gitignored as a second line of defence.
+- **A bulk in-place edit across two anchors will happily delete everything between them.** Two
+  files were truncated this way on 2026-09-29 (one settings file lost 664 lines, `features.md`
+  lost a whole section) because a search string matched an earlier occurrence than intended.
+  Anchor on something unique, and check the line count before and after.
+- **Never touch `self.layer` or `self.view` in an `ASDisplayNode.init`.** `ListView` builds its
+  item nodes on a background queue (`ListMessageItem.nodeConfiguredForParams(async:)`), and
+  `-[ASDisplayNode layer]` asserts off the main thread → `SIGABRT` the moment a row is created.
+  A node built only by the player or a panel gets away with it because those run on main, so this
+  surfaces the day the same node is reused in a list. Put sublayer setup in `didLoad()`, which is
+  guaranteed on main, and have it call the same `updateLayers()` the layout path uses, since state
+  can arrive before the node loads. Cost one crash on 2026-09-29, found in 5 minutes from the
+  device crash log — that path is much faster than reasoning about it.
+
+- **`~/.config/fish/config.fish` and `~/.zshrc`** each had a `PNPM_HOME` pointing at a different
+  user's home, left by `pnpm setup`, which broke the pnpm installer. Removed; backups are
+  `config.fish.bak-cleargram` / `.zshrc.bak-cleargram`.
 
 ## Fork source files
 

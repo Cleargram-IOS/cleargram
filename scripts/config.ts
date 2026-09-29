@@ -24,7 +24,7 @@ export const clearSharedDataKeyRange = {
 } as const
 
 // Fork source layout: each subdirectory under src/swift/ClearGram/<SubmoduleName>/ is
-// symlinked into submodules/<SubmoduleName>/Sources/ClearGram/ in the worktree. The new
+// copied into submodules/<SubmoduleName>/Sources/ClearGram/ in the worktree. The new
 // files still need to be registered in the submodule's BUILD.bazel — that's what the
 // misc__build-config / per-feature patch does. This map only wires the physical symlinks;
 // BUILD registration is a separate concern.

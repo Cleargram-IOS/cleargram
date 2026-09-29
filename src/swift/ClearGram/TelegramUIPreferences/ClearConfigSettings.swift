@@ -26,7 +26,6 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var hideContextMenuForward: Bool
     public var hideContextMenuReport: Bool
     public var hideContextMenuSelect: Bool
-    public var doubleTapDelay: Int32
     public var defaultEmojisFirst: Bool
     public var disableScrollToNextChannel: Bool
     public var showInlineReactions: Bool
@@ -57,7 +56,6 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var disableGalleryCamera: Bool
     public var compactGalleryCamera: Bool
     public var disableStoryCameraSwipe: Bool
-    public var enableMultiColumnLayout: Bool
     public var flatStickerCorners: Bool
     public var saveStickerToPhotos: Bool
     public var collapseLongMessages: Bool
@@ -66,7 +64,6 @@ public struct ClearConfigSettings: Codable, Equatable {
     public var showAudioFormatBitrate: Bool
     public var allChatsTitleLengthOverride: Int32
     public var fontSizeOverride: Bool
-    public var searchByUserId: Bool
     public var adminLogsImprovements: Bool
     public var paranoiaMode: Bool
     public var hideChannelJoinRequests: Bool
@@ -125,6 +122,7 @@ public struct ClearConfigSettings: Codable, Equatable {
     // fade the chat wallpaper under the nav bar and above the input panel). Presentation-only.
     public var disableChatEdgeEffect: Bool
     public var disableMediaSpoilers: Bool
+    public var searchHiddenMembers: Bool
     // Show a cache-state indicator next to the track title in the music player and both mini
     // panels — a ring with a download arrow, a progress arc, or a tick. Presentation-only.
     public var showTrackCacheStatus: Bool
@@ -156,7 +154,6 @@ public struct ClearConfigSettings: Codable, Equatable {
             hideContextMenuForward: false,
             hideContextMenuReport: false,
             hideContextMenuSelect: false,
-            doubleTapDelay: 300,
             defaultEmojisFirst: false,
             disableScrollToNextChannel: false,
             showInlineReactions: false,
@@ -187,7 +184,6 @@ public struct ClearConfigSettings: Codable, Equatable {
             disableGalleryCamera: false,
             compactGalleryCamera: false,
             disableStoryCameraSwipe: false,
-            enableMultiColumnLayout: false,
             flatStickerCorners: false,
             saveStickerToPhotos: false,
             collapseLongMessages: false,
@@ -196,7 +192,6 @@ public struct ClearConfigSettings: Codable, Equatable {
             showAudioFormatBitrate: false,
             allChatsTitleLengthOverride: 0,
             fontSizeOverride: false,
-            searchByUserId: false,
             adminLogsImprovements: false,
             paranoiaMode: false,
             hideChannelJoinRequests: false,
@@ -232,6 +227,7 @@ public struct ClearConfigSettings: Codable, Equatable {
             showGroupAdmins: false,
             disableChatEdgeEffect: false,
             disableMediaSpoilers: false,
+            searchHiddenMembers: false,
             showTrackCacheStatus: false,
             unloadTrackFromCache: false,
             downloadPlaylist: false,
@@ -256,7 +252,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         hideContextMenuForward: Bool = false,
         hideContextMenuReport: Bool = false,
         hideContextMenuSelect: Bool = false,
-        doubleTapDelay: Int32 = 300,
         defaultEmojisFirst: Bool = false,
         disableScrollToNextChannel: Bool = false,
         showInlineReactions: Bool = false,
@@ -287,7 +282,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         disableGalleryCamera: Bool = false,
         compactGalleryCamera: Bool = false,
         disableStoryCameraSwipe: Bool = false,
-        enableMultiColumnLayout: Bool = false,
         flatStickerCorners: Bool = false,
         saveStickerToPhotos: Bool = false,
         collapseLongMessages: Bool = false,
@@ -296,7 +290,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         showAudioFormatBitrate: Bool = false,
         allChatsTitleLengthOverride: Int32 = 0,
         fontSizeOverride: Bool = false,
-        searchByUserId: Bool = false,
         adminLogsImprovements: Bool = false,
         paranoiaMode: Bool = false,
         hideChannelJoinRequests: Bool = false,
@@ -332,6 +325,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         showGroupAdmins: Bool = false,
         disableChatEdgeEffect: Bool = false,
         disableMediaSpoilers: Bool = false,
+        searchHiddenMembers: Bool = false,
         showTrackCacheStatus: Bool = false,
         unloadTrackFromCache: Bool = false,
         downloadPlaylist: Bool = false,
@@ -353,7 +347,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.hideContextMenuForward = hideContextMenuForward
         self.hideContextMenuReport = hideContextMenuReport
         self.hideContextMenuSelect = hideContextMenuSelect
-        self.doubleTapDelay = doubleTapDelay
         self.defaultEmojisFirst = defaultEmojisFirst
         self.disableScrollToNextChannel = disableScrollToNextChannel
         self.showInlineReactions = showInlineReactions
@@ -384,7 +377,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.disableGalleryCamera = disableGalleryCamera
         self.compactGalleryCamera = compactGalleryCamera
         self.disableStoryCameraSwipe = disableStoryCameraSwipe
-        self.enableMultiColumnLayout = enableMultiColumnLayout
         self.flatStickerCorners = flatStickerCorners
         self.saveStickerToPhotos = saveStickerToPhotos
         self.collapseLongMessages = collapseLongMessages
@@ -393,7 +385,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.showAudioFormatBitrate = showAudioFormatBitrate
         self.allChatsTitleLengthOverride = allChatsTitleLengthOverride
         self.fontSizeOverride = fontSizeOverride
-        self.searchByUserId = searchByUserId
         self.adminLogsImprovements = adminLogsImprovements
         self.paranoiaMode = paranoiaMode
         self.hideChannelJoinRequests = hideChannelJoinRequests
@@ -429,6 +420,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.showGroupAdmins = showGroupAdmins
         self.disableChatEdgeEffect = disableChatEdgeEffect
         self.disableMediaSpoilers = disableMediaSpoilers
+        self.searchHiddenMembers = searchHiddenMembers
         self.showTrackCacheStatus = showTrackCacheStatus
         self.unloadTrackFromCache = unloadTrackFromCache
         self.downloadPlaylist = downloadPlaylist
@@ -442,16 +434,16 @@ public struct ClearConfigSettings: Codable, Equatable {
         case hideStories, hideAiFeatures, secondsInMessages, confirmCalls, doubleTapToEdit
         case showProfileId, showDC, showRegistrationDate, showPhoneCountry, hidePhoneInSettings
         case hideContextMenuReply, hideContextMenuPin, hideContextMenuForward, hideContextMenuReport, hideContextMenuSelect
-        case doubleTapDelay, defaultEmojisFirst, disableScrollToNextChannel, showInlineReactions
+        case defaultEmojisFirst, disableScrollToNextChannel, showInlineReactions
         case blockCloudDrafts, showForwardedTime, stripTrackingParams, replacePreviewLinks, confirmInternalLinks, biometricConfirmDeleteChat, biometricConfirmClearHistory, biometricConfirmLogout
         case hideStarReactionButton, hideStarReactionCount, hideSimilarChannels, warnPollsRevote, showPackOwner, timeOnServiceMessages
         case showTabNames, compactChatList, chatListLines, compactFolderNames, allChatsHidden, hideTabBar, narrowTabBar, tabBarSearchEnabled, wideChannelPosts, hideChannelBottomButton
-        case disableGalleryCamera, compactGalleryCamera, disableStoryCameraSwipe, enableMultiColumnLayout
+        case disableGalleryCamera, compactGalleryCamera, disableStoryCameraSwipe
         case flatStickerCorners
         case saveStickerToPhotos
         case collapseLongMessages
         case disableContactsTab, disableCallsButton, showAudioFormatBitrate, allChatsTitleLengthOverride, fontSizeOverride
-        case searchByUserId, adminLogsImprovements, paranoiaMode, hideChannelJoinRequests
+        case adminLogsImprovements, paranoiaMode, hideChannelJoinRequests
         case fasterFileLoad, videoCircleAudioSource, videoQualityOriginalToggle, sendVideoAsCircle, hidePremiumStarsGifts
         case copyImageInGallery, videoMessageCameraSelection, copyBotButtonUrl
         case hideChatListPromoNotices, hideChatListBirthdayNotices
@@ -465,6 +457,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         case showGroupAdmins
         case disableChatEdgeEffect
         case disableMediaSpoilers
+        case searchHiddenMembers
         case showTrackCacheStatus
         case unloadTrackFromCache
         case downloadPlaylist, playlistDownloadLimit
@@ -488,7 +481,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.hideContextMenuForward = try c.decodeIfPresent(Bool.self, forKey: .hideContextMenuForward) ?? false
         self.hideContextMenuReport = try c.decodeIfPresent(Bool.self, forKey: .hideContextMenuReport) ?? false
         self.hideContextMenuSelect = try c.decodeIfPresent(Bool.self, forKey: .hideContextMenuSelect) ?? false
-        self.doubleTapDelay = try c.decodeIfPresent(Int32.self, forKey: .doubleTapDelay) ?? 300
         self.defaultEmojisFirst = try c.decodeIfPresent(Bool.self, forKey: .defaultEmojisFirst) ?? false
         self.disableScrollToNextChannel = try c.decodeIfPresent(Bool.self, forKey: .disableScrollToNextChannel) ?? false
         self.showInlineReactions = try c.decodeIfPresent(Bool.self, forKey: .showInlineReactions) ?? false
@@ -519,7 +511,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.disableGalleryCamera = try c.decodeIfPresent(Bool.self, forKey: .disableGalleryCamera) ?? false
         self.compactGalleryCamera = try c.decodeIfPresent(Bool.self, forKey: .compactGalleryCamera) ?? false
         self.disableStoryCameraSwipe = try c.decodeIfPresent(Bool.self, forKey: .disableStoryCameraSwipe) ?? false
-        self.enableMultiColumnLayout = try c.decodeIfPresent(Bool.self, forKey: .enableMultiColumnLayout) ?? false
         self.flatStickerCorners = try c.decodeIfPresent(Bool.self, forKey: .flatStickerCorners) ?? false
         self.saveStickerToPhotos = try c.decodeIfPresent(Bool.self, forKey: .saveStickerToPhotos) ?? false
         self.collapseLongMessages = try c.decodeIfPresent(Bool.self, forKey: .collapseLongMessages) ?? false
@@ -528,7 +519,6 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.showAudioFormatBitrate = try c.decodeIfPresent(Bool.self, forKey: .showAudioFormatBitrate) ?? false
         self.allChatsTitleLengthOverride = try c.decodeIfPresent(Int32.self, forKey: .allChatsTitleLengthOverride) ?? 0
         self.fontSizeOverride = try c.decodeIfPresent(Bool.self, forKey: .fontSizeOverride) ?? false
-        self.searchByUserId = try c.decodeIfPresent(Bool.self, forKey: .searchByUserId) ?? false
         self.adminLogsImprovements = try c.decodeIfPresent(Bool.self, forKey: .adminLogsImprovements) ?? false
         self.paranoiaMode = try c.decodeIfPresent(Bool.self, forKey: .paranoiaMode) ?? false
         self.hideChannelJoinRequests = try c.decodeIfPresent(Bool.self, forKey: .hideChannelJoinRequests) ?? false
@@ -567,6 +557,7 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.showGroupAdmins = try c.decodeIfPresent(Bool.self, forKey: .showGroupAdmins) ?? false
         self.disableChatEdgeEffect = try c.decodeIfPresent(Bool.self, forKey: .disableChatEdgeEffect) ?? false
         self.disableMediaSpoilers = try c.decodeIfPresent(Bool.self, forKey: .disableMediaSpoilers) ?? false
+        self.searchHiddenMembers = try c.decodeIfPresent(Bool.self, forKey: .searchHiddenMembers) ?? false
         self.showTrackCacheStatus = try c.decodeIfPresent(Bool.self, forKey: .showTrackCacheStatus) ?? false
         self.unloadTrackFromCache = try c.decodeIfPresent(Bool.self, forKey: .unloadTrackFromCache) ?? false
         self.downloadPlaylist = try c.decodeIfPresent(Bool.self, forKey: .downloadPlaylist) ?? false

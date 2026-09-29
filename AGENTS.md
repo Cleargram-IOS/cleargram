@@ -195,7 +195,7 @@ it**, so fork Swift code is **copied** into the worktree rather than symlinked:
   build seen on a device can be reconstructed with `git apply`. **That archive is also the
   undo for a wiped working tree** — if uncommitted work is lost, the newest stamp restores it
   (`git apply --exclude=<untracked file already on disk> build/dirty-stamps/<id>.diff`).
-- **A new area needs an entry in `forkSyncDirs` (`scripts/config.ts`)** or `pnpm sync` never copies it and Bazel never sees the file. Current areas: `TelegramUIPreferences`, `DebugSettingsUI`, `TextFormat`, `ChatListUI`, `LegacyMediaPickerUI`, `MediaPickerUI`, `PeerInfoScreen` (→ `submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/ClearGram`, a nested target path — that works, `copyForkDir` mkdir -p's it and adds the git-exclude), `TelegramUI` (→ `submodules/TelegramUI/Sources/ClearGram`, for fork code that needs types only the app module has in scope — the media player state, for instance).
+- **A new area needs an entry in `forkSyncDirs` (`scripts/config.ts`)** or `pnpm sync` never copies it and Bazel never sees the file. Current areas (13): `TelegramUIPreferences`, `DebugSettingsUI`, `TextFormat`, `ChatListUI`, `LegacyMediaPickerUI`, `MediaPickerUI`, `TelegramCore`, `Display`, `AccountContext`, `TabBarUI`, `PeerInfoScreen` (→ `submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/ClearGram`), `LocalAudioTranscription` (→ `submodules/Media/LocalAudioTranscription/Sources/ClearGram`) — both nested target paths, which works: `copyForkDir` mkdir -p's them and adds the git-exclude — and `TelegramUI` (→ `submodules/TelegramUI/Sources/ClearGram`, for fork code needing types only the app module has in scope).
 
 ---
 
@@ -226,7 +226,9 @@ Use it **only** when the call site genuinely can't reach `ClearConfig` — check
 `BUILD` deps first; most already have `TelegramUIPreferences`.
 
 Current entries: `blockCloudDrafts`, `expandedMessageIds`, `fasterFileLoad`, `hideStories`
-(read by `AvatarNode.setStoryStats`), `recentStickersLimit`. Adding one means two edits: the
+(read by `AvatarNode.setStoryStats`), `recentStickersLimit`, `roundVideoKeepCorners`,
+`improveRoundVideoQuality` (the last two reach the `Camera` submodule, which depends on
+TelegramCore but not TelegramUIPreferences). Adding one means two edits: the
 `Atomic` here, and the matching `swap` in `ClearConfig.start`.
 
 ---
@@ -288,8 +290,10 @@ could not have guessed from the title. Keep the mechanism and the catch; drop th
 
 ## Settings UI
 
-- Debug Settings — simple start: add a section in `DebugController`. See
-  `submodules/DebugSettingsUI/Sources/DebugController.swift`.
+- The settings screen is reached from the **main Settings list**, pushed at
+  `submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift:148`.
+  Debug Settings (`submodules/DebugSettingsUI/Sources/DebugController.swift`) only still hosts
+  `quietChatsSelectionController`.
 - `ClearSettingsController` (`src/swift/ClearGram/DebugSettingsUI/`) is the real home. The screen
   tree is **data** — `clearRootScreen()` at the bottom of the file. Row kinds: `.toggle`
   (`ClearToggle`, a `WritableKeyPath<…, Bool>` into `ClearConfigSettings` or
@@ -298,7 +302,8 @@ could not have guessed from the title. Keep the mechanism and the catch; drop th
   by the fork `ClearSliderItem` around a system `UISlider` — native iOS 26 look, snaps to the step,
   persists on drag-end only, and takes an optional `isEnabled` to grey out when its feature is off),
   `.action` (`ClearAction`, a plain tappable row that runs code — used by
-  the settings export/import), `.screen` (nested `ClearScreen`) and `.reset`. Adding an option is
+  the settings export/import), `.link` (`ClearLink`), `.screen` (nested `ClearScreen`) and `.reset`.
+  There is **no** `.select` row kind — a fixed set of values is a `.slider`. Adding an option is
   normally one line; the ids, equality and `ItemList` plumbing are generic.
 - Any toggle that needs a restart → show a "Restart required" alert in the click handler.
 

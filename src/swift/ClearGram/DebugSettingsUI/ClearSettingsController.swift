@@ -810,6 +810,8 @@ private func clearAppearanceScreen() -> ClearScreen {
                 //    hardware label, not impersonation of an official client. It does change what
                 //    her own session list shows, which is the reason to keep it explicit.
                 //
+                // Neither `showSendingDevice` nor `clearDeviceSpoofScreen` exists yet — these two lines
+                // are the shape of the result, not code waiting to be uncommented.
                 // .toggle(ClearToggle(L("Sending Device", "Устройство отправки"), .config(\.showSendingDevice))),
                 // .screen(clearDeviceSpoofScreen())
             ]
@@ -822,11 +824,19 @@ private func clearChatListScreen() -> ClearScreen {
         ClearSection(
             header: L("ROWS", "СТРОКИ"),
             footer: L(
-                "Smaller avatars and tighter spacing. Requires a restart.",
-                "Аватары меньше, отступы плотнее. Требуется перезапуск."
+                "Smaller avatars and tighter spacing. Three preview lines is stock; fewer also tightens the row. Both need a restart.",
+                "Аватары меньше, отступы плотнее. Три строки превью — как в оригинале; меньше — строка ещё плотнее. И то и другое требует перезапуска."
             ),
             rows: [
-                .toggle(ClearToggle(L("Compact Rows", "Компактные строки"), .config(\.compactChatList), requiresRestart: true))
+                .toggle(ClearToggle(L("Compact Rows", "Компактные строки"), .config(\.compactChatList), requiresRestart: true)),
+                .slider(ClearSlider(
+                    title: L("Preview Lines", "Строк превью"),
+                    keyPath: \.chatListLines,
+                    minValue: 1,
+                    maxValue: 3,
+                    step: 1,
+                    format: { "\($0)" }
+                ))
             ]
         ),
         ClearSection(
@@ -999,7 +1009,8 @@ private func clearChatsScreen() -> ClearScreen {
             header: L("REACTIONS", "РЕАКЦИИ"),
             rows: [
                 .toggle(ClearToggle(L("Hide Star Reaction", "Скрыть реакцию-звезду"), .config(\.hideStarReactionButton))),
-                .toggle(ClearToggle(L("Hide Star Reaction Count", "Скрыть счётчик звёзд"), .config(\.hideStarReactionCount)))
+                .toggle(ClearToggle(L("Hide Star Reaction Count", "Скрыть счётчик звёзд"), .config(\.hideStarReactionCount))),
+                .toggle(ClearToggle(L("Reactions Beside the Time", "Реакции рядом со временем"), .config(\.showInlineReactions)))
             ]
         ),
         ClearSection(
@@ -1045,14 +1056,12 @@ private func clearChatsScreen() -> ClearScreen {
         ),
         ClearSection(
             header: L("SEARCH", "ПОИСК"),
+            footer: L(
+                "When a group hides its members, in-chat search offers no one to pick from. Typing a @username finds the author anyway; a numeric id only works if that person is already known to the app.",
+                "Когда группа скрывает участников, в поиске по чату некого выбрать. Ввод @имени находит автора всё равно; числовой id сработает, только если этот человек приложению уже известен."
+            ),
             rows: [
-                .toggle(ClearToggle.soon(
-                    L("Search by User ID", "Поиск по ID пользователя"),
-                    L(
-                        "Planned: find a member's messages by numeric id where searching by @username doesn't work.",
-                        "В планах: искать сообщения участника по числовому id там, где поиск по @имени не работает."
-                    )
-                ))
+                .toggle(ClearToggle(L("Find Hidden Authors", "Искать скрытых авторов"), .config(\.searchHiddenMembers)))
             ]
         )
     ])

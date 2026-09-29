@@ -119,6 +119,16 @@ public final class ClearTrackCacheIndicatorNode: ASDisplayNode {
 
         self.isUserInteractionEnabled = false
         self.isLayerBacked = true
+    }
+
+    // Sublayers are attached here, not in `init`, because `ASDisplayNode.layer` asserts off the
+    // main thread and `ListView` builds its item nodes on a background queue
+    // (`ListMessageItem.nodeConfiguredForParams(async:)`). The player and the mini panels construct
+    // this node on main, so touching `layer` in `init` worked there and crashed the moment a list
+    // row needed one — abort in `-[ASDisplayNode layer]`, on scroll, as soon as a new row was made.
+    // `didLoad` is the guaranteed on-main hook.
+    override public func didLoad() {
+        super.didLoad()
 
         for sublayer in [self.ringLayer, self.progressLayer, self.glyphLayer] {
             sublayer.fillColor = nil
@@ -129,6 +139,9 @@ public final class ClearTrackCacheIndicatorNode: ASDisplayNode {
         // The progress arc starts at twelve o'clock; the layer is rotated rather than the path so
         // that `strokeEnd` stays a plain 0…1 value.
         self.progressLayer.transform = CATransform3DMakeRotation(-CGFloat.pi / 2.0, 0.0, 0.0, 1.0)
+
+        // State may have arrived before the node loaded; nothing was drawn then.
+        self.updateLayers()
     }
 
     /// `state == nil` hides the node.

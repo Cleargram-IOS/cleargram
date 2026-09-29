@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Asya Medvedeva <asya_bububu@proton.me>
+Date: Tue, 29 Sep 2026 09:14:13 +0200
+Subject: Find chat authors when the member list is hidden
+
+---
+ .../TelegramUI/Sources/ChatInterfaceStateContextQueries.swift   | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift
++++ b/submodules/TelegramUI/Sources/ChatInterfaceStateContextQueries.swift
+@@ -489,7 +489,7 @@ func searchQuerySuggestionResultStateForChatInterfacePresentationState(_ chatPre
+                     
+                         let participants = combineLatest(
+                             context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId)),
+-                            searchPeerMembers(context: context, peerId: peer.id, chatLocation: chatPresentationInterfaceState.chatLocation, query: query, scope: .memberSuggestion)
++                            clearSearchAuthorSuggestions(context: context, peerId: peer.id, chatLocation: chatPresentationInterfaceState.chatLocation, query: query)
+                         )
+                         |> map { accountPeer, peers -> (ChatPresentationInputQueryResult?) -> ChatPresentationInputQueryResult? in
+                             let filteredPeers = peers
