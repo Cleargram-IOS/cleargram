@@ -311,7 +311,7 @@ cd "$REPO/worktree"
 if [ "$CLEAN" = 1 ]; then
     echo "==> cleaning bazel state"
     DEVELOPER_DIR="$XCODE" python3 build-system/Make/Make.py \
-        --overrideXcodeVersion "${BAZEL_ROOT_ARGS[@]}" --cacheDir "$CACHE_DIR" clean
+        --overrideXcodeVersion ${BAZEL_ROOT_ARGS[@]+"${BAZEL_ROOT_ARGS[@]}"} --cacheDir "$CACHE_DIR" clean
 fi
 
 # Persistent, monotonically increasing build number. Bumps CFBundleVersion every build so the
@@ -331,7 +331,7 @@ fi
 echo "==> building $CONFIG (build $BUILD_NUMBER)$([ "$SIGN" = 1 ] && echo ' (signed)' || echo ' (unsigned)')"
 DEVELOPER_DIR="$XCODE" python3 build-system/Make/Make.py \
     --overrideXcodeVersion \
-    "${BAZEL_ROOT_ARGS[@]}" \
+    ${BAZEL_ROOT_ARGS[@]+"${BAZEL_ROOT_ARGS[@]}"} \
     --cacheDir "$CACHE_DIR" \
     build \
     --continueOnError \

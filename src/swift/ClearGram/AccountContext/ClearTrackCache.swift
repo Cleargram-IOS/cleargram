@@ -107,7 +107,18 @@ public func clearUnloadTrackFromCache(engine: TelegramEngine, file: TelegramMedi
 }
 
 private func clearTrackCacheStatusSignal(mediaBox: MediaBox, resource: MediaResource) -> Signal<ClearTrackCacheState?, NoError> {
-    return mediaBox.resourceStatus(resource)
+    // `mediaBox.resourceStatus` answers `.Local` and **completes** for a cached file: MediaBox checks
+    // the complete-file path first and never registers a live status context in that branch. The
+    // `notify` pass of `removeCachedResources` pushes `.Remote` only to live contexts, so a completed
+    // subscription had no way to learn about an unload — every surface (list rows, mini panels, the
+    // player) kept showing "downloaded" until the screen was reopened. Restarting the status
+    // subscription on the media box's removal event keeps the signal alive instead: a removal
+    // anywhere (the unload action, cache cleanup, eviction) re-checks this one file, and the fresh
+    // subscription reports `.Remote` right away.
+    return mediaBox.didRemoveResources
+    |> mapToSignal { _ -> Signal<MediaResourceStatus, NoError> in
+        return mediaBox.resourceStatus(resource)
+    }
     |> map { status -> ClearTrackCacheState? in
         switch status {
         case .Local:
