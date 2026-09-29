@@ -165,6 +165,9 @@ public final class ClearTrackCacheIndicatorNode: ASDisplayNode {
 
         self.isUserInteractionEnabled = false
         self.isLayerBacked = true
+        // Nothing to show until a state arrives. `update` owns `isHidden` from here on and
+        // returns early when nothing changed, so no call site may write it directly.
+        self.isHidden = true
     }
 
     // Sublayers are attached here, not in `init`, because `ASDisplayNode.layer` asserts off the

@@ -4,14 +4,14 @@ Date: Tue, 29 Sep 2026 02:11:16 +0200
 Subject: Show cache state per track and add cache actions to the player menu
 
 ---
- .../Sources/ListMessageFileItemNode.swift     | 54 ++++++++++++++++++-
- .../MediaNavigationAccessoryHeaderNode.swift  | 12 ++++-
+ .../Sources/ListMessageFileItemNode.swift     | 59 ++++++++++++++++++-
+ .../MediaNavigationAccessoryHeaderNode.swift  | 12 +++-
  .../MediaNavigationAccessoryHeaderNode.swift  | 10 +++-
- .../Sources/PeerInfoScreen.swift              |  6 +++
- .../ChatInterfaceStateContextMenus.swift      |  9 ++++
- .../OverlayAudioPlayerControllerNode.swift    | 25 +++++++++
+ .../Sources/PeerInfoScreen.swift              |  6 ++
+ .../ChatInterfaceStateContextMenus.swift      |  9 +++
+ .../OverlayAudioPlayerControllerNode.swift    | 25 ++++++++
  .../OverlayAudioPlayerControlsNode.swift      | 11 +++-
- 7 files changed, 119 insertions(+), 8 deletions(-)
+ 7 files changed, 124 insertions(+), 8 deletions(-)
 
 diff --git a/submodules/ListMessageItem/Sources/ListMessageFileItemNode.swift b/submodules/ListMessageItem/Sources/ListMessageFileItemNode.swift
 index 0000000..0000000 100644
@@ -62,7 +62,7 @@ index 0000000..0000000 100644
              
              let (textNodeLayout, textNodeApply) = textNodeMakeLayout(TextNodeLayoutArguments(attributedString: captionText, backgroundColor: nil, maximumNumberOfLines: 1, truncationType: .end, constrainedSize: CGSize(width: params.width - leftInset - leftOffset - contentRightInset - 30.0, height: CGFloat.infinity), alignment: .natural, cutout: nil, insets: UIEdgeInsets()))
              
-@@ -1278,9 +1293,44 @@ public final class ListMessageFileItemNode: ListMessageNode {
+@@ -1278,9 +1293,49 @@ public final class ListMessageFileItemNode: ListMessageNode {
                          }
                      }
                      
@@ -75,7 +75,6 @@ index 0000000..0000000 100644
 +                        if strongSelf.clearCacheNode.supernode == nil {
 +                            strongSelf.addSubnode(strongSelf.clearCacheNode)
 +                        }
-+                        strongSelf.clearCacheNode.isHidden = false
 +                        transition.updateFrame(node: strongSelf.clearCacheNode, frame: CGRect(
 +                            origin: CGPoint(
 +                                x: clearTitleFrame.maxX + 4.0,
@@ -100,7 +99,13 @@ index 0000000..0000000 100644
 +                            }))
 +                        }
 +                    } else {
-+                        strongSelf.clearCacheNode.isHidden = true
++                        // Visibility belongs to the node: `update` derives it from the state and
++                        // returns early when nothing changed, so an `isHidden` written from here
++                        // is never taken back. This apply block runs again for a row that is
++                        // already on screen (any list transition that updates the same index), and
++                        // a stray `isHidden = false` there un-hid the remote rows — whose layers
++                        // still hold the arrow drawn for `.status` — making every track look cached.
++                        strongSelf.clearCacheNode.update(state: nil, color: item.presentationData.theme.theme.list.itemSecondaryTextColor, style: .library)
 +                        strongSelf.clearCacheFileId = nil
 +                        strongSelf.clearCacheDisposable.set(nil)
 +                    }
