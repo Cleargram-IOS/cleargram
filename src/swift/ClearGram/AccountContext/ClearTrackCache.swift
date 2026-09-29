@@ -104,6 +104,18 @@ private func clearTrackCacheStatusSignal(mediaBox: MediaBox, resource: MediaReso
 private let clearIndicatorLineWidth: CGFloat = 1.5
 
 public final class ClearTrackCacheIndicatorNode: ASDisplayNode {
+    /// What the indicator is for, because the two surfaces want opposite things.
+    public enum Style {
+        /// Beside a single title, in the player and the mini panels: report what is *missing*.
+        /// An arrow while the track is remote, an arc while it downloads, and nothing once it is
+        /// cached — a permanent mark there says nothing and keeps the title off centre.
+        case status
+        /// In a list of tracks: mark what is *available offline*, the way a music app does — an
+        /// arrow on the cached rows, an arc on the one downloading, and nothing on the rest, so the
+        /// eye picks out what is already there instead of what is not.
+        case library
+    }
+
     public static let size = CGSize(width: 14.0, height: 14.0)
 
     private let ringLayer = CAShapeLayer()
@@ -112,6 +124,8 @@ public final class ClearTrackCacheIndicatorNode: ASDisplayNode {
 
     private var state: ClearTrackCacheState?
     private var color: UIColor = .white
+    // Not `style`: `ASDisplayNode` already has one, of type `ASLayoutElementStyle`.
+    private var indicatorStyle: Style = .status
 
 
     override public init() {
@@ -144,14 +158,25 @@ public final class ClearTrackCacheIndicatorNode: ASDisplayNode {
         self.updateLayers()
     }
 
-    /// `state == nil` hides the node.
-    public func update(state: ClearTrackCacheState?, color: UIColor) {
-        guard state != self.state || color != self.color else {
+    /// Hidden when there is nothing worth marking: no state at all, a cached track in `.status`,
+    /// or a remote one in `.library`.
+    public func update(state: ClearTrackCacheState?, color: UIColor, style: Style = .status) {
+        guard state != self.state || color != self.color || style != self.indicatorStyle else {
             return
         }
         self.state = state
         self.color = color
-        self.isHidden = state == nil
+        self.indicatorStyle = style
+
+        var isEmpty = state == nil
+        switch (state, style) {
+        case (.local, .status), (.remote, .library):
+            isEmpty = true
+        default:
+            break
+        }
+        self.isHidden = isEmpty
+
         self.updateLayers()
     }
 
@@ -181,7 +206,10 @@ public final class ClearTrackCacheIndicatorNode: ASDisplayNode {
             self.ringLayer.path = circlePath
             self.ringLayer.opacity = 1.0
             self.progressLayer.path = nil
-            self.glyphLayer.path = self.checkPath(in: size)
+            // `.library` marks a cached row with the download glyph, which is what a music app
+            // uses for "you have this offline"; the tick only ever shows in `.status`, where a
+            // cached track hides the node anyway.
+            self.glyphLayer.path = self.indicatorStyle == .library ? self.arrowPath(in: size) : self.checkPath(in: size)
         case let .fetching(progress):
             self.ringLayer.path = circlePath
             // The unfilled part of the ring stays visible but dim, so the arc reads as a share of

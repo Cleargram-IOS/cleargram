@@ -91,7 +91,7 @@ index 0000000..0000000 100644
 +                            let clearColor = item.presentationData.theme.theme.list.itemSecondaryTextColor
 +                            strongSelf.clearCacheDisposable.set((clearTrackCacheState(mediaBox: item.context.account.postbox.mediaBox, file: clearCacheFile)
 +                            |> deliverOnMainQueue).start(next: { [weak strongSelf] state in
-+                                strongSelf?.clearCacheNode.update(state: state, color: clearColor)
++                                strongSelf?.clearCacheNode.update(state: state, color: clearColor, style: .library)
 +                            }))
 +                        }
 +                    } else {
