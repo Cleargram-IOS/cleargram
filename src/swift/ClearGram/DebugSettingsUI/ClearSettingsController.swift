@@ -30,6 +30,10 @@ private func L(_ en: String, _ ru: String) -> String {
 private struct ClearToggle {
     enum Storage {
         case config(WritableKeyPath<ClearConfigSettings, Bool>)
+        // The switch shows the opposite of the stored flag. For options whose storage is phrased as
+        // a removal ("hide…", default off = stock) but which read better as what is on screen:
+        // on = the effect is there, as in stock.
+        case configInverted(WritableKeyPath<ClearConfigSettings, Bool>)
         case experimental(WritableKeyPath<ExperimentalUISettings, Bool>)
         // Shown disabled: the switch exists, the behaviour behind it doesn't yet.
         case unimplemented
@@ -65,6 +69,8 @@ private struct ClearToggle {
         switch self.storage {
         case let .config(keyPath):
             return settings[keyPath: keyPath]
+        case let .configInverted(keyPath):
+            return !settings[keyPath: keyPath]
         case let .experimental(keyPath):
             return experimental[keyPath: keyPath]
         case .unimplemented:
@@ -188,17 +194,30 @@ private final class ClearScreen {
     let title: String
     let icon: UIImage?
     let sections: [ClearSection]
+    // The logo / name / build header above the first section (root screen only).
+    let showsBrandHeader: Bool
 
-    init(title: String, icon: UIImage? = nil, sections: [ClearSection]) {
+    init(title: String, icon: UIImage? = nil, showsBrandHeader: Bool = false, sections: [ClearSection]) {
         self.title = title
         self.icon = icon
+        self.showsBrandHeader = showsBrandHeader
         self.sections = sections
     }
+}
+
+// Which build this is, as the header shows and copies it: the upstream release with this build's
+// number (CFBundleVersion, set by build.sh at build time and so deliberately not in the
+// Bazel-input ClearBuildInfo), then the two commits it was assembled from. Not translated —
+// versions and hashes aren't UI text.
+private func clearBuildCaption() -> String {
+    let buildNumber = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String).map { " (\($0))" } ?? ""
+    return "Telegram \(ClearBuildInfo.telegramVersion)\(buildNumber)\nupstream \(ClearBuildInfo.upstreamCommit) · Cleargram \(ClearBuildInfo.cleargramCommit)"
 }
 
 // MARK: - Entries
 
 private enum ClearEntry: ItemListNodeEntry {
+    case brand(caption: String)
     case header(section: Int, text: String)
     case toggle(section: Int, index: Int, title: String, subtitle: String?, value: Bool, enabled: Bool)
     case slider(section: Int, index: Int, title: String, value: Int32, minValue: Int32, maxValue: Int32, step: Int32, enabled: Bool)
@@ -210,6 +229,9 @@ private enum ClearEntry: ItemListNodeEntry {
 
     var section: ItemListSectionId {
         switch self {
+        case .brand:
+            // Its own section, so it stands on the list background rather than joining a card.
+            return ItemListSectionId(-1)
         case let .header(section, _),
              let .toggle(section, _, _, _, _, _),
              let .slider(section, _, _, _, _, _, _, _),
@@ -226,6 +248,8 @@ private enum ClearEntry: ItemListNodeEntry {
     // Header first, then rows, then the footer, with room for ~880 rows per section.
     var stableId: Int {
         switch self {
+        case .brand:
+            return -1
         case let .header(section, _):
             return section * 1000
         case let .toggle(section, index, _, _, _, _):
@@ -249,6 +273,8 @@ private enum ClearEntry: ItemListNodeEntry {
 
     static func == (lhs: ClearEntry, rhs: ClearEntry) -> Bool {
         switch (lhs, rhs) {
+        case let (.brand(lc), .brand(rc)):
+            return lc == rc
         case let (.header(ls, lt), .header(rs, rt)):
             return ls == rs && lt == rt
         case let (.toggle(ls, li, lt, lsub, lv, le), .toggle(rs, ri, rt, rsub, rv, re)):
@@ -273,6 +299,13 @@ private enum ClearEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let args = arguments as! ClearArguments
         switch self {
+        case let .brand(caption):
+            return ClearBrandHeaderItem(theme: presentationData.theme, title: "Cleargram", caption: caption, sectionId: self.section, copy: {
+                UIPasteboard.general.string = caption
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                let pd = args.context.sharedContext.currentPresentationData.with { $0 }
+                args.present(UndoOverlayController(presentationData: pd, content: .copy(text: pd.strings.Conversation_TextCopied), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }))
+            })
         case let .header(_, text):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
         case let .footer(_, text, copyable):
@@ -429,6 +462,9 @@ private final class ClearArguments {
 
 private func clearEntries(screen: ClearScreen, settings: ClearConfigSettings, experimental: ExperimentalUISettings) -> [ClearEntry] {
     var entries: [ClearEntry] = []
+    if screen.showsBrandHeader {
+        entries.append(.brand(caption: clearBuildCaption()))
+    }
     for (sectionIndex, section) in screen.sections.enumerated() {
         if let header = section.header {
             entries.append(.header(section: sectionIndex, text: header))
@@ -497,6 +533,12 @@ private func clearScreenController(context: AccountContext, screen: ClearScreen)
                 let _ = ClearConfig.update(accountManager: accountManager) { current in
                     var updated = current
                     updated[keyPath: keyPath] = value
+                    return updated
+                }.start()
+            case let .configInverted(keyPath):
+                let _ = ClearConfig.update(accountManager: accountManager) { current in
+                    var updated = current
+                    updated[keyPath: keyPath] = !value
                     return updated
                 }.start()
             case let .experimental(keyPath):
@@ -574,7 +616,8 @@ private func clearScreenController(context: AccountContext, screen: ClearScreen)
         let itemListPresentationData = ItemListPresentationData(presentationData)
         let state = ItemListControllerState(
             presentationData: itemListPresentationData,
-            title: .text(screen.title),
+            // The root screen's header already says "Cleargram" under the logo; the bar stays empty.
+            title: .text(screen.showsBrandHeader ? "" : screen.title),
             leftNavigationButton: nil,
             rightNavigationButton: nil,
             backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back)
@@ -662,7 +705,7 @@ private let clearChannelUsername = "@cleargramios"
 private let clearChannelUrl = "https://t.me/cleargramios"
 
 private func clearRootScreen() -> ClearScreen {
-    return ClearScreen(title: "Cleargram", sections: [
+    return ClearScreen(title: "Cleargram", showsBrandHeader: true, sections: [
         ClearSection(
             footer: L(
                 "Everything is off by default — Cleargram starts out identical to stock Telegram.",
@@ -726,16 +769,6 @@ private func clearRootScreen() -> ClearScreen {
                 .reset(title: L("Reset All Settings", "Сбросить все настройки"))
             ]
         ),
-        // Which build this is: the upstream release, the commit the patchset is pinned to and
-        // the cleargram commit it was assembled from. Generated at sync time, see
-        // ClearBuildInfo. The trailing "· build N" is the incrementing build number, read from
-        // CFBundleVersion at runtime (set by build.sh) — deliberately not baked into the
-        // Bazel-input ClearBuildInfo. Not translated — versions and hashes aren't UI text.
-        ClearSection(
-            footer: ClearBuildInfo.summary + ((Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String).map { " · build \($0)" } ?? ""),
-            footerCopyable: true,
-            rows: []
-        )
     ])
 }
 
@@ -775,14 +808,29 @@ private func clearAppearanceScreen() -> ClearScreen {
         //         .toggle(ClearToggle(L("Legacy Design", "Старое оформление"), .config(\.legacyDesign), requiresRestart: true))
         //     ]
         // ),
+        // Phrased as what is on screen, not as removals: on = the effect is there, as in stock, so a
+        // switch never reads as a double negative. The master greys the four out but leaves them
+        // as they are, so switching it back brings back the chosen combination.
         ClearSection(
-            header: L("CHAT BACKGROUND", "ФОН ЧАТА"),
+            header: L("SCREEN EDGES", "КРАЯ ЭКРАНА"),
             footer: L(
-                "Removes the gradient that fades the wallpaper under the navigation bar and above the input field.",
-                "Убирает градиент, затемняющий обои под панелью навигации и над полем ввода."
+                "The fade under the navigation bar and above the input field or tab bar — in chats, the chat list, settings and sheets.",
+                "Переход под панелью навигации и над полем ввода или панелью вкладок — в чатах, списке чатов, настройках и шторках."
             ),
             rows: [
-                .toggle(ClearToggle(L("Remove Edge Dimming", "Убрать затемнение по краям"), .config(\.disableChatEdgeEffect)))
+                .toggle(ClearToggle(L("Edge Effects", "Эффекты по краям"), .configInverted(\.disableChatEdgeEffect))),
+                .toggle(ClearToggle(L("Top Dimming", "Затемнение сверху"), .configInverted(\.hideTopEdgeDimming), isEnabled: { !$0.disableChatEdgeEffect })),
+                .toggle(ClearToggle(L("Top Blur", "Размытие сверху"), .configInverted(\.hideTopEdgeBlur), isEnabled: { !$0.disableChatEdgeEffect })),
+                .toggle(ClearToggle(L("Bottom Dimming", "Затемнение снизу"), .configInverted(\.hideBottomEdgeDimming), isEnabled: { !$0.disableChatEdgeEffect })),
+                // Stock blurs the bottom edge only in sheets and pickers — never in chats, the chat
+                // list or settings — and these switches can only take an effect away, so say where
+                // this one shows instead of letting it look broken on the main screens.
+                .toggle(ClearToggle(
+                    L("Bottom Blur", "Размытие снизу"),
+                    .configInverted(\.hideBottomEdgeBlur),
+                    subtitle: { _ in L("Only in sheets and pickers", "Только в шторках и выборе фото") },
+                    isEnabled: { !$0.disableChatEdgeEffect }
+                ))
             ]
         ),
         ClearSection(
@@ -1112,6 +1160,25 @@ private func clearMediaScreen() -> ClearScreen {
             ),
             rows: [
                 .toggle(ClearToggle(L("Copy Image in Gallery", "Копировать фото в галерее"), .config(\.copyImageInGallery)))
+            ]
+        ),
+        ClearSection(
+            header: L("ATTACHMENTS", "ВЛОЖЕНИЯ"),
+            footer: L(
+                "Picked photos wait in the input field and go out with the text as their caption. Hold the paperclip for the latest photos. Kept only while the chat is open.",
+                "Выбранные фото ждут в поле ввода и уходят вместе с текстом как подпись. Удержание скрепки показывает последние фото. Хранятся, пока чат открыт."
+            ),
+            rows: [
+                .toggle(ClearToggle(L("Attachments in Input Field", "Вложения в поле ввода"), .config(\.composerAttachments))),
+                .toggle(ClearToggle(
+                    L("Camera in Quick Attach", "Камера в быстром выборе"),
+                    .config(\.quickAttachCamera),
+                    subtitle: { _ in L(
+                        "Turns the camera on as soon as the paperclip is touched.",
+                        "Включает камеру, как только коснёшься скрепки."
+                    ) },
+                    isEnabled: { $0.composerAttachments }
+                ))
             ]
         ),
         ClearSection(

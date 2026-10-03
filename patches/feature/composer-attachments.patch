@@ -1,0 +1,201 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Asya Medvedeva <asya_bububu@proton.me>
+Date: Sat, 3 Oct 2026 20:02:15 +0200
+Subject: Add attachments in the input field
+
+---
+ .../Sources/MediaPickerScreen.swift           | 19 +++++++++++++++++++
+ .../Chat/ChatTextInputPanelNode/BUILD         |  2 ++
+ .../Sources/ChatTextInputPanelNode.swift      | 17 ++++++++++++++++-
+ .../Sources/ChatControllerNode.swift          | 12 +++++++++++-
+ .../ChatControllerOpenAttachmentMenu.swift    | 11 +++++++++++
+ 5 files changed, 59 insertions(+), 2 deletions(-)
+
+diff --git a/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift b/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift
++++ b/submodules/MediaPickerUI/Sources/MediaPickerScreen.swift
+@@ -257,6 +257,12 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+     public var openAvatarEditor: () -> Void = {}
+     
+     private var completed = false
++    // feature__composer-attachments: set when the picker runs on the input field's own contexts;
++    // a plain send then only closes it, handing back what its caption field holds.
++    public var clearRouteToComposer: ((NSAttributedString?) -> Void)?
++    // ...and a send that still goes out from here (silent, scheduled, as file) empties the field it
++    // shares the selection with.
++    public var clearSentDirectly: (() -> Void)?
+     public var legacyCompletion: (_ fromGallery: Bool, _ signals: [Any], _ silently: Bool, _ scheduleTime: Int32?, ChatSendMessageActionSheetController.SendParameters?, @escaping (String) -> UIView?, @escaping () -> Void) -> Void = { _, _, _, _, _, _, _ in }
+     
+     public var requestAttachmentMenuExpansion: () -> Void = { }
+@@ -1490,6 +1496,18 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+             }
+             controller.dismissAllTooltips()
+             
++            if let route = controller.clearRouteToComposer, !asFile, !asRoundVideo, !silently, scheduleTime == nil, let editingState = controller.interaction?.editingState {
++                controller.completed = true
++                route(clearCurrentCaption(editingState))
++                completion()
++                controller.dismiss(animated: animated)
++                Queue.mainQueue().after(1.5) {
++                    controller.isDismissing = false
++                    controller.completed = false
++                }
++                return
++            }
++            
+             var parameters = parameters
+             if parameters == nil {
+                 var textIsAboveMedia = false
+@@ -1530,6 +1548,7 @@ public final class MediaPickerScreenImpl: ViewController, MediaPickerScreen, Att
+                     completion()
+                     self?.controller?.dismiss(animated: animated)
+                 })
++                controller.clearSentDirectly?()
+                 
+                 Queue.mainQueue().after(1.5) {
+                     controller.isDismissing = false
+diff --git a/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/BUILD b/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/BUILD
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/BUILD
++++ b/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/BUILD
+@@ -68,6 +68,8 @@ swift_library(
+         "//submodules/TelegramUI/Components/StarsParticleEffect",
+         "//submodules/TelegramUI/Components/Calls/VideoChatMicButtonComponent",
+         "//submodules/TelegramUI/Components/RichTextEditor:RichTextEditorUIKit",
++        "//submodules/LegacyComponents",
++        "//submodules/TelegramUIPreferences",
+     ],
+     visibility = [
+         "//visibility:public",
+diff --git a/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/ChatTextInputPanelNode.swift b/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/ChatTextInputPanelNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/ChatTextInputPanelNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/ChatTextInputPanelNode.swift
+@@ -276,6 +276,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
+     
+     public let attachmentButton: HighlightTrackingButton
+     public let attachmentButtonBackground: GlassBackgroundView
++    public let clearComposer = ClearComposerPanel()
+     private let attachmentButtonIcon: UIImageView
+     private var commentsButtonIcon: RasterizedCompositionMonochromeLayer?
+     private var commentsButtonCenterIcon: UIImageView?
+@@ -917,6 +918,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
+         }
+         
+         self.attachmentButton.addTarget(self, action: #selector(self.attachmentButtonPressed), for: .touchUpInside)
++        self.clearComposer.install(panel: self)
+         self.attachmentButton.highligthedChanged = { [weak self] highlighted in
+             if let self {
+                 if highlighted {
+@@ -1811,7 +1813,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
+             }
+         }
+         
+-        let inputHasText = !(self.richTextInputNode?.inputContentIsEmpty ?? true)
++        let inputHasText = !(self.richTextInputNode?.inputContentIsEmpty ?? true) || self.clearComposer.hasItems
+         
+         var hasMenuButton = false
+         var menuButtonExpanded = false
+@@ -3094,6 +3096,8 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
+             contentHeight += accessoryPanelSize.height
+         }
+         
++        contentHeight += self.clearComposer.layoutStrip(container: self.textInputContainerBackgroundView.contentView, y: contentHeight, width: textInputWidth, theme: interfaceState.theme, transition: transition)
++        
+         if let _ = interfaceState.interfaceState.mediaDraftState {
+             let mediaPreviewPanelFrame = CGRect(origin: CGPoint(x: 0.0, y: contentHeight), size: CGSize(width: textInputWidth - effectiveActionButtonsSize.width - 8.0, height: 40.0))
+             var mediaPreviewPanelTransition = transition
+@@ -5639,6 +5643,17 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
+         }
+     }
+ 
++    public var clearAttachmentButtonIcon: UIView {
++        return self.attachmentButtonIcon
++    }
++    
++    public var clearAttachButtonIsPlain: Bool {
++        guard let interfaceState = self.presentationInterfaceState, self.customLeftAction == nil, interfaceState.interfaceState.mediaDraftState == nil, interfaceState.editMessageState == nil else {
++            return false
++        }
++        return true
++    }
++    
+     @objc func attachmentButtonPressed() {
+         if let presentationInterfaceState = self.presentationInterfaceState, presentationInterfaceState.interfaceState.mediaDraftState != nil {
+             self.viewOnce = false
+diff --git a/submodules/TelegramUI/Sources/ChatControllerNode.swift b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatControllerNode.swift
++++ b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+@@ -976,7 +976,8 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+                         guard let self else {
+                             return
+                         }
+-                        if let _ = self.chatPresentationInterfaceState.sendPaidMessageStars {
++                        // With attachments the media path asks for the price itself, per item.
++                        if let _ = self.chatPresentationInterfaceState.sendPaidMessageStars, self.textInputPanelNode?.clearComposer.hasItems != true {
+                             var count: Int32
+                             if let forwardedCount = self.chatPresentationInterfaceState.interfaceState.forwardMessageIds?.count, forwardedCount > 0 {
+                                 count = Int32(forwardedCount)
+@@ -1003,6 +1004,9 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+         self.textInputPanelNode?.displayAttachmentMenu = { [weak self] in
+             self?.displayAttachmentMenu()
+         }
++        if let textInputPanelNode = self.textInputPanelNode {
++            controller?.clearInstallComposerAttachments(panel: textInputPanelNode)
++        }
+         self.textInputPanelNode?.updateActivity = { [weak self] in
+             self?.updateTypingActivity(true)
+         }
+@@ -2434,6 +2438,7 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+         if let bottomBackgroundEdgeEffectNode {
+             var blurFrame = inputBackgroundFrame
+             blurFrame.origin.y -= 20.0
++            blurFrame.origin.y += self.textInputPanelNode?.clearComposer.stripHeight ?? 0.0
+             blurFrame.size.height = max(100.0, layout.size.height - blurFrame.origin.y)
+             transition.updateFrame(node: bottomBackgroundEdgeEffectNode, frame: blurFrame)
+             bottomBackgroundEdgeEffectNode.update(
+@@ -4930,6 +4935,11 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+                 effectiveInputText = expandedInputStateAttributedString(effectivePresentationInterfaceState.interfaceState.composeInputState.inputText)
+             }
+             effectiveInputText = ClearURLCleaner.clean(text: effectiveInputText, strip: ClearConfig.stripTrackingParams, replace: ClearConfig.replacePreviewLinks)
++            if textInputPanelNode.clearComposer.hasItems, let controller = self.controller {
++                controller.clearSendComposerAttachments(panel: textInputPanelNode, caption: effectiveInputText, silentPosting: silentPosting ?? false, scheduleTime: scheduleTime)
++                completion()
++                return
++            }
+ 
+             // Rich-message routing: new messages only (editMessage == nil), structural content the entity
+             // set can't express (heading/list/table/media), and non-empty. Entity-expressible content
+diff --git a/submodules/TelegramUI/Sources/ChatControllerOpenAttachmentMenu.swift b/submodules/TelegramUI/Sources/ChatControllerOpenAttachmentMenu.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Sources/ChatControllerOpenAttachmentMenu.swift
++++ b/submodules/TelegramUI/Sources/ChatControllerOpenAttachmentMenu.swift
+@@ -1584,6 +1584,7 @@ extension ChatControllerImpl {
+         if let cachedData = self.contentData?.state.peerView?.cachedData as? CachedChannelData, cachedData.flags.contains(.paidMediaAllowed) {
+             paidMediaAllowed = true
+         }
++        let clearComposer = self.clearComposerForPicker(subject: subject)
+         let controller = MediaPickerScreenImpl(
+             context: self.context,
+             updatedPresentationData: self.updatedPresentationData,
+@@ -1599,8 +1600,18 @@ extension ChatControllerImpl {
+             paidMediaAllowed: paidMediaAllowed,
+             subject: subject,
+             sendPaidMessageStars: self.presentationInterfaceState.sendPaidMessageStars?.value,
++            editingContext: clearComposer?.editingContext,
++            selectionContext: clearComposer?.selectionContext,
+             saveEditedPhotos: saveEditedPhotos
+         )
++        if let clearComposer {
++            controller.clearRouteToComposer = { [weak self] caption in
++                self?.clearPickerRoutedToComposer(caption: caption)
++            }
++            controller.clearSentDirectly = { [weak clearComposer] in
++                clearComposer?.clear()
++            }
++        }
+         controller.openBoost = { [weak self, weak controller] in
+             if let self {
+                 controller?.dismiss()

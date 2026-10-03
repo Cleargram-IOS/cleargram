@@ -33,7 +33,26 @@ public enum ClearConfig {
             // mirror rather than a ClearConfig lookup — and `update` notifies every live renderer,
             // which is what makes a change audible on the track already playing.
             ClearEqualizer.update(equalizerState(value))
+            mirrorEdgeEffects(value)
         })
+    }
+
+    // The edge effects are read in Display (`ClearEdgeEffects`), which this module cannot see, so
+    // the effective values go across through UserDefaults: key `cleargram.edgeEffects`, four bools
+    // in the order top dimming, top blur, bottom dimming, bottom blur. The master toggle folds in
+    // here. Written only on a real change, so unrelated toggles do not ping every reader.
+    private static func mirrorEdgeEffects(_ settings: ClearConfigSettings) {
+        let all = settings.disableChatEdgeEffect
+        let encoded = [
+            all || settings.hideTopEdgeDimming,
+            all || settings.hideTopEdgeBlur,
+            all || settings.hideBottomEdgeDimming,
+            all || settings.hideBottomEdgeBlur
+        ]
+        let key = "cleargram.edgeEffects"
+        if (UserDefaults.standard.array(forKey: key) as? [Bool]) != encoded {
+            UserDefaults.standard.set(encoded, forKey: key)
+        }
     }
 
     public static func current() -> ClearConfigSettings {
@@ -150,6 +169,10 @@ public enum ClearConfig {
     public static var showContactAddedYouBadge: Bool { current().showContactAddedYouBadge }
     public static var showGroupAdmins: Bool { current().showGroupAdmins }
     public static var disableChatEdgeEffect: Bool { current().disableChatEdgeEffect }
+    public static var hideTopEdgeDimming: Bool { current().hideTopEdgeDimming }
+    public static var hideTopEdgeBlur: Bool { current().hideTopEdgeBlur }
+    public static var hideBottomEdgeDimming: Bool { current().hideBottomEdgeDimming }
+    public static var hideBottomEdgeBlur: Bool { current().hideBottomEdgeBlur }
     public static var showTrackCacheStatus: Bool { current().showTrackCacheStatus }
     public static var unloadTrackFromCache: Bool { current().unloadTrackFromCache }
     public static var downloadPlaylist: Bool { current().downloadPlaylist }
@@ -157,6 +180,8 @@ public enum ClearConfig {
     public static var legacyDesign: Bool { current().legacyDesign }
     public static var disableMediaSpoilers: Bool { current().disableMediaSpoilers }
     public static var searchHiddenMembers: Bool { current().searchHiddenMembers }
+    public static var composerAttachments: Bool { current().composerAttachments }
+    public static var quickAttachCamera: Bool { current().quickAttachCamera }
     // What the audio renderer actually consumes. Kept next to the raw accessors so the screen and
     // the renderer can never disagree about how the three fields combine.
     public static func equalizerState(_ settings: ClearConfigSettings) -> ClearEqualizer.State {

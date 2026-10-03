@@ -121,8 +121,24 @@ public struct ClearConfigSettings: Codable, Equatable {
     // Remove the top/bottom edge dimming (the gradient/blur `WallpaperEdgeEffectNode` overlays that
     // fade the chat wallpaper under the nav bar and above the input panel). Presentation-only.
     public var disableChatEdgeEffect: Bool
+    // Per-edge parts of the screen-edge effects — the dimming gradient and the variable blur, top
+    // and bottom — on every screen that draws them, not only in chats. `disableChatEdgeEffect` is
+    // the master: it removes all four (and, in chats, the edge nodes themselves) while leaving
+    // these values as they are, so switching it back restores the chosen combination.
+    public var hideTopEdgeDimming: Bool
+    public var hideTopEdgeBlur: Bool
+    public var hideBottomEdgeDimming: Bool
+    public var hideBottomEdgeBlur: Bool
     public var disableMediaSpoilers: Bool
     public var searchHiddenMembers: Bool
+    // Media picked for a message waits as thumbnails inside the input field and goes out with the
+    // text as its caption, instead of the picker sending at once. Long-pressing the paperclip fans
+    // out the latest photos. Held in memory per open chat only: drafts sync through the server and
+    // cannot carry local media.
+    public var composerAttachments: Bool
+    // A live viewfinder as the first card of that fan. Starts the camera on touch-down of the
+    // paperclip, so the system camera indicator lights up even for a plain tap.
+    public var quickAttachCamera: Bool
     // Show a cache-state indicator next to the track title in the music player and both mini
     // panels — a ring with a download arrow, a progress arc, or a tick. Presentation-only.
     public var showTrackCacheStatus: Bool
@@ -226,8 +242,14 @@ public struct ClearConfigSettings: Codable, Equatable {
             showContactAddedYouBadge: false,
             showGroupAdmins: false,
             disableChatEdgeEffect: false,
+            hideTopEdgeDimming: false,
+            hideTopEdgeBlur: false,
+            hideBottomEdgeDimming: false,
+            hideBottomEdgeBlur: false,
             disableMediaSpoilers: false,
             searchHiddenMembers: false,
+            composerAttachments: false,
+            quickAttachCamera: false,
             showTrackCacheStatus: false,
             unloadTrackFromCache: false,
             downloadPlaylist: false,
@@ -324,8 +346,14 @@ public struct ClearConfigSettings: Codable, Equatable {
         showContactAddedYouBadge: Bool = false,
         showGroupAdmins: Bool = false,
         disableChatEdgeEffect: Bool = false,
+        hideTopEdgeDimming: Bool = false,
+        hideTopEdgeBlur: Bool = false,
+        hideBottomEdgeDimming: Bool = false,
+        hideBottomEdgeBlur: Bool = false,
         disableMediaSpoilers: Bool = false,
         searchHiddenMembers: Bool = false,
+        composerAttachments: Bool = false,
+        quickAttachCamera: Bool = false,
         showTrackCacheStatus: Bool = false,
         unloadTrackFromCache: Bool = false,
         downloadPlaylist: Bool = false,
@@ -419,8 +447,14 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.showContactAddedYouBadge = showContactAddedYouBadge
         self.showGroupAdmins = showGroupAdmins
         self.disableChatEdgeEffect = disableChatEdgeEffect
+        self.hideTopEdgeDimming = hideTopEdgeDimming
+        self.hideTopEdgeBlur = hideTopEdgeBlur
+        self.hideBottomEdgeDimming = hideBottomEdgeDimming
+        self.hideBottomEdgeBlur = hideBottomEdgeBlur
         self.disableMediaSpoilers = disableMediaSpoilers
         self.searchHiddenMembers = searchHiddenMembers
+        self.composerAttachments = composerAttachments
+        self.quickAttachCamera = quickAttachCamera
         self.showTrackCacheStatus = showTrackCacheStatus
         self.unloadTrackFromCache = unloadTrackFromCache
         self.downloadPlaylist = downloadPlaylist
@@ -456,8 +490,10 @@ public struct ClearConfigSettings: Codable, Equatable {
         case showContactAddedYouBadge
         case showGroupAdmins
         case disableChatEdgeEffect
+        case hideTopEdgeDimming, hideTopEdgeBlur, hideBottomEdgeDimming, hideBottomEdgeBlur
         case disableMediaSpoilers
         case searchHiddenMembers
+        case composerAttachments, quickAttachCamera
         case showTrackCacheStatus
         case unloadTrackFromCache
         case downloadPlaylist, playlistDownloadLimit
@@ -556,8 +592,14 @@ public struct ClearConfigSettings: Codable, Equatable {
         self.showContactAddedYouBadge = try c.decodeIfPresent(Bool.self, forKey: .showContactAddedYouBadge) ?? false
         self.showGroupAdmins = try c.decodeIfPresent(Bool.self, forKey: .showGroupAdmins) ?? false
         self.disableChatEdgeEffect = try c.decodeIfPresent(Bool.self, forKey: .disableChatEdgeEffect) ?? false
+        self.hideTopEdgeDimming = try c.decodeIfPresent(Bool.self, forKey: .hideTopEdgeDimming) ?? false
+        self.hideTopEdgeBlur = try c.decodeIfPresent(Bool.self, forKey: .hideTopEdgeBlur) ?? false
+        self.hideBottomEdgeDimming = try c.decodeIfPresent(Bool.self, forKey: .hideBottomEdgeDimming) ?? false
+        self.hideBottomEdgeBlur = try c.decodeIfPresent(Bool.self, forKey: .hideBottomEdgeBlur) ?? false
         self.disableMediaSpoilers = try c.decodeIfPresent(Bool.self, forKey: .disableMediaSpoilers) ?? false
         self.searchHiddenMembers = try c.decodeIfPresent(Bool.self, forKey: .searchHiddenMembers) ?? false
+        self.composerAttachments = try c.decodeIfPresent(Bool.self, forKey: .composerAttachments) ?? false
+        self.quickAttachCamera = try c.decodeIfPresent(Bool.self, forKey: .quickAttachCamera) ?? false
         self.showTrackCacheStatus = try c.decodeIfPresent(Bool.self, forKey: .showTrackCacheStatus) ?? false
         self.unloadTrackFromCache = try c.decodeIfPresent(Bool.self, forKey: .unloadTrackFromCache) ?? false
         self.downloadPlaylist = try c.decodeIfPresent(Bool.self, forKey: .downloadPlaylist) ?? false

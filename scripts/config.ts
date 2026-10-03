@@ -100,6 +100,12 @@ export const forkSyncDirs: ForkSyncDir[] = [
     source: 'src/swift/ClearGram/LocalAudioTranscription',
     target: 'submodules/Media/LocalAudioTranscription/Sources/ClearGram',
   },
+  // Attachments in the input field: the thumbnail strip and the quick-attach fan are drawn inside
+  // the glass input panel and reach its private layout only through the panel's own module.
+  {
+    source: 'src/swift/ClearGram/ChatTextInputPanelNode',
+    target: 'submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode/Sources/ClearGram',
+  },
   // The legacy tab bar drives `TabBarNode`, which is internal to TabBarUI, so its wrapper has to
   // be inside that module. The BUILD globs Sources/** and already depends on Display and
   // TelegramPresentationData, which is everything the wrapper needs.

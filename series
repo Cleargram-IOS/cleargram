@@ -68,3 +68,4 @@ feature/legacy-design.patch
 feature/disable-media-spoilers.patch
 feature/player-track-cache.patch
 feature/search-hidden-authors.patch
+feature/composer-attachments.patch

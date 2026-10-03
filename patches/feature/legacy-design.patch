@@ -195,7 +195,7 @@ diff --git a/submodules/TelegramUI/Components/EdgeEffect/Sources/EdgeEffect.swif
 index 0000000..0000000 100644
 --- a/submodules/TelegramUI/Components/EdgeEffect/Sources/EdgeEffect.swift
 +++ b/submodules/TelegramUI/Components/EdgeEffect/Sources/EdgeEffect.swift
-@@ -619,7 +619,7 @@ public final class VariableBlurEffect {
+@@ -622,7 +622,7 @@ public final class VariableBlurEffect {
          self.isTransparent = isTransparent
          self.maxBlurRadius = maxBlurRadius
          
