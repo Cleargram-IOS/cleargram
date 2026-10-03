@@ -29,6 +29,7 @@ public enum ClearConfig {
             // so the square-video-message toggle can only reach it through ClearHooks.
             _ = ClearHooks.roundVideoKeepCorners.swap(value.roundVideoKeepCorners)
             _ = ClearHooks.improveRoundVideoQuality.swap(value.improveRoundVideoQuality)
+            _ = ClearHooks.videoMessagePhoneMic.swap(value.videoCircleAudioSource)
             // The equalizer is read from the audio renderer's own queue, so it gets its own
             // mirror rather than a ClearConfig lookup — and `update` notifies every live renderer,
             // which is what makes a change audible on the track already playing.

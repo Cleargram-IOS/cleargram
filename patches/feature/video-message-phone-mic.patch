@@ -1,0 +1,93 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Asya Medvedeva <asya_bububu@proton.me>
+Date: Sun, 4 Oct 2026 00:11:40 +0200
+Subject: Record video messages with the phone mic
+
+---
+ .../TelegramAudio/Sources/ManagedAudioSession.swift   | 11 +++++++++++
+ .../State/SynchronizeChatInputStateOperation.swift    |  4 ++++
+ .../Sources/VideoMessageCameraScreen.swift            |  8 +++++++-
+ 3 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/submodules/TelegramAudio/Sources/ManagedAudioSession.swift b/submodules/TelegramAudio/Sources/ManagedAudioSession.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramAudio/Sources/ManagedAudioSession.swift
++++ b/submodules/TelegramAudio/Sources/ManagedAudioSession.swift
+@@ -281,6 +281,11 @@ public var sharedManagedAudioSession: ManagedAudioSession? {
+ }
+ 
+ public final class ManagedAudioSessionImpl: NSObject, ManagedAudioSession {
++    // Cleargram: while set, a `.record` session leaves Bluetooth in A2DP and takes the phone's own
++    // mic, so music on a car or headphones keeps playing at full quality. Set by the video message
++    // screen for its lifetime (see `feature__video-message-phone-mic`).
++    public static let clearPhoneMicRecording = Atomic<Bool>(value: false)
++
+     private var nextId: Int32 = 0
+     private let queue: Queue
+     private let hasLoudspeaker: Bool
+@@ -893,6 +898,9 @@ public final class ManagedAudioSessionImpl: NSObject, ManagedAudioSession {
+                         options.insert(.mixWithOthers)
+                     }
+                 }
++                if case let .record(_, _, mixWithOthers) = type, ManagedAudioSessionImpl.clearPhoneMicRecording.with({ $0 }) {
++                    options = mixWithOthers ? [.allowBluetoothA2DP, .mixWithOthers] : [.allowBluetoothA2DP]
++                }
+                 managedAudioSessionLog("ManagedAudioSession setting category and options")
+                 let mode: AVAudioSession.Mode
+                 switch type {
+@@ -1107,6 +1115,9 @@ public final class ManagedAudioSessionImpl: NSObject, ManagedAudioSession {
+                     try AVAudioSession.sharedInstance().overrideOutputAudioPort(.none)
+             }
+         }
++        if case .record = type, ManagedAudioSessionImpl.clearPhoneMicRecording.with({ $0 }), let mic = AVAudioSession.sharedInstance().availableInputs?.first(where: { $0.portType == .builtInMic }) {
++            let _ = try? AVAudioSession.sharedInstance().setPreferredInput(mic)
++        }
+     }
+     
+     private func activate() {
+diff --git a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
++++ b/submodules/TelegramCore/Sources/State/SynchronizeChatInputStateOperation.swift
+@@ -18,6 +18,10 @@ public enum ClearHooks {
+     // ClearConfig.improveRoundVideoQuality, read from the Camera module which can't see
+     // TelegramUIPreferences.
+     public static let improveRoundVideoQuality = Atomic<Bool>(value: false)
++    // Record кружки with the phone's mic and keep Bluetooth music in A2DP. Mirror of
++    // ClearConfig.videoCircleAudioSource for VideoMessageCameraScreen, which can't see
++    // TelegramUIPreferences.
++    public static let videoMessagePhoneMic = Atomic<Bool>(value: false)
+ }
+ 
+ // Cleargram: the cap passed to `removeTailIfCountExceeds` for the cloud recent-sticker list.
+diff --git a/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift b/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
+index 0000000..0000000 100644
+--- a/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
++++ b/submodules/TelegramUI/Components/VideoMessageCameraScreen/Sources/VideoMessageCameraScreen.swift
+@@ -1835,6 +1835,7 @@ public class VideoMessageCameraScreen: ViewController {
+     
+     deinit {
+         self.audioSessionDisposable?.dispose()
++        let _ = ManagedAudioSessionImpl.clearPhoneMicRecording.swap(false)
+     }
+ 
+     override public func loadDisplayNode() {
+@@ -2114,12 +2115,17 @@ public class VideoMessageCameraScreen: ViewController {
+     }
+     
+     private func requestAudioSession() {
+-        let audioSessionType: ManagedAudioSessionType
++        var audioSessionType: ManagedAudioSessionType
+         if self.context.sharedContext.currentMediaInputSettings.with({ $0 }).pauseMusicOnRecording { 
+             audioSessionType = .record(speaker: false, video: false, withOthers: false)
+         } else {
+             audioSessionType = .record(speaker: false, video: false, withOthers: true)
+         }
++        let clearPhoneMic = ClearHooks.videoMessagePhoneMic.with({ $0 })
++        let _ = ManagedAudioSessionImpl.clearPhoneMicRecording.swap(clearPhoneMic)
++        if clearPhoneMic {
++            audioSessionType = .record(speaker: false, video: false, withOthers: true)
++        }
+       
+         self.audioSessionDisposable = self.context.sharedContext.mediaManager.audioSession.push(audioSessionType: audioSessionType, activate: { [weak self] _ in
+             if let self {

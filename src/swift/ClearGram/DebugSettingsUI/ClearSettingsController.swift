@@ -1216,13 +1216,6 @@ private func clearMediaScreen() -> ClearScreen {
             rows: [
                 .toggle(ClearToggle(L("Send Video as Video Message", "Отправить видео как кружок"), .config(\.sendVideoAsCircle))),
                 .toggle(ClearToggle.soon(
-                    L("Audio Source for Video Messages", "Источник звука для видеосообщений"),
-                    L(
-                        "Planned: record through a Bluetooth or external mic.",
-                        "В планах: запись через Bluetooth- или внешний микрофон."
-                    )
-                )),
-                .toggle(ClearToggle.soon(
                     L("Original Video Quality", "Исходное качество видео"),
                     L("Planned: send a video without re-encoding.", "В планах: отправлять видео без перекодирования.")
                 ))
@@ -1242,6 +1235,14 @@ private func clearMediaScreen() -> ClearScreen {
                 .toggle(ClearToggle(
                     L("60 fps", "60 fps"),
                     .config(\.improveRoundVideoQuality)
+                )),
+                .toggle(ClearToggle(
+                    L("Phone Microphone", "Микрофон телефона"),
+                    .config(\.videoCircleAudioSource),
+                    subtitle: { _ in L(
+                        "Music on Bluetooth keeps playing at full quality; it gets into the video only through the phone's mic.",
+                        "Музыка по Bluetooth не прерывается и не теряет качество; в кружок она попадает только через микрофон телефона."
+                    ) }
                 ))
             ]
         ),
